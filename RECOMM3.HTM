@@ -125,7 +125,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
 
 .field-label {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -404,6 +404,59 @@ const IconInfo = (p) => (
     <circle cx="12" cy="7.8" r="0.8" fill="currentColor" stroke="none" />
   </Icon>
 );
+const IconInfoFilled = ({ size = 14, style = {}, title: tipText, ...rest }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, cursor: "help", ...style }} {...rest}>
+    {tipText && <title>{tipText}</title>}
+    <circle cx="10" cy="10" r="10" fill="currentColor" />
+    <rect x="9.1" y="9" width="1.8" height="5.5" rx="0.9" fill="white" />
+    <circle cx="10" cy="6.5" r="1.1" fill="white" />
+  </svg>
+);
+const InfoTooltip = ({ tip, size = 13, style = {} }) => {
+  const [visible, setVisible] = React.useState(false);
+  const [below, setBelow] = React.useState(false);
+  const ref = React.useRef(null);
+  const handleEnter = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setBelow(rect.top < window.innerHeight / 2);
+    }
+    setVisible(true);
+  };
+  return (
+    <span ref={ref} style={{ position: "relative", display: "inline-flex", alignItems: "center", flexShrink: 0, ...style }}
+      onMouseEnter={handleEnter} onMouseLeave={() => setVisible(false)}>
+      <IconInfoFilled size={size} style={{ color: "var(--t-4)" }} />
+      {visible && (
+        <span style={{
+          position: "absolute",
+          ...(below
+            ? { top: "calc(100% + 6px)", bottom: "auto" }
+            : { bottom: "calc(100% + 6px)", top: "auto" }),
+          left: "50%", transform: "translateX(-50%)",
+          background: "#101828", color: "#fff",
+          fontSize: 12.5, lineHeight: 1.5, fontWeight: 400,
+          padding: "7px 10px", borderRadius: 6,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.22)",
+          width: 230, whiteSpace: "normal",
+          zIndex: 9999, pointerEvents: "none",
+        }}>
+          {tip}
+          {/* Arrow pointing toward the icon */}
+          <span style={{
+            position: "absolute",
+            ...(below
+              ? { bottom: "100%", top: "auto", borderBottom: "5px solid #101828", borderTop: "none" }
+              : { top: "100%", bottom: "auto", borderTop: "5px solid #101828", borderBottom: "none" }),
+            left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
+          }} />
+        </span>
+      )}
+    </span>
+  );
+};
 
 const IconTarget = (p) => (
   <Icon {...p}>
@@ -449,13 +502,19 @@ const IconPencil = (p) => (
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
   </Icon>
 );
+const IconSearch = (p) => (
+  <Icon strokeWidth={1.8} {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M16.5 16.5l4 4" />
+  </Icon>
+);
 
 Object.assign(window, {
   Icon,
   IconAlert, IconX, IconCheck, IconChevDown, IconChevRight, IconChevUp, IconPlus,
   IconClock, IconBundle, IconStar, IconGear, IconDoc, IconImage, IconDollar, IconTrash,
   IconCar, IconCart, IconMessage, IconPhone, IconCalendar, IconPlay, IconVideo,
-  IconInfo, IconTarget, IconShield, IconArrowRight, IconMove, IconEye, IconLink, IconPencil,
+  IconInfo, IconTarget, IconShield, IconArrowRight, IconMove, IconEye, IconLink, IconPencil, IconSearch,
 });
 
 /* Reclink — Itemized parts table (used inside the rec editor accordion) */
@@ -926,10 +985,9 @@ const NumericGradeScale = ({ value, onPick, max = 10, gradeOf = defaultGradeOf }
   );
 };
 
-const InspectionResultSection = ({ status, onStatus, limitToFailCaution = false }) => (
-  <div style={{ padding: "0" }}>
-    <label className="field-label" style={{ marginBottom: 6 }}>Inspection result</label>
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+const InspectionResultSection = ({ status, onStatus, limitToFailCaution = false, naked = false }) => {
+  const inner = (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", ...(naked ? {} : { background: "var(--bg-cream-soft)", border: "1px solid var(--b-1)", borderRadius: 6, padding: "8px 10px" }) }}>
       <GradeStatusBtn kind="fail"    label="Fail"    active={status === "fail"}    onClick={() => onStatus("fail")} />
       <GradeStatusBtn kind="caution" label="Caution" active={status === "caution"} onClick={() => onStatus("caution")} />
       {!limitToFailCaution && <>
@@ -939,8 +997,9 @@ const InspectionResultSection = ({ status, onStatus, limitToFailCaution = false 
         <GradeStatusBtn kind="ni" label="Not inspected" active={status === "ni"} onClick={() => onStatus("ni")} />
       </>}
     </div>
-  </div>
-);
+  );
+  return naked ? inner : <div style={{ padding: "0" }}>{inner}</div>;
+};
 
 // ── Tire tread depth: a 4-position numeric-grade grid, reused on the MPI page
 // and inside the modal so the readings stay consistent.
@@ -988,8 +1047,8 @@ const TireTreadGrid = ({ readings = {}, onChange, unit = "mm", max = 10, columns
   </div>
 );
 
-const TireTreadSection = ({ readings, onChange, unit = "mm" }) => (
-  <div style={{
+const TireTreadSection = ({ readings, onChange, unit = "mm", naked = false }) => (
+  <div style={naked ? {} : {
     border: "1px solid var(--b-1)", borderRadius: 8,
     background: "var(--bg-cream-soft)", padding: "12px 14px",
   }}>
@@ -1165,8 +1224,8 @@ const ConcernDropdown = ({ value, onChange, groups: customGroups, highlight, nam
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div title="Linked concern — use Link to a concern to change" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", boxSizing: "border-box", cursor: "default" }}>
-            {selected.type !== "ungrouped" && <span className={`pill ${selected.type}`}>{selected.typeLabel}</span>}
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.title}</span>
+            {selected.type !== "ungrouped" && !!selected.typeLabel && <span className={`pill ${selected.type}`}>{selected.typeLabel}</span>}
+            <span style={{ fontSize: 14, fontWeight: 600, color: selected.id === "__unlinked__" ? "var(--t-4)" : "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.title}</span>
           </div>
           <button
             onClick={() => { if (!open) { setSearch(""); setViaButton(true); } setOpen(!open); }}
@@ -1366,6 +1425,95 @@ const BundleSection = () => {
   );
 };
 
+// ── Search field that queries form/inspection items by name.
+// Shows full list on focus; filters as you type; highlights matching letters.
+// linkedLabel: if provided, shows a "Use linked concern" shortcut at the top.
+const FormItemSearchField = ({ value = "", onChange, formItems = [], placeholder = "Search for a concern", linkedLabel = "", autoOpen = false }) => {
+  const [query, setQuery] = React.useState(value);
+  const [open, setOpen] = React.useState(autoOpen);
+  const wrapRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+  React.useEffect(() => { if (autoOpen) inputRef.current?.focus(); }, []);
+
+  React.useEffect(() => { setQuery(value); }, [value]);
+
+  React.useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return formItems;
+    return formItems.filter(item => item.name.toLowerCase().includes(q));
+  }, [query, formItems]);
+
+  // Wrap matching substring in a highlight span
+  const highlight = (text, q) => {
+    if (!q.trim()) return <span>{text}</span>;
+    const idx = text.toLowerCase().indexOf(q.toLowerCase().trim());
+    if (idx === -1) return <span>{text}</span>;
+    const len = q.trim().length;
+    return (
+      <span>
+        {text.slice(0, idx)}
+        <mark style={{ background: "var(--yellow-100)", color: "var(--yellow-700)", borderRadius: 2, padding: "0 1px", fontWeight: 700 }}>{text.slice(idx, idx + len)}</mark>
+        {text.slice(idx + len)}
+      </span>
+    );
+  };
+
+  const statusColors = {
+    fail:    { bg: "var(--red-100)",    t: "var(--red-700)",    label: "Fail" },
+    caution: { bg: "var(--yellow-100)", t: "var(--yellow-700)", label: "Caution" },
+    pass:    { bg: "var(--green-100)",  t: "var(--green-700)",  label: "Pass" },
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
+        <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--t-4)", pointerEvents: "none", display: "flex" }}>
+          <IconSearch size={14} />
+        </span>
+        <input
+          ref={inputRef}
+          className="input"
+          value={query}
+          placeholder={placeholder}
+          onFocus={() => setOpen(true)}
+          onChange={e => { setQuery(e.target.value); onChange && onChange(e.target.value, null); }}
+          style={{ paddingLeft: 32, height: 36 }}
+        />
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 400,
+          background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 7,
+          boxShadow: "var(--shadow-modal)", maxHeight: 240, overflowY: "auto",
+        }} className="scrollable">
+          {filtered.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: 13.5, color: "var(--t-4)" }}>No matches</div>
+          ) : filtered.map(item => (
+            <div
+              key={item.id}
+              onMouseDown={e => { e.preventDefault(); setQuery(item.name); onChange && onChange(item.name, item); setOpen(false); }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid var(--b-1)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--bg-cream)"}
+              onMouseLeave={e => e.currentTarget.style.background = ""}
+            >
+              <span style={{ fontSize: 13.5, color: "var(--t-1)" }}>{highlight(item.name, query)}</span>
+              {item.status && statusColors[item.status] && (
+                <span className="pill" style={{ background: statusColors[item.status].bg, color: statusColors[item.status].t, textTransform: "none", letterSpacing: 0.02, flexShrink: 0 }}>{statusColors[item.status].label}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const RecEditorModal = ({
   inspectionPoint = "Inspect brakes",
   inspectionDetail = "1mm front",
@@ -1381,6 +1529,10 @@ const RecEditorModal = ({
   mpiPoints = [],
   preLinked = false,
   isNewRec = false,
+  sourceType = null,
+  sourceConcernTitle = "",
+  allConcerns = [],
+  formItems = [],
   onTireReading,
   onSave,
   onClose,
@@ -1392,6 +1544,38 @@ const RecEditorModal = ({
   const [onboardingDone, setOnboardingDone] = React.useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = React.useState(false);
   const showOnboarding = !onboardingDone && !onboardingDismissed;
+
+  // ── New placement-section state (used when preLinked || lockedConcern)
+  const [newBannerDismissed, setNewBannerDismissed] = React.useState(false);
+  const [userPickedConcern, setUserPickedConcern] = React.useState(preLinked);
+  const [changingPlacement, setChangingPlacement] = React.useState(false);
+  const [placementDropdownOpen, setPlacementDropdownOpen] = React.useState(false);
+  const placementDropdownRef = React.useRef(null);
+  const [currentPlacementId, setCurrentPlacementId] = React.useState(defaultConcern);
+  const [customConcernName, setCustomConcernName] = React.useState("");
+  const [formItemQuery, setFormItemQuery] = React.useState(lockedConcern ? (inspectionPoint || "") : "");
+  // When editing from an ASC / lockedConcern flow, start in committed (locked) mode
+  const [formItemCommitted, setFormItemCommitted] = React.useState(
+    (preLinked && placementTitle) ? placementTitle
+    : (lockedConcern && inspectionPoint) ? inspectionPoint
+    : null
+  );
+  const [formItemCommittedId, setFormItemCommittedId] = React.useState(null);
+  const [formSearchKey, setFormSearchKey] = React.useState(0);
+
+  // Close placement dropdown on outside click
+  React.useEffect(() => {
+    const handler = (e) => { if (placementDropdownRef.current && !placementDropdownRef.current.contains(e.target)) setPlacementDropdownOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Derive display info for the PLACEMENT dropdown
+  const placementConcernObj = allConcerns.find(c => c.id === currentPlacementId);
+  const placementTypeStr = placementConcernObj ? (placementConcernObj.type === "occ" ? "occ" : "asc") : (sourceType || "asc");
+  const placementTypeLabel = placementTypeStr === "occ" ? "OCC" : "ASC";
+  const placementTitle = placementConcernObj ? placementConcernObj.title : (sourceConcernTitle || inspectionPoint || "");
+
   // When preLinked: show search bar (inputMode) + AddedToTag below with UNLINK
   const [concern, setConcern] = React.useState(preLinked ? "new-form-concern" : defaultConcern);
   const [concernManuallyLinked, setConcernManuallyLinked] = React.useState(preLinked);
@@ -1404,7 +1588,13 @@ const RecEditorModal = ({
   // When an MPI inspection point is chosen, mirror its result UI (tire grid vs status).
   const linkedPoint = (typeof concern === "string" && concern.indexOf("mpi:") === 0)
     ? mpiPoints.find((p) => ("mpi:" + p.id) === concern) || null : null;
+  // Also check the form item selected via "Copy fields from inspection"
+  const formLinkedPoint = formItemCommittedId
+    ? (formItems || []).find(p => p.id === formItemCommittedId) || null
+    : null;
   const isTire = linkedPoint ? linkedPoint.type === "tire" : !!tire;
+  // Separate flag: tire point selected via "Copy fields" (grid lives inside the top box, not below)
+  const copyFieldsIsTire = !!formLinkedPoint && formLinkedPoint.type === "tire";
   const [whatNeedsDone, setWhatNeedsDone] = React.useState(defaults.whatNeedsDone ?? "");
   const [opCode, setOpCode] = React.useState(defaults.opCode ?? "BRK-PAD-FR");
   const [laborType, setLaborType] = React.useState(defaults.laborType ?? "CP");
@@ -1430,11 +1620,17 @@ const RecEditorModal = ({
     if (linkedPoint.type === "tire") setTireReadings(linkedPoint.readings || {});
     else if (linkedPoint.status) setStatus(linkedPoint.status);
   }, [concern]);
+  // Mirror the "Copy fields from inspection" selected point.
+  React.useEffect(() => {
+    if (!formLinkedPoint) return;
+    if (formLinkedPoint.type === "tire") setTireReadings(formLinkedPoint.readings || {});
+    else if (formLinkedPoint.status) setStatus(formLinkedPoint.status);
+  }, [formItemCommittedId]);
   const handleTire = (pos, n) => {
     setTireReadings((r) => ({ ...r, [pos]: n }));
     onTireReading && onTireReading(pos, n);
   };
-  const effStatus = isTire ? tireWorstGrade(tireReadings) : status;
+  const effStatus = (isTire || copyFieldsIsTire) ? tireWorstGrade(tireReadings) : status;
 
   const total = (Number(labor) || 0) + (Number(parts) || 0) + (Number(misc) || 0);
 
@@ -1471,12 +1667,12 @@ const RecEditorModal = ({
       {/* Header */}
       <div style={{
         flexShrink: 0,
-        display: "flex", alignItems: "flex-start", gap: 12,
+        display: "flex", alignItems: "center", gap: 12,
         padding: "16px 24px",
         borderBottom: "1px solid var(--b-1)",
       }}>
         <div style={{
-          width: 30, height: 30, borderRadius: 999, flexShrink: 0, marginTop: 1,
+          width: 30, height: 30, borderRadius: 999, flexShrink: 0,
           background: "var(--red-100)",
           color: "var(--red-600)",
           display: "grid", placeItems: "center",
@@ -1484,8 +1680,8 @@ const RecEditorModal = ({
           <IconAlert size={16} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01 }}>Recommendation</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01 }}>{lockedConcern ? inspectionPoint : "Recommendation"}</span>
             {headStatus.label && (
               <span className="pill" style={{ background: headStatus.bg, color: headStatus.t, textTransform: "none", letterSpacing: 0.02, fontWeight: 600 }}>
                 {headStatus.label}
@@ -1510,109 +1706,243 @@ const RecEditorModal = ({
       </div>
 
       {/* Body */}
-      <div className="scrollable" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 24px 12px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="scrollable" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 24px 12px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-        {/* Concern */}
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <label className="field-label" style={{ display: "block", margin: 0, color: "var(--t-2)" }}>Concern</label>
-              <InfoTip text="The concern groups this recommendation and determines what the customer sees on their estimate. Every recommendation belongs to a concern — it can be an OCC (customer-reported issue), an ASC (shop-found), or a standalone." width={240} />
+        {/* Placement / Link to parent concern — redesigned for preLinked & lockedConcern flows */}
+        {/* Inspection result / Copy fields — varies by flow */}
+        {!isTire && (
+          lockedConcern ? (
+            /* MPI line-item flow: no Copy fields, just Inspection result with full buttons */
+            <div style={{ background: "var(--bg-cream-soft)", border: "1px solid var(--b-1)", borderRadius: 8, padding: "10px 12px" }}>
+              <label className="field-label" style={{ marginBottom: 8, display: "block" }}>Inspection result</label>
+              <InspectionResultSection status={status} onStatus={(s) => { setStatus(s); setDirty(true); }} naked />
             </div>
-            {lockedConcern && (
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.04, textTransform: "uppercase", color: "var(--t-3)" }}>Link to existing concern</span>
-                <InfoTip text="This recommendation comes from an inspection form, so its concern is set automatically. Use 'Link to a concern' to move it under a different concern — for example, under the customer's original reported issue." width={260} pos="left" />
+          ) : (
+            /* Normal / isNewRec flow: Copy fields + optional Fail/Caution */
+            <div style={{ display: "flex", flexDirection: "column", background: "var(--bg-cream-soft)", border: "1px solid var(--b-1)", borderRadius: 8 }}>
+              {/* Top row: Inspection result (left) + Copy fields (right) */}
+              <div style={{ display: "flex" }}>
+                {/* Left: Inspection result — hidden when a form item is committed OR when in "change" mode (formSearchKey > 0) */}
+                {!formItemCommitted && formSearchKey === 0 && (
+                <div style={{ padding: "10px 12px", flexShrink: 0, borderRight: "1px solid var(--b-1)", borderRadius: "8px 0 0 8px" }}>
+                  <label className="field-label" style={{ marginBottom: 8, display: "block" }}>Inspection result</label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <GradeStatusBtn kind="fail"    label="Fail"    active={status === "fail"}    onClick={() => { setStatus("fail");    setDirty(true); }} />
+                    <GradeStatusBtn kind="caution" label="Caution" active={status === "caution"} onClick={() => { setStatus("caution"); setDirty(true); }} />
+                  </div>
+                </div>
+                )}
+                {/* Right: Copy fields from inspection */}
+                <div style={{ flex: 1, padding: "10px 12px", minWidth: 0, position: "relative" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
+                    <label className="field-label" style={{ margin: 0 }}>Copy fields from inspection</label>
+                    <InfoTooltip tip="Search for an inspection question to pre-fill inspection fields and pull in additional data." />
+                  </div>
+                  {formItemCommitted ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, height: 34, padding: "0 10px 0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-white)" }}>
+                      <span style={{ flex: 1, fontSize: 14, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formItemCommitted}</span>
+                      <button
+                        onClick={() => { setFormItemCommitted(null); setFormItemQuery(""); setFormItemCommittedId(null); setFormSearchKey(k => k + 1); }}
+                        style={{ flexShrink: 0, height: 24, padding: "0 8px", background: "transparent", border: "1px solid var(--b-2)", borderRadius: 4, fontSize: 12, fontWeight: 600, color: "var(--blue-600)", cursor: "pointer" }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "var(--blue-25)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--b-2)"; }}
+                      >Change</button>
+                    </div>
+                  ) : (
+                    <FormItemSearchField
+                      key={formSearchKey}
+                      autoOpen={formSearchKey > 0}
+                      value={formItemQuery}
+                      onChange={(v, item) => {
+                        setFormItemQuery(v);
+                        if (item) {
+                          setFormItemCommitted(item.id === "__new_concern__" ? (v || "New concern") : v);
+                          setFormItemCommittedId(item.id !== "__new_concern__" ? item.id : null);
+                        }
+                      }}
+                      formItems={formItems}
+                      placeholder="Search for an inspection question"
+                    />
+                  )}
+                </div>
+              </div>
+              {/* Bottom expansion — tire grid or full status buttons, when a form item is committed */}
+              {formItemCommitted && (
+                <div style={{ borderTop: "1px solid var(--b-1)", padding: "10px 12px" }}>
+                  {copyFieldsIsTire ? (
+                    <TireTreadSection readings={tireReadings} onChange={handleTire} unit={formLinkedPoint?.unit || "mm"} naked />
+                  ) : (
+                    <InspectionResultSection
+                      status={status}
+                      onStatus={(s) => { setStatus(s); setDirty(true); }}
+                      naked
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        )}
+
+        {/* Concern picker — varies by flow */}
+        {(preLinked || lockedConcern || isNewRec) ? (
+          <div>
+            {/* Header label */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <label className="field-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
+                <IconLink size={12} style={{ color: "var(--t-4)", flexShrink: 0 }} />
+                {lockedConcern ? "Link to a parent concern" : "Link to existing concern"}
+              </label>
+              <InfoTooltip tip="Groups this rec under an existing concern so the customer sees them together. Leave unlinked to keep it standalone." />
+              {!isNewRec && (
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", background: "var(--blue-100)", color: "var(--blue-600)", padding: "1px 5px", borderRadius: 3 }}>NEW</span>
+              )}
+            </div>
+            {/* PLACEMENT: committed row only after user actively picks a different concern */}
+            {userPickedConcern && currentPlacementId !== "__unlinked__" && !changingPlacement ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, marginBottom: 8, padding: "8px 10px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6 }}>
+                <IconLink size={12} style={{ color: "var(--blue-500)", flexShrink: 0 }} />
+                <span style={{ color: "var(--t-3)" }}>Linked to</span>
+                <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ fontSize: 11 }}>{placementTypeLabel}</span>
+                <span style={{ color: "var(--t-1)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{placementTitle}</span>
+                <button
+                  onClick={() => { setChangingPlacement(true); setPlacementDropdownOpen(true); }}
+                  style={{ flexShrink: 0, padding: "2px 8px", height: 22, background: "transparent", border: "1px solid var(--b-2)", borderRadius: 4, color: "var(--t-3)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-1)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-3)"; }}
+                >Change</button>
+              </div>
+            ) : (
+              /* PLACEMENT dropdown — default state: always editable */
+              <div ref={placementDropdownRef} style={{ position: "relative", marginBottom: (isNewRec && currentPlacementId === "__unlinked__") ? 0 : 8, border: `1px solid ${placementDropdownOpen ? "var(--blue-500)" : "var(--b-2)"}`, borderRadius: 6, boxShadow: placementDropdownOpen ? "0 0 0 4px rgba(2,103,155,0.15)" : "none", transition: "border-color 120ms, box-shadow 120ms", background: "var(--bg-white)", animation: "placementGlow 2s ease-in-out 3" }}>
+                <button
+                  onClick={() => setPlacementDropdownOpen(v => !v)}
+                  style={{ width: "100%", height: 36, padding: "0 10px", background: "transparent", border: "none", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
+                >
+                  {currentPlacementId === "__unlinked__" ? (
+                    <>
+                      <span className="pill asc-cos" style={{ flexShrink: 0 }}>ASC</span>
+                      <span style={{ flex: 1, textAlign: "left", fontSize: 14, fontWeight: 500, color: "var(--t-1)" }}>New custom concern</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{placementTypeLabel}</span>
+                      <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14, fontWeight: 500, color: "var(--t-1)" }}>{placementTitle}</span>
+                        {lockedConcern && !userPickedConcern && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-4)", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 4, padding: "1px 6px" }}>current concern</span>}
+                      </span>
+                    </>
+                  )}
+                  <IconChevDown size={14} style={{ flexShrink: 0, color: "var(--t-3)" }} />
+                </button>
+                {placementDropdownOpen && allConcerns.length > 0 && (
+                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 300, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 7, boxShadow: "var(--shadow-modal)", maxHeight: 200, overflowY: "auto" }} className="scrollable">
+                    {(() => {
+                      const rows = [];
+                      let lastHeader = null;
+                      allConcerns.forEach(c => {
+                        const header = c.id === "__unlinked__" ? null
+                          : c.type === "occ" ? "Link to an original customer concern"
+                          : "Link to an additional service concern";
+                        if (header !== lastHeader) {
+                          lastHeader = header;
+                          if (header) rows.push(
+                            <div key={"hdr-" + header} style={{ padding: "6px 12px 3px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", borderTop: rows.length > 0 ? "1px solid var(--b-1)" : "none", marginTop: rows.length > 0 ? 4 : 0 }}>{header}</div>
+                          );
+                        }
+                        rows.push(
+                          <div
+                            key={c.id}
+                            onMouseDown={e => { e.preventDefault(); setCurrentPlacementId(c.id); setPlacementDropdownOpen(false); setChangingPlacement(false); setUserPickedConcern(true); }}
+                            style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", background: c.id === currentPlacementId ? "var(--blue-25)" : "" }}
+                            onMouseEnter={e => { if (c.id !== currentPlacementId) e.currentTarget.style.background = "var(--bg-cream)"; }}
+                            onMouseLeave={e => { if (c.id !== currentPlacementId) e.currentTarget.style.background = ""; }}
+                          >
+                            {c.id === "__unlinked__" ? (
+                              <><span className="pill asc-cos" style={{ flexShrink: 0 }}>ASC</span><span style={{ fontSize: 13.5, color: "var(--t-1)" }}>New custom concern</span></>
+                            ) : (
+                              <><span className={`pill ${c.type === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{c.type === "occ" ? "OCC" : "ASC"}</span><span style={{ fontSize: 13.5, color: "var(--t-1)" }}>{c.title}</span></>
+                            )}
+                          </div>
+                        );
+                      });
+                      return rows;
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+            {isNewRec && currentPlacementId === "__unlinked__" && (
+              <div style={{ display: "flex", gap: 8, marginTop: 2, marginBottom: 8, paddingLeft: 10 }}>
+                {/* └─ subdirectory indicator */}
+                <div style={{ width: 16, flexShrink: 0, display: "flex", flexDirection: "column" }}>
+                  <div style={{ flex: "0 0 20px", borderLeft: "1.5px solid var(--b-3)", borderBottom: "1.5px solid var(--b-3)", borderBottomLeftRadius: 3 }} />
+                </div>
+                <div style={{ flex: 1, paddingTop: 6 }}>
+                  <label className="field-label" style={{ marginBottom: 5, display: "block" }}>Name it</label>
+                  <input
+                    className="input"
+                    placeholder="e.g. Windshield replacement…"
+                    value={customConcernName}
+                    onChange={e => { setCustomConcernName(e.target.value); setDirty(true); }}
+                    style={{ width: "100%", height: 34, boxSizing: "border-box", fontSize: 14 }}
+                  />
+                </div>
+              </div>
+            )}
+            {!isNewRec && !newBannerDismissed && (
+              <div style={{ display: "flex", gap: 8, marginTop: 2, marginBottom: 8, paddingLeft: 10 }}>
+                {/* └─ subdirectory indicator */}
+                <div style={{ width: 16, flexShrink: 0, display: "flex", flexDirection: "column" }}>
+                  <div style={{ flex: "0 0 20px", borderLeft: "1.5px solid var(--b-3)", borderBottom: "1.5px solid var(--b-3)", borderBottomLeftRadius: 3 }} />
+                </div>
+                <div style={{ flex: 1, paddingTop: 4 }}>
+                  <div style={{ padding: "8px 12px", background: "var(--blue-25)", border: "1px solid var(--blue-100)", borderRadius: 7, display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 15, lineHeight: 1, color: "var(--yellow-600)" }}>✦</span>
+                    <span style={{ flex: 1, fontSize: 13.5, color: "var(--t-2)", lineHeight: 1.5 }}><strong>New:</strong> You can now group this recommendation under an existing concern or keep it standalone.</span>
+                    <button onClick={() => setNewBannerDismissed(true)} style={{ flexShrink: 0, background: "none", border: "none", fontWeight: 700, fontSize: 13.5, color: "var(--blue-600)", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"} onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>Got it</button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
-          {lockedConcern ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", userSelect: "none" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", height: 20, padding: "0 7px", background: "var(--bg-cream-2,#f5f4f0)", border: "1px solid var(--b-2)", borderRadius: 4, fontSize: 11, fontWeight: 600, color: "var(--t-3)", whiteSpace: "nowrap", flexShrink: 0 }}>Inspection</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lockedConcernLabel}</span>
-                </div>
-                <button
-                  onClick={() => setShowLinkPicker((v) => !v)}
-                  style={{
-                    flexShrink: 0, height: 30, padding: "0 12px", borderRadius: 6,
-                    background: showLinkPicker ? "var(--blue-50)" : "var(--bg-white)",
-                    border: `1px solid ${showLinkPicker ? "var(--blue-500)" : "var(--blue-200)"}`,
-                    color: "var(--blue-600)", fontWeight: 700, fontSize: 14, cursor: "pointer",
-                    textTransform: "uppercase", letterSpacing: 0.04,
-                    display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
-                  }}
-                  onMouseEnter={(e) => { if (!showLinkPicker) { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; } }}
-                  onMouseLeave={(e) => { if (!showLinkPicker) { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; } }}
-                >
-                  Link to a concern <IconChevDown size={13} />
-                </button>
-              </div>
-              {showLinkPicker && (
-                <div style={{ marginTop: 8 }}>
-                  <ConcernDropdown value={concern} groups={concernOptions} onChange={(v, opts) => { setDirty(true); if (opts && opts.viaButton) { setConcernManuallyLinked(true); setLinkedConcernId(v); } else { setConcern(v); } setShowLinkPicker(false); }} />
-                </div>
-              )}
-              {concernManuallyLinked && (() => {
+        ) : (
+          /* Standalone (e.g. +Custom toolbar): concern picker */
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <label className="field-label" style={{ margin: 0 }}>Select existing concern (optional)</label>
+            </div>
+            {(() => {
+              const isCustomLinked = concernManuallyLinked && linkedConcernId && (!selectedOption || selectedOption.type === "ungrouped");
+              if (isCustomLinked) {
                 const allItems = (concernOptions || []).flatMap((g) => g.items || []);
-                const sel = allItems.find((item) => item.id === linkedConcernId);
-                if (!sel || sel.type === "ungrouped") return null;
-                return <AddedToTag addedTo={{ type: sel.type, label: sel.typeLabel, title: sel.title.replace(" (current)", "") }} onUnlink={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} />;
-              })()}
-            </>
-          ) : (
-            <>
-              {(() => {
-                const isCustomLinked = !preLinked && concernManuallyLinked && linkedConcernId && (!selectedOption || selectedOption.type === "ungrouped");
-                if (isCustomLinked) {
-                  const allItems = (concernOptions || []).flatMap((g) => g.items || []);
-                  const linkedSel = allItems.find((item) => item.id === linkedConcernId);
-                  return (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", userSelect: "none" }}>
-                        {linkedSel && linkedSel.type !== "ungrouped" && <span className={`pill ${linkedSel.type}`} style={{ flexShrink: 0 }}>{linkedSel.typeLabel}</span>}
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{linkedSel ? linkedSel.title.replace(" (current)", "") : "Linked concern"}</span>
-                      </div>
-                      <button
-                        onClick={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }}
-                        style={{ flexShrink: 0, height: 30, padding: "0 12px", borderRadius: 6, background: "var(--bg-white)", border: "1px solid var(--b-2)", color: "var(--t-2)", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}
-                      >Create custom concern</button>
+                const linkedSel = allItems.find((item) => item.id === linkedConcernId);
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", userSelect: "none" }}>
+                      {linkedSel && linkedSel.type !== "ungrouped" && <span className={`pill ${linkedSel.type}`} style={{ flexShrink: 0 }}>{linkedSel.typeLabel}</span>}
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{linkedSel ? linkedSel.title.replace(" (current)", "") : "Linked concern"}</span>
                     </div>
-                  );
-                }
-                return <ConcernDropdown value={concern} highlight={showOnboarding} nameValue={whatNeedsDone} onNameChange={(e) => { setWhatNeedsDone(e.target.value); setDirty(true); }} onChange={(v, opts) => { setDirty(true); if (opts && opts.viaButton) { setConcernManuallyLinked(true); setLinkedConcernId(v); } else { setConcern(v); } if (showOnboarding) { setOnboardingDone(true); setOnboardingDismissed(true); } }} groups={concernOptions} inputDisabled={!preLinked && concernManuallyLinked} />;
-              })()}
-              {preLinked && concernManuallyLinked && linkedConcernId && (() => {
-                const allItems = (concernOptions || []).flatMap((g) => g.items || []);
-                const sel = allItems.find((item) => item.id === linkedConcernId);
-                if (!sel || sel.type === "ungrouped") return null;
-                return <AddedToTag key="prelinked-tag" addedTo={{ type: sel.type, label: sel.typeLabel, title: sel.title.replace(" (current)", "") }} onUnlink={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} />;
-              })()}
-              {showOnboarding && (
-                <div style={{ position: "relative", marginTop: 10, padding: "10px 12px", background: "var(--blue-25)", border: "1px solid var(--blue-200)", borderRadius: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ position: "absolute", top: -6, right: 34, width: 10, height: 10, background: "var(--blue-25)", borderTop: "1px solid var(--blue-200)", borderLeft: "1px solid var(--blue-200)", transform: "rotate(45deg)" }} />
-                  <span style={{ flex: 1, fontSize: 14, color: "var(--blue-700)", lineHeight: 1.5 }}><strong>New:</strong> You can now group this recommendation under an existing concern or keep it standalone.</span>
-                  <button onClick={() => { setOnboardingDismissed(true); setOnboardingDone(true); }} style={{ flexShrink: 0, height: 28, padding: "0 14px", borderRadius: 6, background: "var(--blue-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.04, cursor: "pointer", whiteSpace: "nowrap" }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--blue-700)"} onMouseLeave={(e) => e.currentTarget.style.background = "var(--blue-600)"}>Got it</button>
-                </div>
-              )}
-              {concernManuallyLinked && (() => {
-                const allItems = (concernOptions || []).flatMap((g) => g.items || []);
-                const sel = allItems.find((item) => item.id === linkedConcernId);
-                if (!sel || sel.type === "ungrouped") return null;
-                return <AddedToTag addedTo={{ type: sel.type, label: sel.typeLabel, title: sel.title.replace(" (current)", "") }} onUnlink={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} />;
-              })()}
-            </>
-          )}
-        </div>
+                    <button onClick={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} style={{ flexShrink: 0, height: 30, padding: "0 12px", borderRadius: 6, background: "var(--bg-white)", border: "1px solid var(--b-2)", color: "var(--t-2)", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}>Create custom concern</button>
+                  </div>
+                );
+              }
+              return <ConcernDropdown value={concern} highlight={showOnboarding} nameValue={whatNeedsDone} onNameChange={(e) => { setWhatNeedsDone(e.target.value); setDirty(true); }} onChange={(v, opts) => { setDirty(true); if (opts && opts.viaButton) { setConcernManuallyLinked(true); setLinkedConcernId(v); } else { setConcern(v); } if (showOnboarding) { setOnboardingDone(true); setOnboardingDismissed(true); } }} groups={concernOptions} inputDisabled={concernManuallyLinked} />;
+            })()}
+            {concernManuallyLinked && (() => {
+              const allItems = (concernOptions || []).flatMap((g) => g.items || []);
+              const sel = allItems.find((item) => item.id === linkedConcernId);
+              if (!sel || sel.type === "ungrouped") return null;
+              return <AddedToTag addedTo={{ type: sel.type, label: sel.typeLabel, title: sel.title.replace(" (current)", "") }} onUnlink={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} />;
+            })()}
+          </div>
+        )}
 
-        {/* Inspection result — tire grid for tread questions, status buttons otherwise */}
+        {/* Inspection result — tires always get TireTreadSection; non-tires only show when not preLinked (preLinked gets it inside the combined box above) */}
         {isTire ? (
           <TireTreadSection readings={tireReadings} onChange={handleTire} unit={(linkedPoint && linkedPoint.unit) || (tire && tire.unit) || "mm"} />
-        ) : (
-          <InspectionResultSection status={status} onStatus={(s) => { setStatus(s); setDirty(true); }} limitToFailCaution={isNewRec} />
+        ) : (!preLinked && !lockedConcern && !isNewRec) && (
+          <InspectionResultSection status={status} onStatus={(s) => { setStatus(s); setDirty(true); }} />
         )}
 
         {/* What needs done + Op code */}
@@ -1745,7 +2075,9 @@ const RecEditorModal = ({
         <div style={{ display: "flex", gap: 6 }}>
           <button className="btn btn-secondary" style={{ height: 30, fontSize: 14, padding: "0 11px" }} onClick={handleClose}>Cancel</button>
 <button className="btn btn-primary" style={{ height: 30, fontSize: 14, padding: "0 13px" }} onClick={() => {
-            onSave && onSave({ concern: (concernManuallyLinked && linkedConcernId) ? linkedConcernId : concern, whatNeedsDone, opCode, laborType, hours, labor, parts, misc, total, hidePrice, tireReadings: isTire ? tireReadings : null,
+            onSave && onSave({ concern: (preLinked || lockedConcern || isNewRec) ? currentPlacementId : ((concernManuallyLinked && linkedConcernId) ? linkedConcernId : concern), customConcernName, whatNeedsDone, opCode, laborType, hours, labor, parts, misc, total, hidePrice, tireReadings: (isTire || copyFieldsIsTire) ? tireReadings : null,
+              status,
+              formItemPointId: formItemCommittedId,
               partsList: itemized.map((r) => ({ name: r.desc || r.partNo || "Part", qty: Number(r.qty) || 1, price: Number(r.sell) || 0 })),
               partsRows: itemized });
           }}>Save</button>
@@ -2231,12 +2563,13 @@ const MoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDragSta
         style={{
           width: 24, height: 24, borderRadius: 5,
           background: open ? "var(--bg-cream)" : "transparent",
-          border: `1px solid ${open ? "var(--b-3)" : "var(--b-2)"}`,
-          color: "var(--t-3)", cursor: isDraggable ? "grab" : "pointer",
+          border: `1px solid ${open ? "var(--b-3)" : arrow ? "var(--blue-500)" : "var(--b-2)"}`,
+          boxShadow: !open && arrow ? "0 0 0 3px rgba(2,103,155,0.12)" : "none",
+          color: arrow ? "var(--blue-500)" : "var(--t-3)", cursor: isDraggable ? "grab" : "pointer",
           display: "grid", placeItems: "center", touchAction: "none",
         }}
-        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.borderColor = "var(--b-3)"; } }}
-        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--b-2)"; } }}
+        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.borderColor = arrow ? "var(--blue-500)" : "var(--b-3)"; } }}
+        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = arrow ? "var(--blue-400)" : "var(--b-2)"; } }}
       >
         {arrow ? <IconLink size={15} /> : <IconMove size={15} />}
       </div>
@@ -2664,14 +2997,80 @@ const InfoTip = ({ text, width = 220, pos = "right" }) => {
   );
 };
 
+// ── Shared header row used by ConcernCard (Edit MPI), RecConcernCard, and RecCompactConcernCard.
+const ConcernCardHeader = ({
+  concern, palette, letter,
+  reorderable, onReorder, onDragStart, onDragEnd,
+  onTitleChange,   // (id, title) → void; if falsy, no rename
+  onAddRec,        // (id) → void; if falsy, no +REC button
+  total = 0, shownTotal = 0, hasZeroShown = false, showTotal = true,
+  autoRename = false,
+  style = {},
+}) => {
+  const canRename = concern.type !== "occ" && !!onTitleChange;
+  const [editingTitle, setEditingTitle] = React.useState(false);
+  const [titleDraft, setTitleDraft] = React.useState(concern.title);
+  React.useEffect(() => { setTitleDraft(concern.title); }, [concern.title]);
+  React.useEffect(() => { if (autoRename) { setTitleDraft(concern.title); setEditingTitle(true); } }, [autoRename]);
+  const commitEdit = () => { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft || concern.title); };
+  const cancelEdit = () => { setEditingTitle(false); setTitleDraft(concern.title); };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, background: palette.headBg, padding: "6px 14px 6px 8px", ...style }}>
+      {reorderable && <CardDragHandle selfConcernId={concern.id} onReorder={onReorder} onDragStart={onDragStart} onDragEnd={onDragEnd} />}
+      <ConcernTypePill label={palette.label} bg={palette.pillBg} color={palette.pillT} />
+      {letter != null && (
+        <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 11, fontWeight: 700, width: 18, height: 18, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
+          {typeof letter === "number" ? letter : String(letter).toUpperCase()}
+        </span>
+      )}
+      {canRename && editingTitle ? (
+        <input autoFocus value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") cancelEdit(); }}
+          onClick={(e) => e.stopPropagation()}
+          style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, letterSpacing: 0.01, textTransform: "uppercase", lineHeight: 1.3, background: "rgba(255,255,255,0.8)", border: "1px solid var(--blue-400)", borderRadius: 3, color: "var(--t-1)", padding: "1px 4px", fontFamily: "inherit" }}
+        />
+      ) : (
+        <span style={{ flex: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01, textTransform: "uppercase", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{concern.title}</span>
+          {canRename && (
+            <button data-rename-concern={concern.id}
+              onClick={(e) => { e.stopPropagation(); setTitleDraft(concern.title); setEditingTitle(true); }}
+              title="Rename concern"
+              style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 4, background: "transparent", border: "1px solid transparent", color: "var(--t-4)", cursor: "pointer", padding: 0 }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.07)"; e.currentTarget.style.color = "var(--t-2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-4)"; }}
+            ><IconPencil size={11} /></button>
+          )}
+        </span>
+      )}
+      {onAddRec && (
+        <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
+          style={{ flexShrink: 0, height: 28, padding: "0 12px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 13, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
+        ><IconPlus size={11} /> REC</button>
+      )}
+      {showTotal && onAddRec && <span style={{ width: 1, height: 18, background: "var(--b-2)", flexShrink: 0, opacity: 0.7 }} />}
+      {showTotal && (
+        hasZeroShown
+          ? <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)", ...REC_FONT }}>${shownTotal.toFixed(0)}</span>
+            </span>
+          : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", flexShrink: 0, fontVariantNumeric: "tabular-nums", ...REC_FONT }}>${total.toFixed(0)}</span>
+      )}
+    </div>
+  );
+};
+
 const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, onRemoveConcern, onRecClick, onTitleChange,
   dragActive, isDragSource, isDragOver, draggingRecId, draggingPointId,
   onRecDragStart, onRecDragEnd, onPointDragStart, onPointDragEnd, onCardDragOver, onCardDragLeave, onCardDrop,
   isFirst, isLast, concerns, onMoveRecTo, onMoveRecRelative, onMovePointTo, onMoveRecToNew, onMovePointToNew,
   canReorder, onReorderConcern, letter }) => {
   const p = concernPalette[concern.type];
-  const [editingTitle, setEditingTitle] = React.useState(false);
-  const [titleDraft, setTitleDraft] = React.useState(concern.title);
   const concernTotal = concern.recs.reduce((s, r) => s + (Number(r.total) || 0), 0);
   const concernLabor = concern.recs.reduce((s, r) => s + (Number(r.labor) || 0), 0);
   const concernParts = concern.recs.reduce((s, r) => s + (Number(r.parts) || 0), 0);
@@ -2711,63 +3110,22 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
           <IconPlus size={12} /> Drop here to move into this concern
         </div>
       )}
-      {/* Full-color header row: pill + letter + title on the left, totals and
-          REC button on the right — all on the concern's colored background.
-          Double-click the title to rename. */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10,
-        background: p.headBg,
-        padding: "6px 8px",
-        borderRadius: showDropBanner ? 0 : (hasRecs ? "8px 8px 0 0" : 8),
-        borderBottom: (hasRecs && !showDropBanner) ? `1px solid ${p.headBd}` : "none",
-      }}>
-        {canReorder && (
-          <CardDragHandle
-            selfConcernId={concern.id}
-            onReorder={(targetId, before) => onReorderConcern && onReorderConcern(targetId, before)}
-          />
-        )}
-        <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} />
-        {letter && (
-          <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 11, fontWeight: 700, width: 18, height: 18, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center", lineHeight: 1 }}>{String(letter).toUpperCase()}</span>
-        )}
-        {editingTitle ? (
-          <input
-            autoFocus
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onBlur={() => { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft); } if (e.key === "Escape") { setEditingTitle(false); setTitleDraft(concern.title); } }}
-            onClick={(e) => e.stopPropagation()}
-            style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01, textTransform: "uppercase", background: "rgba(255,255,255,0.8)", border: "1px solid var(--blue-400)", borderRadius: 4, padding: "1px 6px", outline: "none", fontFamily: "inherit", minWidth: 0 }}
-          />
-        ) : (
-          <span
-            onDoubleClick={(e) => { e.stopPropagation(); setEditingTitle(true); }}
-            title="Double-click to rename"
-            style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "text" }}>
-            {concern.title}
-          </span>
-        )}
-        {concern.type === "occ" && displayTotal > 0 && (
-          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>${displayTotal.toFixed(0)}</span>
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
-          style={{
-            height: 24, padding: "0 9px",
-            background: "var(--bg-white)", border: "1px solid var(--blue-200)",
-            borderRadius: 5, fontSize: 14, fontWeight: 700,
-            color: "var(--blue-600)", cursor: "pointer",
-            display: "inline-flex", alignItems: "center", gap: 4,
-            whiteSpace: "nowrap", flexShrink: 0,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
-        >
-          <IconPlus size={11} /> REC
-        </button>
-      </div>
+      <ConcernCardHeader
+        concern={concern}
+        palette={p}
+        letter={letter}
+        reorderable={canReorder}
+        onReorder={(targetId, before) => onReorderConcern && onReorderConcern(targetId, before)}
+        onTitleChange={onTitleChange}
+        onAddRec={onAddRec}
+        total={displayTotal}
+        showTotal={displayTotal > 0}
+        hasZeroShown={false}
+        style={{
+          borderRadius: showDropBanner ? 0 : (hasRecs ? "8px 8px 0 0" : 8),
+          borderBottom: (hasRecs && !showDropBanner) ? `1px solid ${p.headBd}` : "none",
+        }}
+      />
 
       {concern.type === "occ" && concern.preApproved && (() => {
         const pa = concern.preApproved;
@@ -2775,27 +3133,17 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         const hasMore = concern.recs.length > 0;
         return (
           <div key="preapproved" style={{
-            display: "flex", alignItems: "center", gap: 12,
-            padding: "7px 8px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "8px 14px",
             borderBottom: hasMore ? "1px solid var(--b-1)" : "none",
             borderRadius: hasMore ? 0 : "0 0 7px 7px",
             background: "var(--bg-white)",
           }}>
-            {/* disabled drag handle — matches rec row handle slot */}
-            <div style={{ flexShrink: 0, opacity: 0.3 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 5, border: "1px solid var(--b-2)", display: "grid", placeItems: "center", color: "var(--t-3)" }}>
-                <IconMove size={15} />
-              </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--green-700)", letterSpacing: 0.02 }}>Pre-Approved</span>
+              <span style={{ fontSize: 12.5, color: "var(--t-4)" }}>Labor ${pa.labor.toFixed(0)}{pa.parts > 0 ? ` · Parts $${pa.parts.toFixed(0)}` : ""}{pa.misc > 0 ? ` · Misc $${pa.misc.toFixed(0)}` : ""}</span>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)" }}>Pre-Approved Work</span>
-                  <span style={{ fontSize: 14, color: "var(--t-3)" }}>Labor ${pa.labor.toFixed(0)}{pa.parts > 0 && ` · Parts $${pa.parts.toFixed(0)}`}{pa.misc > 0 && ` · Misc $${pa.misc.toFixed(0)}`}</span>
-                </div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>${paTotal.toFixed(0)}</span>
-              </div>
-            </div>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${paTotal.toFixed(0)}</span>
           </div>
         );
       })()}
@@ -2822,7 +3170,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
           data-rec-concern={concern.id}
           style={{
           display: "flex", alignItems: "center", gap: 12,
-          padding: "7px 8px",
+          padding: "7px 14px 7px 8px",
           borderBottom: isLastRec ? "none" : "1px solid var(--b-1)",
           borderRadius: isLastRec ? "0 0 7px 7px" : 0,
           background: "var(--bg-white)",
@@ -3502,7 +3850,7 @@ const RecFieldRow = ({ label, tag }) => (
 );
 
 // ── A single recommendation line within a concern.
-const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec, onDragStartRec, onDragEndRec, dragging, concerns, onMoveRecTo, onMoveRecRelative, onRecClick, selected = false, onToggleSelect }) => {
+const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec, onDragStartRec, onDragEndRec, dragging, concerns, onMoveRecTo, onMoveRecRelative, onRecClick, selected = false, onToggleSelect, onMoveUp, onMoveDown }) => {
   const stat = REC_STATUS[rec.status];
   const hasNote = rec.internal || rec.shopchat != null;
   return (
@@ -3525,6 +3873,26 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec
         onClick={(e) => e.stopPropagation()}>
         <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
       </div>
+      {(onMoveUp || onMoveDown) && (
+        <div style={{ width: 20, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, paddingTop: 2 }} onClick={(e) => e.stopPropagation()}>
+          <button
+            disabled={!onMoveUp}
+            onClick={(e) => { e.stopPropagation(); onMoveUp && onMoveUp(); }}
+            title="Move up"
+            style={{ width: 18, height: 18, display: "grid", placeItems: "center", background: "transparent", border: "none", borderRadius: 3, color: onMoveUp ? "var(--t-3)" : "var(--t-5)", cursor: onMoveUp ? "pointer" : "default", padding: 0 }}
+            onMouseEnter={(e) => { if (onMoveUp) e.currentTarget.style.background = "var(--bg-cream)"; }}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          ><IconChevUp size={12} /></button>
+          <button
+            disabled={!onMoveDown}
+            onClick={(e) => { e.stopPropagation(); onMoveDown && onMoveDown(); }}
+            title="Move down"
+            style={{ width: 18, height: 18, display: "grid", placeItems: "center", background: "transparent", border: "none", borderRadius: 3, color: onMoveDown ? "var(--t-3)" : "var(--t-5)", cursor: onMoveDown ? "pointer" : "default", padding: 0 }}
+            onMouseEnter={(e) => { if (onMoveDown) e.currentTarget.style.background = "var(--bg-cream)"; }}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          ><IconChevDown size={12} /></button>
+        </div>
+      )}
       {recDraggable && (
         <div style={{ width: 28, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 10, background: "transparent" }}>
           <RecMoveMenu
@@ -3545,15 +3913,16 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec
       )}
 
       <div style={{ flex: 1, minWidth: 0, padding: "12px 10px 12px 10px" }}>
-        {(stat || (rec.media && (rec.media.photos || rec.media.videos)) || rec.partsList?.length || Number(rec.parts) > 0) && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 9 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {stat && <span style={{ background: stat.pillBg, color: stat.pillC, padding: "2px 9px", borderRadius: 4, fontSize: 14, fontWeight: 700 }}>{stat.label}</span>}
-              {rec.media && <MediaThumbnails media={rec.media} />}
-            </div>
-            {(rec.partsList?.length || Number(rec.parts) > 0) && <PartsTag parts={rec.partsList} amount={rec.parts} />}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 9 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {stat && <span style={{ background: stat.pillBg, color: stat.pillC, padding: "2px 9px", borderRadius: 4, fontSize: 14, fontWeight: 700 }}>{stat.label}</span>}
+            {(rec.media && (rec.media.photos || rec.media.videos))
+              ? <MediaThumbnails media={rec.media} />
+              : <span style={{ fontSize: 12.5, color: "var(--t-4)", fontStyle: "italic" }}>No media</span>
+            }
           </div>
-        )}
+          {(rec.partsList?.length || Number(rec.parts) > 0) && <PartsTag parts={rec.partsList} amount={rec.parts} />}
+        </div>
         <div style={{ fontSize: 14, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.5, marginBottom: hasNote ? 12 : 0 }}>
           {rec.recommendation || "No recommendation added"}
         </div>
@@ -3627,13 +3996,10 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec
   );
 };
 
-const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec }) => {
+const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename }) => {
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
-  const [editingTitle, setEditingTitle] = React.useState(false);
-  const [titleDraft, setTitleDraft] = React.useState(concern.title);
-  const canRename = concern.type !== "occ" && !!onTitleChange;
   const hasZeroShown = concern.recs.some((r) => r.shownToCustomer === 0 && r.total > 0);
   const concernLabor = concern.recs.reduce((s, r) => s + (Number(r.labor) || 0), 0);
   const concernParts = concern.recs.reduce((s, r) => s + (Number(r.parts) || 0), 0);
@@ -3649,59 +4015,23 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
         background: "var(--bg-white)",
         opacity: dragging ? 0.4 : 1, transition: "opacity 140ms",
       }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10,
-        background: p.headBg, padding: "6px 8px",
-        borderBottom: hasRecs ? `1px solid ${p.headBd}` : "none",
-      }}>
-        {reorderable
-          ? <CardDragHandle selfConcernId={concern.id} onReorder={onReorderConcern} onDragStart={onConcernDragStart} onDragEnd={onConcernDragEnd} />
-          : null}
-        <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} />
-        {letter != null && (
-          <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 11, fontWeight: 700, width: 18, height: 18, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center" }}>{letter}</span>
-        )}
-        {canRename && editingTitle ? (
-          <input
-            autoFocus
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onBlur={() => { setEditingTitle(false); onTitleChange(concern.id, titleDraft || concern.title); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { setEditingTitle(false); onTitleChange(concern.id, titleDraft || concern.title); } if (e.key === "Escape") { setEditingTitle(false); setTitleDraft(concern.title); } }}
-            onClick={(e) => e.stopPropagation()}
-            style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, letterSpacing: 0.01, textTransform: "uppercase", background: "transparent", border: "none", outline: "1px solid var(--blue-400)", borderRadius: 3, color: "var(--t-1)", padding: "1px 4px", fontFamily: "inherit" }}
-          />
-        ) : (
-          <span style={{ flex: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 5, overflow: "hidden" }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{concern.title}</span>
-            {canRename && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setTitleDraft(concern.title); setEditingTitle(true); }}
-                title="Rename concern"
-                style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 3, background: "transparent", border: "none", color: "var(--t-4)", cursor: "pointer", padding: 0 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.07)"; e.currentTarget.style.color = "var(--t-2)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-4)"; }}
-              ><IconPencil size={10} /></button>
-            )}
-          </span>
-        )}
-        {concernTotal > 0 && (
-          hasZeroShown
-            ? <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-4)", textDecoration: "line-through" }}>${concernTotal.toFixed(0)}</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)" }}>${shownTotal.toFixed(0)}</span>
-              </span>
-            : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>${concernTotal.toFixed(0)}</span>
-        )}
-        {onAddRec && (
-          <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
-            style={{ flexShrink: 0, height: 22, padding: "0 8px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 4, fontSize: 12, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
-          ><IconPlus size={10} /> REC</button>
-        )}
- 
-      </div>
+      <ConcernCardHeader
+        concern={concern}
+        palette={p}
+        letter={letter}
+        reorderable={reorderable}
+        onReorder={onReorderConcern}
+        onDragStart={onConcernDragStart}
+        onDragEnd={onConcernDragEnd}
+        onTitleChange={onTitleChange}
+        onAddRec={onAddRec}
+        total={concernTotal}
+        shownTotal={shownTotal}
+        hasZeroShown={hasZeroShown}
+        showTotal={true}
+        autoRename={autoRename}
+        style={{ borderBottom: hasRecs ? `1px solid ${p.headBd}` : "none" }}
+      />
       {concern.recs.map((rec, i) => {
         const isLast = i === concern.recs.length - 1;
         const mediaData = rec.media && typeof rec.media === "object" ? rec.media : null;
@@ -3756,7 +4086,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
               onDragEnd={() => setRecDrag(null)}
             />
             </div>
-            <div style={{ flex: 1, minWidth: 0, paddingRight: 12, paddingLeft: 10 }}>
+            <div style={{ flex: 1, minWidth: 0, paddingRight: 14, paddingLeft: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
                 <div style={{ fontSize: 14, color: "var(--t-1)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1, minWidth: 0 }}>
                   <span>{rec.recommendation || <span style={{ color: "var(--t-5)", fontStyle: "italic" }}>No recommendation added</span>}</span>
@@ -3785,14 +4115,11 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
 };
 
 // ── A concern card — MPI-style colored header + a list of recommendation rows.
-const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec }) => {
+const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename }) => {
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
   const hasZeroShown = concern.recs.some((r) => r.shownToCustomer === 0 && r.total > 0);
-  const [editingTitle, setEditingTitle] = React.useState(false);
-  const [titleDraft, setTitleDraft] = React.useState(concern.title);
-  const canRename = concern.type !== "occ" && !!onTitleChange;
   return (
     <div
       data-concern-drop={concern.id}
@@ -3803,56 +4130,23 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         boxShadow: "var(--shadow-card)", marginBottom: 12,
         opacity: dragging ? 0.4 : 1, transition: "opacity 140ms, box-shadow 140ms",
       }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: p.headBg, padding: "6px 8px", borderBottom: `1px solid ${p.headBd}` }}>
-        {reorderable
-          ? <CardDragHandle selfConcernId={concern.id} onReorder={onReorderConcern} onDragStart={onConcernDragStart} onDragEnd={onConcernDragEnd} />
-          : null}
-        <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} />
-        {letter != null && (
-          <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 11, fontWeight: 700, width: 18, height: 18, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center" }}>{letter}</span>
-        )}
-        {canRename && editingTitle ? (
-          <input
-            autoFocus
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onBlur={() => { setEditingTitle(false); onTitleChange(concern.id, titleDraft || concern.title); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { setEditingTitle(false); onTitleChange(concern.id, titleDraft || concern.title); } if (e.key === "Escape") { setEditingTitle(false); setTitleDraft(concern.title); } }}
-            onClick={(e) => e.stopPropagation()}
-            style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, letterSpacing: 0.01, textTransform: "uppercase", lineHeight: 1.3, background: "transparent", border: "none", outline: "1px solid var(--blue-400)", borderRadius: 3, color: "var(--t-1)", padding: "1px 4px", fontFamily: "inherit" }}
-          />
-        ) : (
-          <span style={{ flex: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01, textTransform: "uppercase", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{concern.title}</span>
-            {canRename && (
-              <button
-                data-rename-concern={concern.id}
-                onClick={(e) => { e.stopPropagation(); setTitleDraft(concern.title); setEditingTitle(true); }}
-                title="Rename concern"
-                style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: 4, background: "transparent", border: "1px solid transparent", color: "var(--t-4)", cursor: "pointer", padding: 0 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.07)"; e.currentTarget.style.color = "var(--t-2)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-4)"; }}
-              ><IconPencil size={11} /></button>
-            )}
-          </span>
-        )}
-        {concernTotal > 0 && (
-          hasZeroShown
-            ? <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5, flexShrink: 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-4)", textDecoration: "line-through" }}>${concernTotal.toFixed(0)}</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)", ...REC_FONT }}>${shownTotal.toFixed(0)}</span>
-              </span>
-            : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", flexShrink: 0, ...REC_FONT }}>${concernTotal.toFixed(0)}</span>
-        )}
-        {onAddRec && (
-          <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
-            style={{ flexShrink: 0, height: 22, padding: "0 8px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 4, fontSize: 12, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
-          ><IconPlus size={10} /> REC</button>
-        )}
- 
-      </div>
+      <ConcernCardHeader
+        concern={concern}
+        palette={p}
+        letter={letter}
+        reorderable={reorderable}
+        onReorder={onReorderConcern}
+        onDragStart={onConcernDragStart}
+        onDragEnd={onConcernDragEnd}
+        onTitleChange={onTitleChange}
+        onAddRec={onAddRec}
+        total={concernTotal}
+        shownTotal={shownTotal}
+        hasZeroShown={hasZeroShown}
+        showTotal={true}
+        autoRename={autoRename}
+        style={{ borderBottom: `1px solid ${p.headBd}` }}
+      />
 
       {concern.type === "occ" && concern.preApproved && (() => {
         const pa = concern.preApproved;
@@ -3885,6 +4179,8 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
           onRecClick={onRecClick}
           selected={selectedRecs.has(rec.id)}
           onToggleSelect={(e) => { e.stopPropagation(); onToggleRec && onToggleRec(rec.id); }}
+          onMoveUp={i > 0 ? () => reorderRec(concern.id, rec.id, concern.recs[i - 1].id, true) : null}
+          onMoveDown={i < concern.recs.length - 1 ? () => reorderRec(concern.id, rec.id, concern.recs[i + 1].id, false) : null}
         />
       ))}
     </div>
@@ -4066,6 +4362,10 @@ const initialRecConcerns = [
     ],
   },
   {
+    id: "occ3", section: "ocr", type: "occ", preApproved: { labor: 250, parts: 0, misc: 0 }, title: "Brake noise when stopping",
+    recs: [],
+  },
+  {
     id: "asc1", section: "mpi", type: "asc_m", title: "Head lights / tail lights / turn signals / brake lights / hazard warning lights / exterior lamps",
     recs: [
       { id: "asc1-r1", status: "fail", recommendation: "Alternate Value Option - Please ask your advisor about the alternate value options available for this service.", internal: "lksujalsujasujkals kdjalksdjasljdas lkdjalskdjalskdjalskdjaskdjalksdja lsdkj", shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: 0, estSummary: null, shownToCustomer: 0, estStatus: [{ tone: "incomplete", label: "Incomplete Labor" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: null },
@@ -4178,15 +4478,12 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
 
   const ocr = items.filter((x) => x.section === "ocr");
   const mpi = items.filter((x) => x.section === "mpi");
-  const onTitleChange = (id, title) => setItems((cs) => cs.map((x) => x.id === id ? { ...x, title } : x));
+  const [newConcernId, setNewConcernId] = React.useState(null);
+  const onTitleChange = (id, title) => { setItems((cs) => cs.map((x) => x.id === id ? { ...x, title } : x)); if (id === newConcernId) setNewConcernId(null); };
   const addConcern = () => {
     const newId = "custom-" + Date.now();
     setItems((cs) => [...cs, { id: newId, section: "mpi", type: "asc_m", title: "New concern", points: [], recs: [] }]);
-    // small delay so the card renders before we trigger rename
-    setTimeout(() => {
-      const btn = document.querySelector(`[data-rename-concern="${newId}"]`);
-      if (btn) btn.click();
-    }, 80);
+    setNewConcernId(newId);
   };
   const onAddRecToCard = (concernId) => { onAddRec && onAddRec(concernId, true); };
   const common = { reorderRec, recDrag, setRecDrag, concerns: items, moveRec, onRecClick, selectedRecs, onToggleRec, onTitleChange, onAddRec: onAddRecToCard };
@@ -4211,11 +4508,11 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
           <RecSectionHeader title="Concerns" count={ocr.length + mpi.length} onAddConcern={addConcern} />
           {ocr.map((c, i) => {
             const CardCmp = compact ? RecCompactConcernCard : RecConcernCard;
-            return <CardCmp key={c.id} concern={c} letter={String.fromCharCode(65 + i)} reorderable={false} dragging={concernDrag === c.id} {...common} />;
+            return <CardCmp key={c.id} concern={c} letter={String.fromCharCode(65 + i)} reorderable={false} dragging={concernDrag === c.id} autoRename={c.id === newConcernId} {...common} />;
           })}
           {mpi.map((c) => {
             const CardCmp = compact ? RecCompactConcernCard : RecConcernCard;
-            return <CardCmp key={c.id} concern={c} reorderable={mpi.length > 1} onReorderConcern={(targetId, before) => reorderConcern(c.id, targetId, before)} onConcernDragStart={() => setConcernDrag(c.id)} onConcernDragEnd={() => setConcernDrag(null)} dragging={concernDrag === c.id} {...common} />;
+            return <CardCmp key={c.id} concern={c} reorderable={mpi.length > 1} onReorderConcern={(targetId, before) => reorderConcern(c.id, targetId, before)} onConcernDragStart={() => setConcernDrag(c.id)} onConcernDragEnd={() => setConcernDrag(null)} dragging={concernDrag === c.id} autoRename={c.id === newConcernId} {...common} />;
           })}
           {ocr.length === 0 && mpi.length === 0 && <RecEmptyDrop label="No concerns on this RO." />}
         </div>
@@ -4262,7 +4559,7 @@ const Tabs = ({ tab, setTab }) => (
   </div>
 );
 
-const Toolbar = ({ onAddRec, onAddCustomRec }) => (
+const Toolbar = ({ onAddRec, onAddCustomRec, onAddConcern }) => (
   <div style={{
     display: "flex", alignItems: "center", gap: 10,
     padding: "12px 16px",
@@ -4296,6 +4593,18 @@ const Toolbar = ({ onAddRec, onAddCustomRec }) => (
       display: "inline-flex", alignItems: "center", gap: 6,
     }}><IconCheck size={13} strokeWidth={2.4} /> Mark as complete</button>
 
+    {onAddConcern && (
+      <button onClick={onAddConcern} style={{
+        height: 34, padding: "0 12px",
+        background: "var(--bg-white)", border: "1px solid var(--b-2)",
+        borderRadius: 6, fontSize: 14, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase",
+        color: "var(--t-2)", cursor: "pointer",
+        display: "inline-flex", alignItems: "center", gap: 6,
+      }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}
+      ><IconPlus size={12} /> Custom</button>
+    )}
     <button style={{
       height: 34, padding: "0 14px",
       background: "var(--blue-600)", color: "#fff", border: "1px solid var(--blue-600)",
@@ -4382,7 +4691,7 @@ const initialSections = [
     points: [
       { id: "l1", name: "Front Brake Pads and Rotors", status: null },
       { id: "l2", name: "Rear Brake Pads and Rotors", status: null },
-      { id: "l3", name: "Brake Lines, Hoses, and Parking Brake", status: null },
+      { id: "l3", name: "Brake booster", status: null },
       { id: "l4", name: "Brake Fluid Level and Condition", status: null },
     ],
   },
@@ -4392,7 +4701,7 @@ const initialSections = [
     points: [
       { id: "tire0", name: "Measure tire tread depth", type: "tire", unit: "mm", readings: { lf: null, rf: null, lr: null, rr: null }, status: null },
       { id: "tire1", name: "Tire Condition (Tread depth, damage, bubbles)", status: null },
-      { id: "tire2", name: "Steering and Suspension Components (Ball joints, tie rods)", status: null },
+      { id: "tire2", name: "Steering and Suspension Components", status: null },
       { id: "tire3", name: "Wheel Alignment Check", status: null },
       { id: "tire4", name: "Shocks and Struts", status: null },
     ],
@@ -4512,12 +4821,26 @@ const MPIPage = () => {
   const [concerns, setConcerns] = React.useState(initialConcerns);
   const [recConcerns, setRecConcerns] = React.useState(initialRecConcerns);
   const [sections, setSections] = React.useState(initialSections);
-  const [tab, setTab] = React.useState("rec");
+  const [tab, setTab] = React.useState("mpi");
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null); // { context }
   const [editorVariant, setEditorVariant] = React.useState("panel"); // "modal" | "panel"
   const [toast, setToast] = React.useState(null);
   const toastTimer = React.useRef(null);
+  const mpiScrollRef = React.useRef(null);
+  const [newCustomConcernId, setNewCustomConcernId] = React.useState(null);
+
+  const addCustomConcernFromToolbar = React.useCallback(() => {
+    const newId = "custom-" + Date.now();
+    setConcerns((cs) => [...cs, { id: newId, section: "mpi", type: "asc_m", title: "New concern", points: [], recs: [] }]);
+    setNewCustomConcernId(newId);
+    // Scroll to bottom after state update
+    setTimeout(() => {
+      if (mpiScrollRef.current) {
+        mpiScrollRef.current.scrollTo({ top: mpiScrollRef.current.scrollHeight, behavior: "smooth" });
+      }
+    }, 50);
+  }, []);
 
   React.useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape" && modal) setModal(null); };
@@ -4527,9 +4850,9 @@ const MPIPage = () => {
 
   const showToast = (msg, onView) => {
     if (toastTimer.current) { clearTimeout(toastTimer.current); toastTimer.current = null; }
-    setToast({ msg, onView: onView || null });
-    // Toasts with a View action stay until the user clicks View or ✕.
-    if (!onView) toastTimer.current = setTimeout(() => setToast(null), 2400);
+    const duration = onView ? 10000 : 2400;
+    setToast({ msg, onView: onView || null, duration, startedAt: Date.now() });
+    toastTimer.current = setTimeout(() => setToast(null), duration);
   };
 
   // ── Status change on a concern point
@@ -4623,7 +4946,7 @@ const MPIPage = () => {
   };
 
   // ── Add rec from concern card
-  const addRecToConcern = (concernId, preLinked = false) => {
+  const addRecToConcern = (concernId, preLinked = true) => {
     const c = concerns.find((x) => x.id === concernId) || recConcerns.find((x) => x.id === concernId);
     openModalFor({
       inspectionPoint: c?.title || "New recommendation",
@@ -4816,11 +5139,24 @@ const MPIPage = () => {
 
   // ── Build concern dropdown groups dynamically from current concerns
   const buildConcernGroups = (defaultTargetConcernId) => {
-    const current = concerns.find((x) => x.id === defaultTargetConcernId)
-      || recConcerns.find((x) => x.id === defaultTargetConcernId);
-    const others = concerns.filter((x) => x.id !== defaultTargetConcernId);
+    // OCCs: canonical source is recConcerns, dedup by title
+    const seenOccTitles = new Set();
+    const allOccs = recConcerns.filter(c => c.type === "occ").filter(c => {
+      if (seenOccTitles.has(c.title)) return false;
+      seenOccTitles.add(c.title); return true;
+    });
+    // ASCs: merge both states by ID
+    const seenIds = new Set(recConcerns.map(c => c.id));
+    const allAscs = [
+      ...recConcerns.filter(c => c.type !== "occ"),
+      ...concerns.filter(c => c.type !== "occ" && !seenIds.has(c.id)),
+    ];
+    const combinedAll = [...allOccs, ...allAscs];
+    const current = combinedAll.find((x) => x.id === defaultTargetConcernId);
+    const others = combinedAll.filter((x) => x.id !== defaultTargetConcernId);
     const occOthers = others.filter((x) => x.type === "occ");
-    const ascOthers = others.filter((x) => x.type !== "occ");
+    // ASCs: only those with at least 1 marked rec
+    const ascOthers = others.filter((x) => x.type !== "occ" && x.recs.some((r) => r.status != null));
     return [
       {
         label: null,
@@ -4857,6 +5193,11 @@ const MPIPage = () => {
   };
 
   // ── Open modal with context
+  // Flatten all section points into a searchable list for FormItemSearchField
+  const allFormItems = React.useMemo(() =>
+    sections.flatMap(s => (s.points || []).map(p => ({ id: p.id, name: p.name, status: p.status || null, sectionTitle: s.title, type: p.type || null, readings: p.readings || null })))
+  , [sections]);
+
   const openModalFor = (ctx) => {
     const isNewRec = !!ctx.isNewRec;
     const inferredDefaults = {
@@ -4871,11 +5212,17 @@ const MPIPage = () => {
       status: isNewRec ? null : undefined,
     };
     const lockedConcern = !!ctx.targetSectionId;
+    // Determine source concern type + title for PLACEMENT dropdown
+    const sourceCon = ctx.targetConcernId
+      ? (concerns.find(c => c.id === ctx.targetConcernId) || recConcerns.find(c => c.id === ctx.targetConcernId))
+      : null;
+    const sourceType = ctx.sourceType || (lockedConcern ? "asc" : (sourceCon?.type === "occ" ? "occ" : "asc"));
+    const sourceConcernTitle = ctx.sourceConcernTitle || (lockedConcern ? (ctx.inspectionPoint || "") : (sourceCon?.title || ctx.inspectionPoint || ""));
     setModal({
       inspectionPoint: ctx.inspectionPoint,
       inspectionDetail: ctx.inspectionDetail,
       inspectionResult: isNewRec ? null : (ctx.inspectionResult || "failed"),
-      defaultConcern: ctx.targetConcernId || "new-form-concern",
+      defaultConcern: ctx.targetConcernId || (isNewRec ? "__unlinked__" : "new-form-concern"),
       targetConcernId: ctx.targetConcernId,
       targetSectionId: ctx.targetSectionId,
       targetPointId: ctx.targetPointId,
@@ -4884,48 +5231,34 @@ const MPIPage = () => {
       lockedConcernLabel: lockedConcern ? (ctx.inspectionPoint || "") : "",
       preLinked: !!ctx.preLinked,
       isNewRec,
+      editingRecId: ctx.editingRecId || null,
+      sourceType,
+      sourceConcernTitle,
       defaults: { ...inferredDefaults, ...(ctx.defaults || {}) },
       groups: ctx.targetConcernId
         ? buildConcernGroups(ctx.targetConcernId)
-        : [
-          {
-            label: null,
-            items: [{
-              id: "new-form-concern",
-              type: "ungrouped",
-              typeLabel: "New",
-              title: "Create new custom concern",
-              count: 0,
-              consequence: "Creates a new custom concern from this recommendation",
-            }],
-          },
-          {
-            label: "Move under an original customer concern",
-            items: concerns.filter((c) => c.type === "occ").map((c) => ({
-              id: c.id, type: "occ", typeLabel: "OCC", title: c.title,
-              count: c.recs.length,
-              consequence: "Adds rec to this concern card; customer sees them grouped",
-            })),
-          },
-          ...(concerns.filter((c) => c.type !== "occ").length ? [{
-            label: null,
-            items: concerns.filter((c) => c.type !== "occ").map((c) => ({
-              id: c.id,
-              type: (c.type === "asc_m" || c.type === "asc_c" || c.type === "custom") ? "asc-cos" : c.type,
-              typeLabel: { custom: "ASC", asc_m: "ASC", asc_c: "ASC" }[c.type] || "Concern",
-              title: c.title,
-              count: c.recs.length,
-              consequence: "Customer sees this rec under " + c.title.toLowerCase(),
-            })),
-          }] : []),
-          ...(false && sections.flatMap((s) => s.points).length ? [{
-            label: "Move under a form concern",
-            items: sections.flatMap((s) => s.points.map((pt) => ({
-              id: "mpi:" + pt.id, type: "inspection", typeLabel: "Inspection", title: pt.name, count: 0,
-              consequence: pt.type === "tire" ? "Tread-depth inspection point" : "Inspection point",
-            }))),
-          }] : []),
-        ],
+        : (() => {
+          // OCCs: canonical source is recConcerns, dedup by title
+          const seenOccTitles = new Set();
+          const dedupedOccs = recConcerns.filter(c => c.type === "occ").filter(c => {
+            if (seenOccTitles.has(c.title)) return false;
+            seenOccTitles.add(c.title); return true;
+          });
+          // ASCs: merge both states by ID, only those with a marked rec
+          const seenIds = new Set(recConcerns.map(c => c.id));
+          const markedAscs = [
+            ...recConcerns.filter(c => c.type !== "occ"),
+            ...concerns.filter(c => c.type !== "occ" && !seenIds.has(c.id)),
+          ].filter(c => c.recs.some(r => r.status != null));
+          return [
+            { label: null, items: [
+              { id: "__unlinked__", type: "none", typeLabel: "", title: "[Unlinked]", count: 0, consequence: "Recommendation is standalone, not grouped under any concern" },
+              { id: "new-form-concern", type: "ungrouped", typeLabel: "New", title: "Create new custom concern", count: 0, consequence: "Creates a new custom concern from this recommendation" },
+            ]},
+            ...(dedupedOccs.length ? [{ label: "Move under an original customer concern", items: dedupedOccs.map(c => ({ id: c.id, type: "occ", typeLabel: "OCC", title: c.title, count: c.recs.length, consequence: "Adds rec to this concern card; customer sees them grouped" })) }] : []),
+            ...(markedAscs.length ? [{ label: null, items: markedAscs.map(c => ({ id: c.id, type: (c.type === "asc_m" || c.type === "asc_c" || c.type === "custom") ? "asc-cos" : c.type, typeLabel: { custom: "ASC", asc_m: "ASC", asc_c: "ASC" }[c.type] || "Concern", title: c.title, count: c.recs.length, consequence: "Customer sees this rec under " + c.title.toLowerCase() })) }] : []),
+          ];
+        })(),
     });
   };
 
@@ -4933,7 +5266,35 @@ const MPIPage = () => {
   const handleSave = (data) => {
     if (!modal) return;
     const total = (Number(data.labor) || 0) + (Number(data.parts) || 0) + (Number(data.misc) || 0);
-    let recStatus = { kind: modal.inspectionResult === "caution" ? "caution" : "fail" };
+
+    // ── EDIT path: update existing rec in place
+    if (modal.editingRecId) {
+      const updatedFields = {
+        text: data.whatNeedsDone || "New recommendation",
+        recommendation: data.whatNeedsDone || "New recommendation",
+        total: Number(total.toFixed(2)),
+        labor: Number(data.labor) || 0,
+        parts: Number(data.parts) || 0,
+        misc:  Number(data.misc)  || 0,
+        shownToCustomer: data.hidePrice ? 0 : Number(total.toFixed(2)),
+        fresh: true,
+        ...(data.status ? { status: typeof data.status === "string" ? { kind: data.status } : data.status } : {}),
+      };
+      const applyUpdate = (r) => r.id === modal.editingRecId ? { ...r, ...updatedFields } : r;
+      setConcerns((cs) => cs.map((c) => ({ ...c, recs: c.recs.map(applyUpdate) })));
+      setRecConcerns((cs) => cs.map((c) => ({ ...c, recs: c.recs.map(applyUpdate) })));
+      showToast("Recommendation updated");
+      setTimeout(() => {
+        const unfresh = (r) => r.id === modal.editingRecId ? { ...r, fresh: false } : r;
+        setConcerns((cs) => cs.map((c) => ({ ...c, recs: c.recs.map(unfresh) })));
+        setRecConcerns((cs) => cs.map((c) => ({ ...c, recs: c.recs.map(unfresh) })));
+      }, 3000);
+      setModal(null);
+      return;
+    }
+    // Use the status the user explicitly selected in the modal; fall back to inspectionResult or fail.
+    // Keep as a plain string to match existing rec data format ("fail" | "caution" | null).
+    let recStatus = data.status || (modal.inspectionResult === "caution" ? "caution" : "fail");
     const readings = data.tireReadings || (modal.tire && modal.tire.readings);
     if (readings) {
       const vals = Object.values(readings).filter((v) => v != null);
@@ -4958,23 +5319,53 @@ const MPIPage = () => {
       fresh: true,
     };
     const isNewCustom = data.concern === "new-form-concern";
-    const targetConcernId = isNewCustom ? "custom-" + Date.now() : data.concern;
-    const newConcernTitle = isNewCustom
-      ? (data.whatNeedsDone || "New concern")
-      : modal.inspectionPoint;
-    // Update the Edit MPI tab concerns
-    setConcerns((cs) => {
-      const exists = cs.find((c) => c.id === targetConcernId);
-      if (exists) return cs.map((c) => c.id === targetConcernId ? { ...c, recs: [...c.recs, newRec] } : c);
-      return [...cs, { id: targetConcernId, section: "mpi", type: "asc_m", title: newConcernTitle, points: [], recs: [newRec] }];
-    });
-    // Also update the Recommendation tab concerns
+    const isUnlinked = data.concern === "__unlinked__";
+    const targetConcernId = (isNewCustom || isUnlinked) ? "custom-" + Date.now() : data.concern;
+    // For fail/caution flows (lockedConcern) the concern title must always be
+    // the inspection line name — never the recommendation text.
+    const newConcernTitle = isUnlinked
+      ? (data.customConcernName || data.whatNeedsDone || "Custom concern")
+      : (isNewCustom && !modal.lockedConcern && !modal.preLinked)
+        ? (data.whatNeedsDone || "New concern")
+        : (modal.inspectionPoint || data.whatNeedsDone || "New concern");
+    // Bridge the ID mismatch between concerns (Edit MPI) and recConcerns (Rec tab) for OCCs.
+    // e.g. the same OCC may be "occ-tire-light" in concerns but "occ1" in recConcerns.
+    // Strategy: match by exact ID first; if not found, match OCC by title across states.
+    const recDirectMatch = recConcerns.find(c => c.id === targetConcernId);
+    const mpiOccSrc = !recDirectMatch ? concerns.find(c => c.id === targetConcernId && c.type === "occ") : null;
+    const recTitleMatch = mpiOccSrc ? recConcerns.find(c => c.type === "occ" && c.title === mpiOccSrc.title) : null;
+    const recTargetId = recDirectMatch ? recDirectMatch.id : (recTitleMatch ? recTitleMatch.id : targetConcernId);
+    const isRecOcc = !!(recDirectMatch?.type === "occ" || recTitleMatch);
+    // Update the Edit MPI tab concerns — skip if target is a recConcerns-only OCC (no matching ID in concerns)
+    if (!isRecOcc || mpiOccSrc) {
+      setConcerns((cs) => {
+        const exists = cs.find((c) => c.id === targetConcernId);
+        if (exists) return cs.map((c) => c.id === targetConcernId ? { ...c, recs: [...c.recs, newRec] } : c);
+        // Only create new concern in Edit MPI if it's not an OCC-only target
+        if (isRecOcc) return cs;
+        return [...cs, { id: targetConcernId, section: "mpi", type: "asc_m", title: newConcernTitle, points: [], recs: [newRec] }];
+      });
+    }
+    // Update the Recommendation tab concerns — use bridged recTargetId
+    console.log('[handleSave] concern=', data.concern, 'targetConcernId=', targetConcernId, 'recTargetId=', recTargetId, 'isRecOcc=', isRecOcc, 'recDirectMatch=', recDirectMatch?.id);
     setRecConcerns((cs) => {
-      const exists = cs.find((c) => c.id === targetConcernId);
-      if (exists) return cs.map((c) => c.id === targetConcernId ? { ...c, recs: [...c.recs, { ...newRec, recommendation: newRec.text }] } : c);
-      return [...cs, { id: targetConcernId, section: "mpi", type: "asc_m", title: newConcernTitle, points: [], recs: [{ ...newRec, recommendation: newRec.text }] }];
+      let idx = cs.findIndex((c) => c.id === recTargetId);
+      // Fallback: for OCCs, also try title match in case of any ID drift
+      if (idx < 0 && isRecOcc) {
+        const titleToMatch = recDirectMatch?.title || recTitleMatch?.title;
+        if (titleToMatch) idx = cs.findIndex(c => c.type === "occ" && c.title === titleToMatch);
+      }
+      console.log('[handleSave] setRecConcerns: idx=', idx, 'cs.length=', cs.length, 'cs ids=', cs.map(c=>c.id));
+      if (idx >= 0) {
+        const arr = cs.slice();
+        arr[idx] = { ...arr[idx], recs: [...arr[idx].recs, { ...newRec, recommendation: newRec.text }] };
+        return arr;
+      }
+      // Create new concern — use ocr section for OCCs so they appear in the right section of the Rec tab
+      return [...cs, { id: recTargetId, section: isRecOcc ? "ocr" : "mpi", type: isRecOcc ? "occ" : "asc_m", title: newConcernTitle, points: [], recs: [{ ...newRec, recommendation: newRec.text }] }];
     });
-    showToast(`Recommendation added to "${concerns.find((c) => c.id === targetConcernId)?.title || newConcernTitle}"`);
+    const toastTitle = recConcerns.find(c => c.id === recTargetId)?.title || concerns.find(c => c.id === targetConcernId)?.title || newConcernTitle;
+    showToast(`Recommendation added to "${toastTitle}"`, () => setTab("rec"));
     const destConcern = concerns.find((c) => c.id === targetConcernId);
     const pillTypeMap = { occ: "occ", custom: "asc-cos", asc_m: "asc-cos", asc_c: "asc-cos", form: "form" };
     const labelMap    = { occ: "OCC", custom: "ASC", asc_m: "ASC", asc_c: "ASC", form: "Form" };
@@ -4989,6 +5380,24 @@ const MPIPage = () => {
     setTimeout(() => {
       setConcerns((cs) => cs.map((c) => ({ ...c, recs: c.recs.map((r) => r.id === newRec.id ? { ...r, fresh: false } : r) })));
     }, 3000);
+    // Write inspection result (or tire readings) back to the linked MPI point, if one was selected
+    if (data.formItemPointId) {
+      const hasTireReadings = data.tireReadings && Object.values(data.tireReadings).some(v => v != null);
+      if (hasTireReadings) {
+        const tireGrade = tireWorstGrade(data.tireReadings);
+        setSections(ss => ss.map(s => ({
+          ...s,
+          points: s.points.map(p => p.id === data.formItemPointId
+            ? { ...p, readings: { ...(p.readings || {}), ...data.tireReadings }, status: tireGrade }
+            : p),
+        })));
+      } else if (data.status) {
+        setSections(ss => ss.map(s => ({
+          ...s,
+          points: s.points.map(p => p.id === data.formItemPointId ? { ...p, status: data.status } : p),
+        })));
+      }
+    }
     if (!data.addAnother) setModal(null);
   };
 
@@ -5019,18 +5428,18 @@ const MPIPage = () => {
               onAddRec={addRecToConcern}
               onRecClick={(rec, concernId) => {
                 const statusKind = typeof rec.status === "string" ? rec.status : rec.status?.kind;
-                const hoursStr = rec.estSummary ? rec.estSummary.split(" ")[0] : "1.0";
                 openModalFor({
-                  inspectionPoint: rec.recommendation || "",
+                  inspectionPoint: rec.recommendation || rec.text || "",
                   inspectionDetail: "",
-                  inspectionResult: statusKind || "failed",
+                  inspectionResult: statusKind || null,
                   targetConcernId: concernId,
+                  preLinked: true,
+                  editingRecId: rec.id,
                   defaults: {
-                    whatNeedsDone: rec.recommendation || "",
+                    whatNeedsDone: rec.recommendation || rec.text || "",
                     labor: rec.labor != null ? String(rec.labor) : "0",
                     parts: rec.parts != null ? String(rec.parts) : "0",
-                    misc: rec.misc != null ? String(rec.misc) : "0",
-                    hours: hoursStr,
+                    misc:  rec.misc  != null ? String(rec.misc)  : "0",
                     status: statusKind,
                   },
                 });
@@ -5041,9 +5450,10 @@ const MPIPage = () => {
             <Toolbar
               onAddRec={() => openModalFor({ inspectionPoint: "New recommendation", inspectionDetail: "", inspectionResult: "failed", isNewRec: true })}
               onAddCustomRec={() => openModalFor({ inspectionPoint: "Custom recommendation", inspectionDetail: "", inspectionResult: "failed", isNewRec: true })}
+              onAddConcern={() => openModalFor({ inspectionPoint: "", inspectionDetail: "", isNewRec: true })}
             />
           )}
-          <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px 0 16px", background: "var(--bg-cream-soft)", display: (tab === "start" || tab === "rec") ? "none" : undefined }} className="scrollable">
+          <div ref={mpiScrollRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px 0 16px", background: "var(--bg-cream-soft)", display: (tab === "start" || tab === "rec") ? "none" : undefined }} className="scrollable">
             {(() => {
               const visible = concerns.filter((c) => c.type === "occ" || c.recs.length > 0 || c.type === "asc_m");
               return (
@@ -5078,7 +5488,8 @@ const MPIPage = () => {
                 onAddRec={addRecToConcern}
                 onAddCustomRec={addCustomRecToConcern}
                 onRemoveConcern={removeConcern}
-                onTitleChange={(id, title) => setConcerns(cs => cs.map(x => x.id === id ? { ...x, title } : x))}
+                autoRename={c.id === newCustomConcernId}
+                onTitleChange={(id, title) => { setConcerns(cs => cs.map(x => x.id === id ? { ...x, title } : x)); if (id === newCustomConcernId) setNewCustomConcernId(null); }}
                 onMoveConcern={(id) => {}}
                 dragActive={!!drag}
                 isDragSource={drag && drag.kind !== "mpiPoint" && drag.fromConcernId === c.id}
@@ -5100,8 +5511,17 @@ const MPIPage = () => {
                 onRecClick={(cid, rec) => openModalFor({
                   inspectionPoint: rec.text || rec.recommendation || "",
                   inspectionDetail: c.title,
-                  inspectionResult: rec.status?.kind || "failed",
+                  inspectionResult: rec.status?.kind || null,
                   targetConcernId: cid,
+                  preLinked: true,
+                  editingRecId: rec.id,
+                  defaults: {
+                    whatNeedsDone: rec.text || rec.recommendation || "",
+                    labor: rec.labor != null ? String(rec.labor) : "0",
+                    parts: rec.parts != null ? String(rec.parts) : "0",
+                    misc:  rec.misc  != null ? String(rec.misc)  : "0",
+                    status: rec.status?.kind,
+                  },
                 })}
               />
                 );
@@ -5109,17 +5529,6 @@ const MPIPage = () => {
             })()}
 
             <div style={{ height: 8 }} />
-
-            <button
-              onClick={() => {
-                const newId = "custom-" + Date.now();
-                setConcerns((cs) => [...cs, { id: newId, section: "mpi", type: "asc_m", title: "New concern", points: [], recs: [] }]);
-                setTimeout(() => { const btn = document.querySelector(`[data-rename-concern="${newId}"]`); if (btn) btn.click(); }, 80);
-              }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 16, padding: "0 12px", height: 30, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 12.5, fontWeight: 700, color: "var(--t-3)", cursor: "pointer" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
-            ><IconPlus size={11} /> Custom concern</button>
 
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 4px", marginBottom: 10 }}>
               <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-2)" }}>Inspection</span>
@@ -5217,8 +5626,30 @@ const MPIPage = () => {
               variant={editorVariant}
               tire={modal.tire}
               isNewRec={modal.isNewRec}
+              sourceType={modal.sourceType}
+              sourceConcernTitle={modal.sourceConcernTitle}
+              allConcerns={(() => {
+                // OCCs: pull from Edit MPI concerns state only
+                const seenOccTitles = new Set();
+                const occs = concerns.filter(c => c.type === "occ").filter(c => {
+                  if (seenOccTitles.has(c.title)) return false;
+                  seenOccTitles.add(c.title); return true;
+                });
+                // ASCs: merge both states by ID, only keep those with a marked rec
+                const seenIds = new Set(recConcerns.map(c => c.id));
+                const ascs = [
+                  ...recConcerns.filter(c => c.type !== "occ"),
+                  ...concerns.filter(c => c.type !== "occ" && !seenIds.has(c.id)),
+                ].filter(c => c.recs.some(r => r.status != null));
+                const base = [...occs, ...ascs];
+                // Prepend [Unlinked] option for +Custom flow
+                return modal.isNewRec
+                  ? [{ id: "__unlinked__", type: "unlinked", title: "Add a custom concern" }, ...base]
+                  : base;
+              })()}
+              formItems={allFormItems}
               onTireReading={updateTireReading}
-              showPriorDecline={!modal.isNewRec && (modal.inspectionPoint.toLowerCase().includes("brake") || modal.inspectionPoint.toLowerCase().includes("pad"))}
+              showPriorDecline={!modal.isNewRec && !modal.editingRecId && (modal.inspectionPoint.toLowerCase().includes("brake") || modal.inspectionPoint.toLowerCase().includes("pad"))}
               onSave={handleSave}
               onClose={() => setModal(null)}
             />
@@ -5230,20 +5661,41 @@ const MPIPage = () => {
         <div style={{
           position: "fixed", bottom: 80, left: "50%",
           transform: "translateX(-50%)",
-          background: "#101828", color: "#fff",
-          padding: "12px 18px", borderRadius: 8,
+          background: "#02679b", color: "#fff",
+          borderRadius: 8,
           fontSize: 14, fontWeight: 500,
-          boxShadow: "0 16px 40px rgba(0,0,0,0.25)",
-          display: "flex", alignItems: "center", gap: 10,
+          boxShadow: "0 16px 40px rgba(2,103,155,0.35)",
           zIndex: 200,
           animation: "toastIn 220ms cubic-bezier(.2,.8,.2,1)",
+          overflow: "hidden",
+          minWidth: 260,
         }}>
-          <span style={{
-            width: 18, height: 18, borderRadius: 999,
-            background: "var(--green-600)",
-            display: "grid", placeItems: "center",
-          }}><IconCheck size={11} strokeWidth={2.6} /></span>
-          {toast.msg || toast}
+          {/* Progress bar — top */}
+          <div style={{ height: 5, background: "rgba(255,255,255,0.18)", position: "relative" }}>
+            <div style={{
+              position: "absolute", left: 0, top: 0, width: "100%", height: "100%",
+              background: "rgba(255,255,255,0.75)",
+              transformOrigin: "left center",
+              animation: `toastProgress ${toast.duration || 2400}ms linear forwards`,
+            }} />
+          </div>
+          {/* Main row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px" }}>
+            <span style={{
+              width: 18, height: 18, borderRadius: 999,
+              background: "rgba(255,255,255,0.25)",
+              display: "grid", placeItems: "center", flexShrink: 0,
+            }}><IconCheck size={11} strokeWidth={2.6} /></span>
+            <span style={{ flex: 1 }}>{toast.msg || toast}</span>
+            {toast.onView && (
+              <button
+                onClick={() => { toast.onView(); setToast(null); }}
+                style={{ marginLeft: 6, padding: "2px 10px", height: 24, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 4, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.3)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.18)"}
+              >View</button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -5257,6 +5709,8 @@ if (typeof document !== "undefined" && !document.getElementById("mpi-keyframes")
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(0.985); } to { opacity: 1; transform: none; } }
     @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 14px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes toastProgress { from { transform-origin: right; transform: scaleX(1); } to { transform-origin: right; transform: scaleX(0); } }
+    @keyframes placementGlow { 0% { box-shadow: 0 0 0 0 rgba(2,103,155,0.0); } 50% { box-shadow: 0 0 0 5px rgba(2,103,155,0.18); } 100% { box-shadow: 0 0 0 0 rgba(2,103,155,0.0); } }
     @keyframes menuIn { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
     @keyframes panelIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
     @keyframes onboardingPulse { 0%,100% { outline-color: var(--blue-500); } 50% { outline-color: var(--blue-300); } }
