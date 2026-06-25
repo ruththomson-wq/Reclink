@@ -1561,6 +1561,14 @@ const RecEditorModal = ({
   const [onboardingDismissed, setOnboardingDismissed] = React.useState(false);
   const showOnboarding = !onboardingDone && !onboardingDismissed;
 
+  // ── Progressive disclosure for isNewRec (+Custom toolbar) flow
+  const [concernStepDone, setConcernStepDone] = React.useState(false);
+  React.useEffect(() => {
+    if (isNewRec && concernStepDone) {
+      setTimeout(() => { document.getElementById("rec-whatneedsdone")?.focus(); }, 80);
+    }
+  }, [concernStepDone]);
+
   // ── New placement-section state (used when preLinked || lockedConcern)
   const [newBannerDismissed, setNewBannerDismissed] = React.useState(false);
   const [userPickedConcern, setUserPickedConcern] = React.useState(preLinked);
@@ -1763,7 +1771,7 @@ const RecEditorModal = ({
               {/* Top row: Inspection result (left) + Copy fields (right) */}
               <div style={{ display: "flex" }}>
                 {/* Left: Inspection result — hidden when a form item is committed OR when in "change" mode (formSearchKey > 0) */}
-                {!formItemCommitted && formSearchKey === 0 && (
+                {!formItemCommitted && (formSearchKey === 0 || keepCustom) && (
                 <div style={{ padding: "10px 12px", flexShrink: 0, borderRight: "1px solid var(--b-1)", borderRadius: "8px 0 0 8px" }}>
                   <label className="field-label" style={{ marginBottom: 8, display: "block" }}>Inspection result</label>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -1862,6 +1870,25 @@ const RecEditorModal = ({
 
         {/* Concern picker — varies by flow */}
         {(preLinked || lockedConcern || isNewRec) ? (
+          (isNewRec && concernStepDone) ? (
+            /* Step 2 compact summary — shows selected concern with a Change button */
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "var(--bg-cream-soft)", border: "1px solid var(--b-1)", borderRadius: 6 }}>
+              <IconLink size={12} style={{ color: "var(--blue-500)", flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: "var(--t-3)", flexShrink: 0 }}>Grouped under</span>
+              <span className={`pill ${currentPlacementId === "__unlinked__" ? "asc-cos" : (placementTypeStr === "occ" ? "occ" : "asc-cos")}`} style={{ flexShrink: 0 }}>
+                {currentPlacementId === "__unlinked__" ? "ASC" : placementTypeLabel}
+              </span>
+              <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {currentPlacementId === "__unlinked__" ? (customConcernName || "New custom concern") : placementTitle}
+              </span>
+              <button
+                onClick={() => setConcernStepDone(false)}
+                style={{ flexShrink: 0, padding: "2px 8px", height: 22, background: "transparent", border: "1px solid var(--b-2)", borderRadius: 4, color: "var(--t-3)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-3)"; }}
+              >Change</button>
+            </div>
+          ) : (
           <div>
             {/* Header label */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -1871,6 +1898,9 @@ const RecEditorModal = ({
               </label>
               <InfoTooltip tip="Groups this rec under an existing concern so the customer sees them together. Leave unlinked to keep it standalone." />
               {!isNewRec && (
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", background: "var(--blue-100)", color: "var(--blue-600)", padding: "1px 5px", borderRadius: 3 }}>NEW</span>
+              )}
+              {isNewRec && !newBannerDismissed && (
                 <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", background: "var(--blue-100)", color: "var(--blue-600)", padding: "1px 5px", borderRadius: 3 }}>NEW</span>
               )}
             </div>
@@ -1951,6 +1981,13 @@ const RecEditorModal = ({
                 )}
               </div>
             )}
+            {isNewRec && !newBannerDismissed && (
+              <div style={{ marginTop: 8, marginBottom: 6, padding: "8px 12px", background: "var(--blue-25)", border: "1px solid var(--blue-100)", borderRadius: 7, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 15, lineHeight: 1, color: "var(--yellow-600)" }}>✦</span>
+                <span style={{ flex: 1, fontSize: 13.5, color: "var(--t-2)", lineHeight: 1.5 }}><strong>New:</strong> You can now group this recommendation under an existing concern or keep it standalone.</span>
+                <button onClick={() => setNewBannerDismissed(true)} style={{ flexShrink: 0, background: "none", border: "none", fontWeight: 700, fontSize: 13.5, color: "var(--blue-600)", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"} onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>Got it</button>
+              </div>
+            )}
             {isNewRec && currentPlacementId === "__unlinked__" && !autoConcernLocked && (
               <div style={{ display: "flex", gap: 8, marginTop: 2, marginBottom: 8, paddingLeft: 10 }}>
                 {/* └─ subdirectory indicator */}
@@ -1984,8 +2021,21 @@ const RecEditorModal = ({
                 </div>
               </div>
             )}
+            {/* ── Progressive-disclosure Done button (isNewRec step 1 only) ── */}
+            {isNewRec && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ height: 32, fontSize: 13.5, padding: "0 18px", opacity: (currentPlacementId !== "__unlinked__" || customConcernName.trim().length > 0) ? 1 : 0.45, cursor: (currentPlacementId !== "__unlinked__" || customConcernName.trim().length > 0) ? "pointer" : "not-allowed", borderRadius: 6 }}
+                  disabled={currentPlacementId === "__unlinked__" && !customConcernName.trim()}
+                  onClick={() => setConcernStepDone(true)}
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
-        ) : (
+        ) ) : (
           /* Standalone (e.g. +Custom toolbar): concern picker */
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -2014,8 +2064,16 @@ const RecEditorModal = ({
               if (!sel || sel.type === "ungrouped") return null;
               return <AddedToTag addedTo={{ type: sel.type, label: sel.typeLabel, title: sel.title.replace(" (current)", "") }} onUnlink={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} />;
             })()}
+            {!newBannerDismissed && (
+              <div style={{ marginTop: 8, padding: "8px 12px", background: "var(--blue-25)", border: "1px solid var(--blue-100)", borderRadius: 7, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 15, lineHeight: 1, color: "var(--yellow-600)" }}>✦</span>
+                <span style={{ flex: 1, fontSize: 13.5, color: "var(--t-2)", lineHeight: 1.5 }}><strong>New:</strong> You can now group this recommendation under an existing concern or keep it standalone.</span>
+                <button onClick={() => setNewBannerDismissed(true)} style={{ flexShrink: 0, background: "none", border: "none", fontWeight: 700, fontSize: 13.5, color: "var(--blue-600)", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"} onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>Got it</button>
+              </div>
+            )}
           </div>
-        )}
+          )
+        }
 
         {/* Inspection result — tires always get TireTreadSection; non-tires only show when not preLinked (preLinked gets it inside the combined box above) */}
         {isTire ? (
@@ -2024,20 +2082,19 @@ const RecEditorModal = ({
           <InspectionResultSection status={status} onStatus={(s) => { setStatus(s); setDirty(true); }} />
         )}
 
-        {/* What needs done + Op code */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
+        {/* What needs done + Op code — hidden until concern step is complete */}
+        {(!isNewRec || concernStepDone) && <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
           <div>
             <label className="field-label">Recommendation</label>
-            <AutoGrowTextarea value={whatNeedsDone} onChange={(e) => { setWhatNeedsDone(e.target.value); setDirty(true); }} />
+            <AutoGrowTextarea id="rec-whatneedsdone" value={whatNeedsDone} onChange={(e) => { setWhatNeedsDone(e.target.value); setDirty(true); }} />
           </div>
           <div>
             <label className="field-label">Op code</label>
             <input className="input compact" value={opCode} onChange={(e) => { setOpCode(e.target.value); setDirty(true); }} style={{ fontFamily: "var(--font-mono)", fontSize: 14 }} />
           </div>
-        </div>
+        </div>}
 
-        {/* Labor / hours / $ */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr 1fr", gap: 12 }}>
+        {(!isNewRec || concernStepDone) && <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.7fr 1fr 1fr 1fr", gap: 12 }}>
           <div>
             <label className="field-label">Labor type</label>
             <select className="select compact" value={laborType} onChange={(e) => { setLaborType(e.target.value); setDirty(true); }}>
@@ -2062,10 +2119,10 @@ const RecEditorModal = ({
             <label className="field-label">Misc $</label>
             <input className="input compact" value={`$${misc}`} onChange={(e) => { setMisc(e.target.value.replace(/^\$/, "")); setDirty(true); }} />
           </div>
-        </div>
+        </div>}
 
         {/* Prior decline */}
-        {decline && (
+        {decline && (!isNewRec || concernStepDone) && (
           <PriorDeclineBanner
             onDismiss={() => setDecline(false)}
             onPrefill={() => {
@@ -2077,8 +2134,8 @@ const RecEditorModal = ({
 
         {/* Bundle removed — bundling hidden per design */}
 
-        {/* Accordions */}
-        <div style={{ display: "flex", flexDirection: "column", marginTop: 6 }}>
+        {/* Accordions — hidden until concern step is complete */}
+        {(!isNewRec || concernStepDone) && <div style={{ display: "flex", flexDirection: "column", marginTop: 6 }}>
           <RecAccordion icon={IconDoc}     title="Internal parts notes"  subtitle={notes.trim() ? null : "0 notes"} dot={!!notes.trim()} defaultOpen={true}>
             <textarea
               value={notes}
@@ -2129,10 +2186,23 @@ const RecEditorModal = ({
           <RecAccordion icon={IconDollar}  title="Tax & fee overrides"   badge="1 override active" defaultOpen={false}>
             <TaxFeeTable baseLabor={Number(labor)} baseParts={Number(parts)} baseMisc={Number(misc)} onHidePriceChange={setHidePrice} />
           </RecAccordion>
-        </div>
+        </div>}
       </div>
 
-      {/* Footer */}
+      {/* Footer — step 1 for isNewRec: just Cancel (Done is inline above); step 2: normal Save */}
+      {isNewRec && !concernStepDone ? (
+        <div style={{
+          flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "flex-end",
+          padding: "18px 24px",
+          background: "var(--bg-cream-soft)",
+          borderTop: "1px solid var(--b-1)",
+          gap: 8,
+        }}>
+          <button className="btn btn-secondary" style={{ height: 30, fontSize: 14, padding: "0 11px" }} onClick={handleClose}>Cancel</button>
+          <button className="btn btn-primary" style={{ height: 30, fontSize: 14, padding: "0 13px" }} onClick={() => setConcernStepDone(true)}>Continue →</button>
+        </div>
+      ) : (
       <div style={{
         flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -2153,7 +2223,7 @@ const RecEditorModal = ({
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button className="btn btn-secondary" style={{ height: 30, fontSize: 14, padding: "0 11px" }} onClick={handleClose}>Cancel</button>
-<button className="btn btn-primary" style={{ height: 30, fontSize: 14, padding: "0 13px" }} onClick={() => {
+          <button className="btn btn-primary" style={{ height: 30, fontSize: 14, padding: "0 13px" }} onClick={() => {
             onSave && onSave({ concern: (preLinked || lockedConcern || isNewRec) ? currentPlacementId : ((concernManuallyLinked && linkedConcernId) ? linkedConcernId : concern), customConcernName, whatNeedsDone, opCode, laborType, hours, labor, parts, misc, total, hidePrice, tireReadings: (isTire || copyFieldsIsTire) ? tireReadings : null,
               status,
               media: inspectionMedia,
@@ -2163,6 +2233,7 @@ const RecEditorModal = ({
           }}>Save</button>
         </div>
       </div>
+      )}
 
       {/* Unsaved changes confirmation */}
       {confirmClose && (
@@ -2425,10 +2496,10 @@ const DummySelect = ({ v }) => (
 // ────────────────────────────────────────────────────────────
 
 const concernPalette = {
-  occ:    { headBg: "#EAF6EC", headBd: "#7DC98A", pillBg: "#FFFFFF", pillFill: "var(--occ-bg)",     pillT: "var(--occ-text)",    label: "OCC" },
-  custom: { headBg: "#DDE9F8", headBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_m:  { headBg: "#DDE9F8", headBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_c:  { headBg: "#DDE9F8", headBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  occ:    { headBg: "#EAF6EC", headBd: "#C2E3C9", divBd: "#7DC98A", pillBg: "#FFFFFF", pillFill: "var(--occ-bg)",     pillT: "var(--occ-text)",    label: "OCC" },
+  custom: { headBg: "#DDE9F8", headBd: "#A8C2E7", divBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  asc_m:  { headBg: "#DDE9F8", headBd: "#A8C2E7", divBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  asc_c:  { headBg: "#DDE9F8", headBd: "#A8C2E7", divBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
 };
 
 const RecStatusBadge = ({ status }) => {
@@ -3145,7 +3216,7 @@ const ConcernCardHeader = ({
       {/* Action column — colored shorter divider + button */}
       <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
         {showTotal && (
-          <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: 20, background: palette.headBd, borderRadius: 1 }} />
+          <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: 20, background: palette.divBd || palette.headBd, borderRadius: 1 }} />
         )}
         {onAddRec && (
           <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
@@ -3164,9 +3235,11 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
   // Pointer-based drag handler for preview rec rows (reorder within concern)
   const makeRecDrag = (recId, concernId) => (e) => {
     if (e.button !== 0 || !onReorderRec) return;
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_) {}
     const st = { sx: e.clientX, sy: e.clientY, dragging: false, ghost: null, line: null, dropId: null, dropBefore: false };
     const move = (ev) => {
+      ev.preventDefault();
       const dx = ev.clientX - st.sx, dy = ev.clientY - st.sy;
       if (!st.dragging) {
         if (Math.hypot(dx, dy) < 4) return;
@@ -3317,7 +3390,9 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
                     background: "transparent",
                     borderBottom: ri < c.recs.length - 1 || isTarget ? "1px solid var(--b-1)" : "none",
                   }}>
-                  <IconMove size={13} onPointerDown={makeRecDrag(r.id, c.id)} style={{ color: "var(--t-4)", flexShrink: 0, cursor: onReorderRec ? "grab" : "default", touchAction: "none" }} />
+                  <span onPointerDown={makeRecDrag(r.id, c.id)} style={{ display: "flex", alignItems: "center", flexShrink: 0, cursor: onReorderRec ? "grab" : "default", touchAction: "none", userSelect: "none", padding: "2px 2px" }}>
+                    <IconMove size={13} style={{ color: "var(--t-4)", pointerEvents: "none" }} />
+                  </span>
                   <span style={{ fontSize: 13, color: "var(--t-1)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.text || r.recommendation}</span>
                   {r.fresh && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue-600)", background: "var(--blue-100)", borderRadius: 4, padding: "1px 6px", flexShrink: 0, whiteSpace: "nowrap" }}>Just added</span>}
                 </div>
@@ -4417,7 +4492,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
             </div>
             {/* 84px spacer matches header action column width — use positioned divider, not borderLeft, to avoid box-model width shift */}
             <div style={{ width: 84, flexShrink: 0, position: "relative" }}>
-              <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: "60%", background: p.headBd }} />
+              <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: "60%", background: p.divBd || p.headBd }} />
             </div>
           </div>
         );
