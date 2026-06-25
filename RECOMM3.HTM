@@ -227,7 +227,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
   <script type="text/babel">
 /* Reclink — icon set (line icons, 1.5px stroke). Exported to window. */
-const Icon = ({ children, size = 16, className = "", style = {}, strokeWidth = 1.6 }) => (
+const Icon = ({ children, size = 16, className = "", style = {}, strokeWidth = 1.6, ...rest }) => (
   <svg
     width={size}
     height={size}
@@ -239,6 +239,7 @@ const Icon = ({ children, size = 16, className = "", style = {}, strokeWidth = 1
     strokeLinejoin="round"
     className={className}
     style={{ flexShrink: 0, display: "inline-block", verticalAlign: "middle", ...style }}
+    {...rest}
   >
     {children}
   </svg>
@@ -1651,18 +1652,27 @@ const RecEditorModal = ({
 
   const total = (Number(labor) || 0) + (Number(parts) || 0) + (Number(misc) || 0);
 
-  // Live preview — notify parent whenever concern selection or rec text changes
+  // Live preview — notify parent whenever concern selection or rec text changes.
+  // The modal has two concern-selection paths:
+  //   NEW flow (preLinked / lockedConcern / isNewRec): uses currentPlacementId
+  //   OLD flow (standalone toolbar): uses concern / linkedConcernId / concernManuallyLinked
   React.useEffect(() => {
     if (!onPreviewChange) return;
-    // When preLinked, concern is "new-form-concern" — the real ID is in linkedConcernId
-    const effectiveId = (preLinked && linkedConcernId) ? linkedConcernId : concern;
+    let effectiveId;
+    if (preLinked || lockedConcern || isNewRec) {
+      // New placement system — currentPlacementId is the source of truth
+      effectiveId = currentPlacementId || "__unlinked__";
+    } else {
+      // Old system — viaButton path sets linkedConcernId without touching concern
+      effectiveId = ((preLinked || concernManuallyLinked) && linkedConcernId) ? linkedConcernId : concern;
+    }
     const isNew = typeof effectiveId === "string" && effectiveId.startsWith("new:");
     onPreviewChange({
       concernId: isNew ? "__new_custom__" : effectiveId,
       customName: isNew ? effectiveId.slice(4) : customConcernName,
       recText: whatNeedsDone,
     });
-  }, [concern, linkedConcernId, whatNeedsDone, customConcernName]);
+  }, [concern, linkedConcernId, concernManuallyLinked, currentPlacementId, whatNeedsDone, customConcernName]);
 
   const statusColor = {
     fail:    { bg: "var(--red-100)",    t: "var(--red-700)",    label: "fail" },
@@ -2415,10 +2425,10 @@ const DummySelect = ({ v }) => (
 // ────────────────────────────────────────────────────────────
 
 const concernPalette = {
-  occ:    { headBg: "#EAF6EC", headBd: "#C2E3C9", pillBg: "#FFFFFF", pillFill: "var(--occ-bg)",     pillT: "var(--occ-text)",    label: "OCC" },
-  custom: { headBg: "#DDE9F8", headBd: "#A8C2E7", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_m:  { headBg: "#DDE9F8", headBd: "#A8C2E7", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_c:  { headBg: "#DDE9F8", headBd: "#A8C2E7", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  occ:    { headBg: "#EAF6EC", headBd: "#7DC98A", pillBg: "#FFFFFF", pillFill: "var(--occ-bg)",     pillT: "var(--occ-text)",    label: "OCC" },
+  custom: { headBg: "#DDE9F8", headBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  asc_m:  { headBg: "#DDE9F8", headBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  asc_c:  { headBg: "#DDE9F8", headBd: "#7AAEE0", pillBg: "#FFFFFF", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
 };
 
 const RecStatusBadge = ({ status }) => {
@@ -3087,9 +3097,9 @@ const ConcernCardHeader = ({
   const commitEdit = () => { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft || concern.title); };
   const cancelEdit = () => { setEditingTitle(false); setTitleDraft(concern.title); };
   return (
-    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, padding: "6px 0 6px 8px", ...style }}>
-      {/* Left group — title area, gapped */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, padding: "6px 0", ...style }}>
+      {/* Left group — title area, gapped — owns the 8px left inset so the outer flex has no padding, keeping right columns pixel-aligned with rec rows */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: 8 }}>
         {reorderable && <CardDragHandle selfConcernId={concern.id} onReorder={onReorder} onDragStart={onDragStart} onDragEnd={onDragEnd} />}
         <ConcernTypePill label={palette.label} bg={palette.pillBg} color={palette.pillT} />
         {letter != null && (
@@ -3120,9 +3130,9 @@ const ConcernCardHeader = ({
           </span>
         )}
       </div>
-      {/* Price column — 76px, flush against action column (no gap) */}
+      {/* Price column — 76px, paddingRight matches the implicit gap in rec rows */}
       {showTotal && (
-        <div style={{ width: 76, flexShrink: 0, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+        <div style={{ width: 76, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 8 }}>
           {hasZeroShown
             ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
@@ -3150,7 +3160,51 @@ const ConcernCardHeader = ({
 };
 
 // ── Preview panel shown to the left of the rec-editor modal.
-const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, liveState, panel }) => {
+const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, liveState, panel, onReorderRec }) => {
+  // Pointer-based drag handler for preview rec rows (reorder within concern)
+  const makeRecDrag = (recId, concernId) => (e) => {
+    if (e.button !== 0 || !onReorderRec) return;
+    e.preventDefault(); e.stopPropagation();
+    const st = { sx: e.clientX, sy: e.clientY, dragging: false, ghost: null, line: null, dropId: null, dropBefore: false };
+    const move = (ev) => {
+      const dx = ev.clientX - st.sx, dy = ev.clientY - st.sy;
+      if (!st.dragging) {
+        if (Math.hypot(dx, dy) < 4) return;
+        st.dragging = true;
+        const g = document.createElement("div");
+        g.style.cssText = "position:fixed;z-index:9999;pointer-events:none;left:0;top:0;padding:4px 10px;border-radius:5px;background:#02679B;color:#fff;font:600 12px/1 Lato,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.28);white-space:nowrap;";
+        g.textContent = "Reorder";
+        document.body.appendChild(g); st.ghost = g;
+        document.body.style.cursor = "grabbing"; document.body.style.userSelect = "none";
+      }
+      if (st.ghost) st.ghost.style.transform = `translate(${ev.clientX + 12}px,${ev.clientY + 12}px)`;
+      if (st.line) { st.line.remove(); st.line = null; }
+      st.ghost.style.display = "none";
+      const under = document.elementFromPoint(ev.clientX, ev.clientY);
+      st.ghost.style.display = "block";
+      const row = under && under.closest ? under.closest("[data-pvw-rec]") : null;
+      if (row && row.getAttribute("data-pvw-concern") === concernId && row.getAttribute("data-pvw-rec") !== recId) {
+        const rect = row.getBoundingClientRect();
+        const before = ev.clientY < rect.top + rect.height / 2;
+        st.dropId = row.getAttribute("data-pvw-rec"); st.dropBefore = before;
+        const line = document.createElement("div");
+        line.style.cssText = "position:fixed;z-index:9998;pointer-events:none;height:2px;border-radius:2px;background:#02679B;";
+        line.style.left = rect.left + "px"; line.style.width = rect.width + "px";
+        line.style.top = ((before ? rect.top : rect.bottom) - 1) + "px";
+        document.body.appendChild(line); st.line = line;
+      } else { st.dropId = null; }
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = ""; document.body.style.userSelect = "";
+      if (st.ghost) st.ghost.remove();
+      if (st.line) st.line.remove();
+      if (st.dragging && st.dropId) onReorderRec(concernId, recId, st.dropId, st.dropBefore);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   // Use concerns (MPI tab) as the sole source of truth — recs are populated when the user saves
   const occs = concerns.filter(c => c.type === "occ");
   const ascs = concerns.filter(c => c.type !== "occ");
@@ -3177,9 +3231,11 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
   const liveConcernInMpi = (liveId && liveId !== "__new_custom__" && liveId !== "__unlinked__") ? resolveId(liveId) : null;
   const liveIsKnown = !!liveConcernInMpi;
 
-  // Show a synthetic ASC entry for new custom concerns (__unlinked__, __new_custom__, or unknown ID)
+  // Show a synthetic entry for custom/unlinked/ASC-from-recConcerns concerns
+  // When linking to an existing recConcerns ASC (not in concerns yet), use its real title+type
+  const rcForSynthetic = (liveId && !liveIsKnown) ? (recConcerns || []).find(r => r.id === liveId) : null;
   const syntheticConcern = (liveState && !liveIsKnown && liveId && liveId !== "new-form-concern")
-    ? { id: "__live__", type: "asc_m", title: liveName || "New concern", recs: [], _liveTarget: true }
+    ? { id: "__live__", type: rcForSynthetic?.type || "asc_m", title: rcForSynthetic?.title || liveName || "New concern", recs: [], _liveTarget: true }
     : null;
 
   const all = [...occs, ...ascs, ...(syntheticConcern ? [syntheticConcern] : [])];
@@ -3206,10 +3262,13 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
       {all.map((c, idx) => {
         const p = concernPalette[c.type] || concernPalette.asc_m;
         const isOcc = c.type === "occ";
-        // isTarget: static target resolved from concerns (handles ID mismatches), or live state, or synthetic
-        const isTarget = (targetInConcerns && c === targetInConcerns)
-          || (c._liveTarget)
-          || (liveIsKnown && c === liveConcernInMpi);
+        // isTarget: liveIsKnown takes exclusive priority so linking to a different concern
+        // removes "Current rec" from the original. Fall back to targetInConcerns only when
+        // liveState hasn't resolved yet (null = first render before useEffect fires).
+        const isTarget = c._liveTarget
+          || (liveIsKnown
+            ? c === liveConcernInMpi
+            : (!liveState && targetInConcerns && c === targetInConcerns));
         const occIdx = isOcc ? occs.indexOf(c) : -1;
         const letter = occIdx >= 0 ? String.fromCharCode(65 + occIdx) : null;
         return (
@@ -3249,13 +3308,16 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
               )}
               {/* All recs (OCC or ASC) */}
               {(c.recs || []).map((r, ri) => (
-                <div key={r.id} style={{
-                  display: "flex", alignItems: "center", gap: 7,
-                  padding: "7px 12px 7px 18px",
-                  background: "transparent",
-                  borderBottom: ri < c.recs.length - 1 || isTarget ? "1px solid var(--b-1)" : "none",
-                }}>
-                  <IconMove size={13} style={{ color: "var(--t-4)", flexShrink: 0 }} />
+                <div key={r.id}
+                  data-pvw-rec={r.id}
+                  data-pvw-concern={c.id}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 7,
+                    padding: "7px 12px 7px 10px",
+                    background: "transparent",
+                    borderBottom: ri < c.recs.length - 1 || isTarget ? "1px solid var(--b-1)" : "none",
+                  }}>
+                  <IconMove size={13} onPointerDown={makeRecDrag(r.id, c.id)} style={{ color: "var(--t-4)", flexShrink: 0, cursor: onReorderRec ? "grab" : "default", touchAction: "none" }} />
                   <span style={{ fontSize: 13, color: "var(--t-1)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.text || r.recommendation}</span>
                   {r.fresh && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue-600)", background: "var(--blue-100)", borderRadius: 4, padding: "1px 6px", flexShrink: 0, whiteSpace: "nowrap" }}>Just added</span>}
                 </div>
@@ -4353,8 +4415,10 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
             <div style={{ width: 76, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums" }}>
               {priceEl}
             </div>
-            {/* 84px spacer matches header action column width */}
-            <div style={{ width: 84, flexShrink: 0, borderLeft: "1px solid var(--b-1)" }} />
+            {/* 84px spacer matches header action column width — use positioned divider, not borderLeft, to avoid box-model width shift */}
+            <div style={{ width: 84, flexShrink: 0, position: "relative" }}>
+              <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: "60%", background: p.headBd }} />
+            </div>
           </div>
         );
       })}
@@ -5655,7 +5719,16 @@ const MPIPage = () => {
       return [...cs, { id: recTargetId, section: isRecOcc ? "ocr" : "mpi", type: isRecOcc ? "occ" : "asc_m", title: newConcernTitle, points: [], recs: [{ ...newRec, recommendation: newRec.text }] }];
     });
     const toastTitle = recConcerns.find(c => c.id === recTargetId)?.title || concerns.find(c => c.id === targetConcernId)?.title || newConcernTitle;
-    showToast(`Recommendation added to "${toastTitle}"`, () => setTab("rec"));
+    showToast(`Recommendation added to "${toastTitle}"`, () => {
+      setTab("mpi");
+      // After the MPI tab renders, scroll the concern card into view
+      setTimeout(() => {
+        if (mpiScrollRef.current) {
+          const el = mpiScrollRef.current.querySelector(`[data-concern-drop="${targetConcernId}"]`);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 80);
+    });
     const destConcern = concerns.find((c) => c.id === targetConcernId);
     const pillTypeMap = { occ: "occ", custom: "asc-cos", asc_m: "asc-cos", asc_c: "asc-cos", form: "form" };
     const labelMap    = { occ: "OCC", custom: "ASC", asc_m: "ASC", asc_c: "ASC", form: "Form" };
@@ -5771,6 +5844,7 @@ const MPIPage = () => {
                 onReorderConcern={(targetId, before) => moveConcernRelativeTo(c.id, targetId, before)}
                 letter={letter}
                 onMoveRecTo={(recId, toId) => moveRecToConcern(recId, c.id, toId)}
+                onMoveRecRelative={(recId, toId, targetRecId, before) => moveRecRelativeTo(recId, c.id, toId, targetRecId, before)}
                 onMovePointTo={(pointId, toId) => moveConcernPointToConcern(c.id, pointId, toId)}
                 onMoveRecToNew={(recId) => createConcernFromDrag({ recId, fromConcernId: c.id })}
                 onMovePointToNew={(pointId) => createConcernFromDrag({ kind: "concernPoint", fromConcernId: c.id, pointId })}
@@ -5903,6 +5977,7 @@ const MPIPage = () => {
             targetConcernId={modal.defaultConcern}
             liveState={modalLive}
             panel={editorVariant === "panel"}
+            onReorderRec={(concernId, recId, targetRecId, before) => moveRecRelativeTo(recId, concernId, concernId, targetRecId, before)}
           />
           <div style={{
             width: "100%",
