@@ -3043,13 +3043,18 @@ const ConcernCardHeader = ({
 };
 
 // ── Preview panel shown to the left of the rec-editor modal.
-const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, liveState, panel, onReorderRec }) => {
-  // Pointer-based drag handler for preview rec rows (reorder within concern)
+const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, liveState, panel, onReorderRec, onExtractRec }) => {
+  const [pvwDragging, setPvwDragging] = React.useState(false);
+
+  // Pointer-based drag handler for preview rec rows.
+  // Supports two drop targets:
+  //   1. Another rec row in the same concern → reorder (onReorderRec)
+  //   2. The "new concern" drop zone at the bottom → extract to standalone (onExtractRec)
   const makeRecDrag = (recId, concernId) => (e) => {
-    if (e.button !== 0 || !onReorderRec) return;
+    if (e.button !== 0 || (!onReorderRec && !onExtractRec)) return;
     e.preventDefault();
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_) {}
-    const st = { sx: e.clientX, sy: e.clientY, dragging: false, ghost: null, line: null, dropId: null, dropBefore: false };
+    const st = { sx: e.clientX, sy: e.clientY, dragging: false, ghost: null, line: null, dropId: null, dropBefore: false, dropNew: false };
     const move = (ev) => {
       ev.preventDefault();
       const dx = ev.clientX - st.sx, dy = ev.clientY - st.sy;
@@ -3058,17 +3063,33 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
         st.dragging = true;
         const g = document.createElement("div");
         g.style.cssText = "position:fixed;z-index:9999;pointer-events:none;left:0;top:0;padding:4px 10px;border-radius:5px;background:#02679B;color:#fff;font:600 12px/1 Lato,system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.28);white-space:nowrap;";
-        g.textContent = "Reorder";
+        g.textContent = "Move rec";
         document.body.appendChild(g); st.ghost = g;
         document.body.style.cursor = "grabbing"; document.body.style.userSelect = "none";
+        setPvwDragging(true);
       }
       if (st.ghost) st.ghost.style.transform = `translate(${ev.clientX + 12}px,${ev.clientY + 12}px)`;
       if (st.line) { st.line.remove(); st.line = null; }
+      // Check drop zone first
+      const dz = document.querySelector("[data-pvw-dropzone='new']");
+      if (dz) {
+        const dzr = dz.getBoundingClientRect();
+        const overDz = ev.clientX >= dzr.left && ev.clientX <= dzr.right && ev.clientY >= dzr.top && ev.clientY <= dzr.bottom;
+        if (overDz) {
+          st.dropNew = true; st.dropId = null;
+          dz.style.background = "var(--blue-50,#eff6ff)"; dz.style.borderColor = "var(--blue-500,#3b82f6)"; dz.style.color = "var(--blue-600,#2563eb)";
+          return;
+        } else {
+          st.dropNew = false;
+          dz.style.background = ""; dz.style.borderColor = ""; dz.style.color = "";
+        }
+      }
+      st.dropNew = false;
       st.ghost.style.display = "none";
       const under = document.elementFromPoint(ev.clientX, ev.clientY);
       st.ghost.style.display = "block";
       const row = under && under.closest ? under.closest("[data-pvw-rec]") : null;
-      if (row && row.getAttribute("data-pvw-concern") === concernId && row.getAttribute("data-pvw-rec") !== recId) {
+      if (onReorderRec && row && row.getAttribute("data-pvw-concern") === concernId && row.getAttribute("data-pvw-rec") !== recId) {
         const rect = row.getBoundingClientRect();
         const before = ev.clientY < rect.top + rect.height / 2;
         st.dropId = row.getAttribute("data-pvw-rec"); st.dropBefore = before;
@@ -3085,7 +3106,11 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
       document.body.style.cursor = ""; document.body.style.userSelect = "";
       if (st.ghost) st.ghost.remove();
       if (st.line) st.line.remove();
-      if (st.dragging && st.dropId) onReorderRec(concernId, recId, st.dropId, st.dropBefore);
+      const dz = document.querySelector("[data-pvw-dropzone='new']");
+      if (dz) { dz.style.background = ""; dz.style.borderColor = ""; dz.style.color = ""; }
+      setPvwDragging(false);
+      if (st.dragging && st.dropNew && onExtractRec) onExtractRec(concernId, recId);
+      else if (st.dragging && st.dropId && onReorderRec) onReorderRec(concernId, recId, st.dropId, st.dropBefore);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -3203,7 +3228,7 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
                     background: "transparent",
                     borderBottom: ri < c.recs.length - 1 || isTarget ? "1px solid var(--b-1)" : "none",
                   }}>
-                  <span onPointerDown={makeRecDrag(r.id, c.id)} style={{ display: "flex", alignItems: "center", flexShrink: 0, cursor: onReorderRec ? "grab" : "default", touchAction: "none", userSelect: "none", padding: "2px 2px" }}>
+                  <span onPointerDown={makeRecDrag(r.id, c.id)} style={{ display: "flex", alignItems: "center", flexShrink: 0, cursor: (onReorderRec || onExtractRec) ? "grab" : "default", touchAction: "none", userSelect: "none", padding: "2px 2px" }}>
                     <IconMove size={13} style={{ color: "var(--t-4)", pointerEvents: "none" }} />
                   </span>
                   <span style={{ fontSize: 13, color: "var(--t-1)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.text || r.recommendation}</span>
@@ -3237,6 +3262,27 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
           </div>
         );
       })}
+      {/* Drop zone — appears while dragging a rec; drop here to extract into a new standalone concern */}
+      {pvwDragging && onExtractRec && (
+        <div
+          data-pvw-dropzone="new"
+          style={{
+            margin: "6px 8px 8px",
+            padding: "10px 14px",
+            borderRadius: 7,
+            border: "2px dashed var(--b-2)",
+            background: "",
+            color: "var(--t-4)",
+            fontSize: 12, fontWeight: 600,
+            display: "flex", alignItems: "center", gap: 7,
+            transition: "background 80ms, border-color 80ms, color 80ms",
+            userSelect: "none",
+          }}
+        >
+          <IconPlus size={13} style={{ flexShrink: 0, pointerEvents: "none" }} />
+          <span style={{ pointerEvents: "none" }}>Drop to new standalone concern</span>
+        </div>
+      )}
     </div>
   </div>
   );
@@ -3246,7 +3292,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
   dragActive, isDragSource, isDragOver, draggingRecId, draggingPointId,
   onRecDragStart, onRecDragEnd, onPointDragStart, onPointDragEnd, onCardDragOver, onCardDragLeave, onCardDrop,
   isFirst, isLast, concerns, onMoveRecTo, onMoveRecRelative, onMovePointTo, onMoveRecToNew, onMovePointToNew,
-  canReorder, onReorderConcern, letter }) => {
+  canReorder, onReorderConcern, letter, autoRename = false }) => {
   const p = concernPalette[concern.type];
   const concernTotal = concern.recs.reduce((s, r) => s + (Number(r.total) || 0), 0);
   // For OCC cards, use preApproved amounts if set, otherwise fall back to rec totals
@@ -3292,6 +3338,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         total={displayTotal}
         showTotal={hasRecs || !!concern.preApproved}
         hasZeroShown={false}
+        autoRename={autoRename}
         style={{
           borderRadius: showDropBanner ? 0 : (hasRecs ? "8px 8px 0 0" : 8),
           borderBottom: (hasRecs && !showDropBanner) ? `1px solid ${p.headBd}` : "none",
@@ -3396,7 +3443,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
             </div>
           )}
           {/* Action column — 84px with left border, matches header action column */}
-          <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderLeft: "1px solid var(--b-2)" }}
+          <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={(e) => e.stopPropagation()}>
             {onDeleteRec && (
               <button
@@ -3824,6 +3871,20 @@ const RecMoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDrag
               </button>
             );
           })}
+          {onCreateNew && (
+            <>
+              <div style={{ height: 1, background: "var(--b-1)", margin: "4px 14px" }} />
+              <button
+                onClick={(e) => { e.stopPropagation(); setOpen(false); onCreateNew(); }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-cream)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              >
+                <IconPlus size={13} style={{ color: "var(--t-4)", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, color: "var(--t-3)", fontWeight: 500 }}>New standalone concern</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -4045,7 +4106,7 @@ const RecFieldRow = ({ label, tag }) => (
 );
 
 // ── A single recommendation line within a concern.
-const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec, onDragStartRec, onDragEndRec, dragging, concerns, onMoveRecTo, onMoveRecRelative, onRecClick, selected = false, onToggleSelect, onMoveUp, onMoveDown }) => {
+const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec, onDragStartRec, onDragEndRec, dragging, concerns, onMoveRecTo, onMoveRecRelative, onMoveRecToNew, onRecClick, selected = false, onToggleSelect, onMoveUp, onMoveDown }) => {
   const stat = REC_STATUS[rec.status];
   const hasNote = rec.internal || rec.shopchat != null;
   return (
@@ -4094,6 +4155,7 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec
             concerns={concerns || []}
             currentConcernId={concernId}
             onSelect={(toId) => onMoveRecTo && onMoveRecTo(rec.id, toId)}
+            onCreateNew={onMoveRecToNew ? () => onMoveRecToNew(rec.id) : undefined}
             onDropAtRec={(toConcernId, targetRecId, before) => {
               if (toConcernId === concernId) {
                 onReorderRec && onReorderRec(rec.id, targetRecId, before);
@@ -4191,7 +4253,7 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, recDraggable, onReorderRec
   );
 };
 
-const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename }) => {
+const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename }) => {
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
@@ -4271,6 +4333,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
                 concerns={concerns || []}
                 currentConcernId={concern.id}
                 onSelect={(toId) => moveRec && moveRec(rec.id, concern.id, toId)}
+                onCreateNew={moveRecToNew ? () => moveRecToNew(rec.id, concern.id) : undefined}
                 onDropAtRec={(toConcernId, targetRecId, before) => {
                   if (toConcernId === concern.id) {
                     reorderRec && reorderRec(concern.id, rec.id, targetRecId, before);
@@ -4315,7 +4378,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
 };
 
 // ── A concern card — MPI-style colored header + a list of recommendation rows.
-const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename }) => {
+const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename }) => {
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
@@ -4372,6 +4435,7 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
           concerns={concerns}
           onMoveRecTo={(recId, toId) => moveRec && moveRec(recId, concern.id, toId)}
           onMoveRecRelative={(recId, toConcernId, targetRecId, before) => moveRec && moveRec(recId, concern.id, toConcernId, targetRecId, before)}
+          onMoveRecToNew={moveRecToNew ? (recId) => moveRecToNew(recId, concern.id) : undefined}
           onReorderRec={(dragRecId, targetRecId, before) => reorderRec(concern.id, dragRecId, targetRecId, before)}
           onDragStartRec={() => setRecDrag(rec.id)}
           onDragEndRec={() => setRecDrag(null)}
@@ -4549,7 +4613,7 @@ const initialRecConcerns = [
   },
 ];
 
-const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp, sections, onPointStatusChange, onTireReading, onAddRec, onRecClick }) => {
+const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp, sections, onPointStatusChange, onTireReading, onAddRec, onRecClick, onExtractRec }) => {
   const [localItems, localSetItems] = React.useState(initialRecConcerns);
   const items = itemsProp !== undefined ? itemsProp : localItems;
   const setItems = setItemsProp || localSetItems;
@@ -4619,7 +4683,7 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
         return { ...c, recs };
       });
       if (!moved) return list;
-      return next.map((c) => {
+      const placed = next.map((c) => {
         if (c.id !== toId) return c;
         const recs = c.recs.slice();
         if (targetRecId) {
@@ -4630,6 +4694,8 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
         }
         return { ...c, recs };
       });
+      // Remove now-empty non-OCC concerns
+      return placed.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
     });
   };
 
@@ -4643,7 +4709,23 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
     setNewConcernId(newId);
   };
   const onAddRecToCard = (concernId) => { onAddRec && onAddRec(concernId, true); };
-  const common = { reorderRec, recDrag, setRecDrag, concerns: items, moveRec, onRecClick, selectedRecs, onToggleRec, onTitleChange, onAddRec: onAddRecToCard };
+  // Extract a rec out of its concern into a new standalone concern.
+  // If onExtractRec is provided (from MPIPage), use it so both concerns and recConcerns update.
+  // Otherwise fall back to updating only the local items.
+  const moveRecToNew = (recId, fromConcernId) => {
+    if (onExtractRec) { onExtractRec(fromConcernId, recId); return; }
+    const newId = "custom-" + Date.now();
+    setItems(list => {
+      const from = list.find(c => c.id === fromConcernId);
+      const rec = from?.recs.find(r => r.id === recId);
+      if (!rec) return list;
+      return [
+        ...list.map(c => c.id === fromConcernId ? { ...c, recs: c.recs.filter(r => r.id !== recId) } : c),
+        { id: newId, section: "mpi", type: "asc_m", title: rec.recommendation || rec.text || "New concern", points: [], recs: [{ ...rec, fresh: true }] },
+      ];
+    });
+  };
+  const common = { reorderRec, recDrag, setRecDrag, concerns: items, moveRec, moveRecToNew, onRecClick, selectedRecs, onToggleRec, onTitleChange, onAddRec: onAddRecToCard };
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg-cream-soft)" }}>
@@ -5065,12 +5147,19 @@ const MPIPage = () => {
   // ── Delete a single rec from a concern
   const deleteRec = (recId, concernId) => {
     let recText = "";
-    setConcerns((cs) => cs.map((c) => {
-      if (c.id !== concernId) return c;
-      const rec = c.recs.find((r) => r.id === recId);
-      recText = rec?.text || "recommendation";
-      return { ...c, recs: c.recs.filter((r) => r.id !== recId) };
-    }));
+    setConcerns((cs) => {
+      const updated = cs.map((c) => {
+        if (c.id !== concernId) return c;
+        const rec = c.recs.find((r) => r.id === recId);
+        recText = rec?.text || "recommendation";
+        return { ...c, recs: c.recs.filter((r) => r.id !== recId) };
+      });
+      return updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+    });
+    setRecConcerns((cs) => {
+      const updated = cs.map((c) => c.id === concernId ? { ...c, recs: c.recs.filter((r) => r.id !== recId) } : c);
+      return updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+    });
     showToast(`Deleted "${recText}"`);
   };
 
@@ -5088,11 +5177,16 @@ const MPIPage = () => {
       if (!movedRec) return cs;
       const target = cs.find((c) => c.id === toConcernId);
       toTitle = target ? target.title : "";
-      return cs.map((c) => {
+      const updated = cs.map((c) => {
         if (c.id === fromConcernId) return { ...c, recs: c.recs.filter((r) => r.id !== recId) };
         if (c.id === toConcernId)   return { ...c, recs: [...c.recs, { ...movedRec, fresh: true }] };
         return c;
       });
+      return updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+    });
+    setRecConcerns((cs) => {
+      const updated = cs.map((c) => c.id === fromConcernId ? { ...c, recs: c.recs.filter((r) => r.id !== recId) } : c);
+      return updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
     });
     if (movedRec) {
       showToast(`Moved "${movedRec.text}" to "${toTitle}"`);
@@ -5116,7 +5210,7 @@ const MPIPage = () => {
       const target = cs.find((c) => c.id === toConcernId);
       toTitle = target ? target.title : "";
       const insertRec = sameConcern ? movedRec : { ...movedRec, fresh: true };
-      return cs.map((c) => {
+      const updated = cs.map((c) => {
         if (c.id !== fromConcernId && c.id !== toConcernId) return c;
         let recs = c.recs;
         if (c.id === fromConcernId) recs = recs.filter((r) => r.id !== recId);
@@ -5127,7 +5221,14 @@ const MPIPage = () => {
         }
         return { ...c, recs };
       });
+      return updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
     });
+    if (!sameConcern) {
+      setRecConcerns((cs) => {
+        const updated = cs.map((c) => c.id === fromConcernId ? { ...c, recs: c.recs.filter((r) => r.id !== recId) } : c);
+        return updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+      });
+    }
     if (movedRec && !sameConcern) {
       showToast(`Moved "${movedRec.text}" to "${toTitle}"`);
       setTimeout(() => {
@@ -5151,6 +5252,40 @@ const MPIPage = () => {
   };
 
   const [dragOverNew, setDragOverNew] = React.useState(false);
+
+  // ── Extract a rec from the preview panel into a new standalone concern
+  // Called when the user drags a rec row from ModalContextPreview onto the "new concern" drop zone.
+  const extractRecFromPreview = (concernId, recId) => {
+    const newId = "custom-" + Date.now();
+    // Find in concerns (MPI tab state)
+    const fromC = concerns.find(c => c.id === concernId);
+    const rec = fromC?.recs.find(r => r.id === recId);
+    let needsRename = false;
+    if (rec) {
+      const isCustomFrom = fromC.type === "custom";
+      const newTitle = isCustomFrom ? (rec.text || rec.recommendation || "New concern") : fromC.title;
+      needsRename = isCustomFrom;
+      setConcerns(cs => {
+        const updated = cs.map(c => c.id === concernId ? { ...c, recs: c.recs.filter(r => r.id !== recId) } : c);
+        const filtered = updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+        return [...filtered, { id: newId, type: "custom", title: newTitle, points: [], recs: [{ ...rec, fresh: true }] }];
+      });
+    }
+    // Mirror into recConcerns (Rec tab state) using same newId for consistency
+    setRecConcerns(cs => {
+      const fromR = cs.find(c => c.id === concernId);
+      const rRec = fromR?.recs.find(r => r.id === recId);
+      if (!fromR || !rRec) return cs;
+      const isCustomFrom = fromR.type === "custom";
+      const newTitle = isCustomFrom ? (rRec.recommendation || rRec.text || "New concern") : fromR.title;
+      const updated = cs.map(c => c.id === concernId ? { ...c, recs: c.recs.filter(r => r.id !== recId) } : c);
+      const filtered = updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+      return [...filtered, { id: newId, section: "mpi", type: "custom", title: newTitle, points: [], recs: [{ ...rRec, fresh: true }] }];
+    });
+    // If source was a custom concern, open the title field on the new concern in Edit MPI
+    if (needsRename) setNewCustomConcernId(newId);
+    showToast(`Moved to new standalone concern`);
+  };
 
   // ── Move an MPI inspection point into a concern grouping (manual drag only)
   const moveMpiPointToConcern = (sectionId, pointId, toConcernId) => {
@@ -5226,11 +5361,23 @@ const MPIPage = () => {
       const from = concerns.find((c) => c.id === d.fromConcernId);
       const rec = from?.recs.find((r) => r.id === d.recId);
       if (!rec) return;
-      setConcerns((cs) => [
-        ...cs.map((c) => c.id === d.fromConcernId ? { ...c, recs: c.recs.filter((r) => r.id !== d.recId) } : c),
-        { id: newId, type: "custom", title: rec.text, points: [], recs: [{ ...rec, fresh: true }] },
-      ]);
-      showToast(`New concern created from "${rec.text}"`);
+      // Named concerns (OCC/ASC) → use the concern's own title.
+      // Custom (user-created) concerns → use rec text but open autoRename so the user can set a proper name.
+      const isCustomFrom = from.type === "custom";
+      const newTitle = isCustomFrom ? (rec.text || rec.recommendation || "New concern") : from.title;
+      setConcerns((cs) => {
+        const updated = cs.map((c) => c.id === d.fromConcernId ? { ...c, recs: c.recs.filter((r) => r.id !== d.recId) } : c);
+        // Remove now-empty non-OCC concerns
+        const filtered = updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+        return [...filtered, { id: newId, type: "custom", title: newTitle, points: [], recs: [{ ...rec, fresh: true }] }];
+      });
+      // Mirror removal into recConcerns so Rec tab stays in sync
+      setRecConcerns((cs) => {
+        const updated = cs.map((c) => c.id === d.fromConcernId ? { ...c, recs: c.recs.filter((r) => r.id !== d.recId) } : c);
+        return updated.filter(c => c.type === "occ" || c.recs.length > 0 || c.points.length > 0);
+      });
+      if (isCustomFrom) setNewCustomConcernId(newId);
+      showToast(`New concern created`);
     }
   };
 
@@ -5556,6 +5703,7 @@ const MPIPage = () => {
                   },
                 });
               }}
+              onExtractRec={extractRecFromPreview}
             />
           )}
           {(tab !== "start" && tab !== "rec") && (
@@ -5642,6 +5790,27 @@ const MPIPage = () => {
               });
             })()}
 
+            {drag && (
+              <div
+                data-concern-new="1"
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverNew(true); }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverNew(false); }}
+                onDrop={(e) => { e.preventDefault(); createConcernFromDrag(drag); setDrag(null); setDragOverConcernId(null); setDragOverNew(false); }}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  margin: "4px 0 8px", padding: "14px", borderRadius: 8,
+                  border: `2px dashed ${dragOverNew ? "var(--blue-600)" : "var(--blue-400)"}`,
+                  background: dragOverNew ? "var(--blue-100)" : "var(--blue-50)",
+                  color: dragOverNew ? "var(--blue-800)" : "var(--blue-700)",
+                  fontSize: 14, fontWeight: 700, letterSpacing: 0.04, textTransform: "uppercase",
+                  transition: "background 120ms, border-color 120ms, color 120ms",
+                  cursor: "copy",
+                }}
+              >
+                <IconPlus size={15} /> Add new concern
+              </div>
+            )}
+
             <div style={{ height: 8 }} />
 
             <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 4px", marginBottom: 10 }}>
@@ -5677,27 +5846,6 @@ const MPIPage = () => {
               />
             ))}
 
-            {drag && (
-              <div
-                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverNew(true); }}
-                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverNew(false); }}
-                onDrop={(e) => { e.preventDefault(); createConcernFromDrag(drag); setDrag(null); setDragOverConcernId(null); setDragOverNew(false); }}
-                style={{
-                  position: "fixed", left: 360, right: 18, bottom: 58, zIndex: 95,
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  padding: "16px 14px", borderRadius: 8,
-                  border: `2px dashed ${dragOverNew ? "var(--blue-600)" : "var(--blue-400)"}`,
-                  background: dragOverNew ? "var(--blue-100)" : "var(--blue-50)",
-                  color: dragOverNew ? "var(--blue-800)" : "var(--blue-700)",
-                  boxShadow: "0 8px 24px rgba(15,13,8,0.16)",
-                  fontSize: 14, fontWeight: 700, letterSpacing: 0.04, textTransform: "uppercase",
-                  transition: "background 120ms, border-color 120ms, color 120ms",
-                }}
-              >
-                <IconPlus size={15} /> Add new concern
-              </div>
-            )}
-
             <div style={{ height: 80 }} />
           </div>
           <BottomBar />
@@ -5727,6 +5875,7 @@ const MPIPage = () => {
             liveState={modalLive}
             panel={editorVariant === "panel"}
             onReorderRec={(concernId, recId, targetRecId, before) => moveRecRelativeTo(recId, concernId, concernId, targetRecId, before)}
+            onExtractRec={extractRecFromPreview}
           />
           <div style={{
             width: "100%",
@@ -5759,10 +5908,12 @@ const MPIPage = () => {
                   if (seenOccTitles.has(c.title)) return false;
                   seenOccTitles.add(c.title); return true;
                 });
-                // ASCs: merge both states by ID, only keep those with a marked rec
+                // ASCs: only include concerns that exist in the MPI tab (concerns state).
+                // This prevents recConcerns-only orphans (old Rec-tab flow) from leaking into the picker.
                 const seenIds = new Set(recConcerns.map(c => c.id));
+                const mpiAscIds = new Set(concerns.filter(c => c.type !== "occ").map(c => c.id));
                 const ascs = [
-                  ...recConcerns.filter(c => c.type !== "occ"),
+                  ...recConcerns.filter(c => c.type !== "occ" && mpiAscIds.has(c.id)),
                   ...concerns.filter(c => c.type !== "occ" && !seenIds.has(c.id)),
                 ].filter(c => c.recs.some(r => r.status != null));
                 const base = [...occs, ...ascs];
