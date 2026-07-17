@@ -3089,7 +3089,7 @@ const MediaTag = ({ media }) => {
         background: "var(--bg-cream)", color: "var(--t-3)", border: "1px solid var(--b-2)",
         borderRadius: 5, padding: "2px 7px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", cursor: "default",
       }}>
-        <IconImage size={11} /> {count}
+        Media <IconImage size={11} />
       </span>
       {hover && (
         <div style={{
@@ -3136,7 +3136,7 @@ const PartsTag = ({ parts, amount }) => {
         background: "var(--blue-50)", color: "var(--blue-700)", border: "1px solid var(--blue-200)",
         borderRadius: 5, padding: "2px 7px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", cursor: "default",
       }}>
-        <IconGear size={11} /> {list.length}
+        Parts <IconGear size={11} />
       </span>
       {hover && (
         <div style={{
@@ -4686,7 +4686,7 @@ const RecFilterBar = ({ filter, setFilter, counts }) => {
     { id: "incomplete", label: "Needs pricing" },
   ];
   return (
-    <div style={{ display: "inline-flex", borderRadius: 10, background: "var(--bg-cream)", border: "1px solid var(--b-2)", padding: 3, gap: 2, marginBottom: 14 }}>
+    <div style={{ display: "inline-flex", borderRadius: 10, background: "var(--bg-cream)", border: "1px solid var(--b-2)", padding: 3, gap: 2 }}>
       {chips.map((c, i) => {
         const active = filter === c.id;
         const count = counts[c.id] ?? 0;
@@ -4715,7 +4715,7 @@ const RecFilterBar = ({ filter, setFilter, counts }) => {
 };
 
 // ── A single recommendation line within a concern.
-const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecClick, selected = false, onToggleSelect, defaultExpanded = false }) => {
+const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecClick, selected = false, onToggleSelect, defaultExpanded = false, compact = true }) => {
   const [expanded, setExpanded] = React.useState(defaultExpanded);
   const stat = REC_STATUS[rec.status];
   const hasMedia = rec.media && typeof rec.media === "object" && (rec.media.photos > 0 || rec.media.videos > 0);
@@ -4802,30 +4802,14 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
     });
   }
 
-  // Media tag with camera/video icon and hover
+  // Media tag — interactive hover showing thumbnails
   if (hasMedia) {
-    const photoCount = rec.media.photos || 0;
-    const videoCount = rec.media.videos || 0;
-    const totalMedia = photoCount + videoCount;
-    inlineTags.push(
-      <span key="media"
-        title={[photoCount > 0 && `${photoCount} photo${photoCount !== 1 ? "s" : ""}`, videoCount > 0 && `${videoCount} video${videoCount !== 1 ? "s" : ""}`].filter(Boolean).join(", ")}
-        style={{ display: "inline-flex", alignItems: "center", gap: 4,
-          fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4,
-          background: "var(--blue-25)", color: "var(--blue-600)", border: "1px solid var(--blue-100)",
-          cursor: "default", transition: "background 100ms" }}
-        onMouseEnter={e => { e.currentTarget.style.background = "var(--blue-50)"; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "var(--blue-25)"; }}
-      >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {videoCount > 0 && photoCount === 0
-            ? <><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></>
-            : <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>
-          }
-        </svg>
-        {totalMedia}
-      </span>
-    );
+    inlineTags.push(<MediaTag key="media" media={rec.media} />);
+  }
+
+  // Parts tag — gear icon + hover showing estimate breakdown
+  if (Number(rec.parts) > 0) {
+    inlineTags.push(<PartsTag key="ptag" amount={rec.parts} />);
   }
 
   const priceEl = total != null ? (
@@ -4845,16 +4829,17 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
     return (
       <button onClick={e => { e.stopPropagation(); onApprovalChange && onApprovalChange(active ? null : val); }}
         style={{
-          height: 28, padding: "0 11px",
+          height: 28, minWidth: 84, padding: "0 11px",
           background: active ? (isApprove ? "var(--green-700)" : "var(--red-600)") : "transparent",
           border: "none",
           borderRadius: 5,
           color: active ? "#fff" : "var(--t-3)",
           fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-          display: "inline-flex", alignItems: "center", gap: 5,
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
           transition: "background 120ms, color 120ms",
           whiteSpace: "nowrap",
           boxShadow: active ? "0 1px 3px rgba(0,0,0,0.18)" : "none",
+          flexShrink: 0,
         }}
         onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(0,0,0,0.06)"; }}
         onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
@@ -4862,126 +4847,167 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
     );
   };
 
-  return (
-    <div style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)" }}>
-      {/* Compact row */}
-      <div onClick={() => onRecClick && onRecClick(rec)} style={{
-        display: "flex", alignItems: "center", gap: 10,
-        padding: "10px 12px 10px 0", cursor: onRecClick ? "pointer" : "default",
-        background: "transparent",
-        transition: "background 100ms",
-      }}
-        onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-      >
-        {/* Inline checkbox */}
-        <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+
+  const estStatusNonApproved = (rec.estStatus || []).filter(s => s.tone !== "approved");
+
+  // ── Expanded: full 3-column layout ──
+  if (expanded) {
+    return (
+      <div style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "stretch", minHeight: 72, background: "var(--bg-white)", paddingRight: 12 }}>
+        {/* Checkbox — top-left */}
+        <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 14 }}
           onClick={e => e.stopPropagation()}>
           <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
         </div>
+
         {/* Rec text + inline tags */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.4, fontStyle: rec.recommendation ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ flex: 1, minWidth: 0, padding: "12px 14px 12px 0", cursor: onRecClick ? "pointer" : "default" }}
+          onClick={() => onRecClick && onRecClick(rec)}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = ""; }}>
+          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic" }}>
             {rec.recommendation || "No recommendation added"}
           </div>
           {inlineTags.length > 0 && (
-            <div style={{ display: "flex", gap: 5, marginTop: 4, flexWrap: "wrap" }}>{inlineTags}</div>
+            <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>{inlineTags}</div>
           )}
         </div>
 
-        {/* Price */}
-        <div style={{ flexShrink: 0, textAlign: "right", minWidth: 48 }}>{priceEl}</div>
+        {/* REC ESTIMATE */}
+        <div style={{ width: 240, flexShrink: 0, borderLeft: "1px solid var(--b-2)", padding: "10px 14px 12px" }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 7 }}>REC ESTIMATE</div>
+          {[
+            rec.estSummary ? ["Hours", rec.estSummary, true] : null,
+            ["Labor",      rec.labor  != null ? `$${Number(rec.labor).toFixed(2)}`  : null, false],
+            ["Parts",      rec.parts  != null ? `$${Number(rec.parts).toFixed(2)}`  : null, false],
+            ["Misc Fees",  rec.misc   != null ? `$${Number(rec.misc).toFixed(2)}`   : null, false],
+            ["Taxes on P + L + Misc", null, false],
+          ].filter(Boolean).map(([label, val, bold]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+              <span style={{ fontSize: 12, color: "var(--t-3)" }}>{label}</span>
+              <span style={{ fontSize: 12, fontWeight: bold ? 700 : 400, color: val ? "var(--t-2)" : "var(--t-5)", fontVariantNumeric: "tabular-nums" }}>{val || "No input"}</span>
+            </div>
+          ))}
+          <div style={{ height: 1, background: "var(--b-1)", margin: "6px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t-2)" }}>Total (w/ tax + misc)</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${rec.total != null ? Number(rec.total).toFixed(2) : "0.00"}</span>
+          </div>
+          {rec.shownToCustomer != null && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 5,
+              border: `1px solid ${rec.shownToCustomer === 0 ? "#F0B6B6" : "#BDD9BD"}`,
+              background: rec.shownToCustomer === 0 ? "var(--red-50)" : "var(--green-50)" }}>
+              {rec.shownToCustomer === 0
+                ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--red-600)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: rec.shownToCustomer === 0 ? "var(--red-600)" : "var(--green-700)" }}>
+                {rec.shownToCustomer === 0 ? "$0 shown to customer" : `$${Number(rec.shownToCustomer).toFixed(0)} shown to customer`}
+              </span>
+            </div>
+          )}
+        </div>
 
-        {/* Approve / Decline */}
-        {(() => {
-          return (
-            <div style={{ display: "inline-flex", flexShrink: 0, background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 8, padding: 2, gap: 1 }} onClick={e => e.stopPropagation()}>
+        {/* Right column */}
+        <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "flex-start", marginTop: 15, paddingBottom: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Toggle + chevron */}
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 14 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "inline-flex", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 8, padding: 2, gap: 1 }}>
               {mkBtn("✓ Approve", "approved")}
               {mkBtn("✕ Decline", "declined")}
             </div>
-          );
-        })()}
-
-        {/* Chevron — click to expand/collapse only */}
-        <div onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
-          style={{ flexShrink: 0, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer" }}
-          onMouseEnter={e => e.currentTarget.style.background = "var(--b-1)"}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 180ms" }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+            <div onClick={() => setExpanded(false)}
+              style={{ marginLeft: "auto", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--b-1)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+            </div>
+          </div>
+          {/* ESTIMATE STATUS */}
+          <div style={{ padding: "0 14px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 6 }}>ESTIMATE STATUS</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {estStatusNonApproved.length === 0
+                ? <span style={{ fontSize: 12, color: "var(--t-5)" }}>—</span>
+                : estStatusNonApproved.map((es, i) => {
+                    const isInc = es.tone === "incomplete"; const isDec = es.tone === "declined";
+                    const isDone = es.tone === "done" || es.tone === "completed"; const isReq = es.tone === "requested";
+                    let bg, color, border;
+                    if (isDone)     { bg = "var(--green-50)"; color = "var(--green-700)"; border = "#BDD9BD"; }
+                    else if (isInc) { bg = "#FFF7ED"; color = "#B45309"; border = "#FCD6A0"; }
+                    else if (isDec) { bg = "var(--red-50)"; color = "var(--red-600)"; border = "#F0B6B6"; }
+                    else if (isReq) { bg = "var(--blue-25)"; color = "var(--blue-600)"; border = "var(--blue-100)"; }
+                    else            { bg = "var(--bg-cream-soft)"; color = "var(--t-3)"; border = "var(--b-2)"; }
+                    return <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: bg, color, border: `1px solid ${border}`, alignSelf: "flex-start" }}>{es.label}</span>;
+                  })}
+            </div>
+          </div>
+          {/* WORK */}
+          <div style={{ padding: "0 14px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 6 }}>WORK</div>
+            {rec.workTag ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                background: rec.workTag.tone === "done" ? "var(--green-50)" : "var(--bg-cream-soft)",
+                color: rec.workTag.tone === "done" ? "var(--green-700)" : "var(--t-3)",
+                border: `1px solid ${rec.workTag.tone === "done" ? "#BDD9BD" : "var(--b-2)"}` }}>
+                {rec.workTag.tone === "done" && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+                {rec.workTag.tone === "done" ? "Done" : rec.workTag.label} ×
+              </span>
+            ) : <span style={{ fontSize: 12, color: "var(--t-5)" }}>—</span>}
+          </div>
+          {/* PARTS */}
+          <div style={{ padding: "0 14px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 6 }}>PARTS</div>
+            {rec.partsTag ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                background: rec.partsTag.tone === "stock" ? "var(--green-50)" : "var(--yellow-25)",
+                color: rec.partsTag.tone === "stock" ? "var(--green-700)" : "var(--yellow-700)",
+                border: `1px solid ${rec.partsTag.tone === "stock" ? "#BDD9BD" : "#F3DDA1"}` }}>
+                {rec.partsTag.label}
+              </span>
+            ) : <span style={{ fontSize: 12, color: "var(--t-5)" }}>—</span>}
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Expanded estimate + media */}
-      {expanded && (
-        <div style={{ borderTop: "1px solid var(--b-1)", background: "var(--bg-white)", padding: "12px 16px 12px 52px" }}>
-          <div style={{ display: "flex", gap: 16 }}>
-            {/* ESTIMATE */}
-            <div style={{ flex: "0 0 220px" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 6 }}>Estimate</div>
-              <div style={{ background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, padding: "12px 14px", boxShadow: "var(--shadow-card)" }}>
-              {[
-                rec.estSummary ? ["Hours", rec.estSummary] : null,
-                ["Labor",   rec.labor   != null ? `$${Number(rec.labor).toFixed(2)}`   : null],
-                ["Parts",   rec.parts   != null ? `$${Number(rec.parts).toFixed(2)}`   : null],
-                ["Misc fees", rec.misc  != null ? `$${Number(rec.misc).toFixed(2)}`    : null],
-                ["Taxes on P+L+Misc", "Not calculated"],
-              ].filter(Boolean).map(([label, val]) => (
-                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
-                  <span style={{ fontSize: 12.5, color: "var(--t-3)" }}>{label}</span>
-                  <span style={{ fontSize: 12.5, color: val && val !== "Not calculated" ? "var(--t-2)" : "var(--t-5)" }}>{val || "—"}</span>
-                </div>
-              ))}
-              <div style={{ height: 1, background: "var(--b-1)", margin: "7px 0" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-2)" }}>Total w/ tax + misc</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${total != null ? Number(total).toFixed(2) : "0.00"}</span>
-              </div>
-              {shownToCustomer != null && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 5, marginBottom: 5,
-                  border: `1px solid ${shownToCustomer === 0 ? "#F0B6B6" : "#BDD9BD"}`,
-                  background: shownToCustomer === 0 ? "var(--red-50)" : "var(--green-50)" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={shownToCustomer === 0 ? "var(--red-600)" : "var(--green-700)"} strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: shownToCustomer === 0 ? "var(--red-600)" : "var(--green-700)" }}>
-                    {shownToCustomer === 0 ? "$0 shown to customer" : `$${Number(shownToCustomer).toFixed(0)} shown to customer`}
-                  </span>
-                </div>
-              )}
-              {rec.estStatus?.some(s => s.tone === "approved") && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 5,
-                  border: "1px solid #BDD9BD", background: "var(--green-50)" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--green-700)" }}>Pre-approved · ${total != null ? Number(total).toFixed(0) : "0"}</span>
-                </div>
-              )}
-              </div>{/* /card */}
-            </div>
-
-            {/* MEDIA */}
-            {hasMedia && (
-              <div style={{ width: 160, flexShrink: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 8 }}>Media</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {Array.from({ length: rec.media.photos || 0 }).map((_, i) => (
-                    <div key={"p" + i} style={{ width: 54, height: 54, borderRadius: 6, background: "var(--bg-cream)", border: "1px solid var(--b-2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    </div>
-                  ))}
-                  {Array.from({ length: rec.media.videos || 0 }).map((_, i) => (
-                    <div key={"v" + i} style={{ width: 54, height: 54, borderRadius: 6, background: "var(--blue-25)", border: "1px solid var(--blue-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue-600)" strokeWidth="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
+  // ── Compact row ──
+  return (
+    <div style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", background: "var(--bg-white)", paddingRight: 12, userSelect: "none" }}
+      onClick={() => onRecClick && onRecClick(rec)}
+      onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+    >
+      {/* Checkbox — top-left, matching expanded */}
+      <div style={{ width: 36, flexShrink: 0, display: "flex", justifyContent: "center", paddingTop: 14 }}
+        onClick={e => e.stopPropagation()}>
+        <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
+      </div>
+      {/* Rec text + inline tags */}
+      <div style={{ flex: 1, minWidth: 0, padding: "12px 14px 12px 0" }}>
+        <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {rec.recommendation || "No recommendation added"}
         </div>
-      )}
+        {inlineTags.length > 0 && (
+          <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>{inlineTags}</div>
+        )}
+      </div>
+      {/* Price */}
+      <div style={{ flexShrink: 0, textAlign: "right", minWidth: 48, paddingTop: 15 }}>{priceEl}</div>
+      {/* Approve / Decline + chevron */}
+      <div style={{ display: "flex", alignItems: "center", flexShrink: 0, width: 220, paddingLeft: 14, paddingTop: 15 }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ display: "inline-flex", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 8, padding: 2, gap: 1 }}>
+          {mkBtn("✓ Approve", "approved")}
+          {mkBtn("✕ Decline", "declined")}
+        </div>
+        <div onClick={e => { e.stopPropagation(); setExpanded(true); }}
+          style={{ marginLeft: "auto", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer" }}
+          onMouseEnter={e => e.currentTarget.style.background = "var(--b-1)"}
+          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        </div>
+      </div>
     </div>
   );
 }
@@ -5154,6 +5180,7 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
           approval={recApprovals ? recApprovals.get(rec.id) ?? null : null}
           onApprovalChange={onApprovalChange ? (val) => onApprovalChange(rec.id, val) : undefined}
           defaultExpanded={!compact}
+          compact={compact}
         />
       ))}
       {/* Concern subtotal when some (not all) recs are selected */}
@@ -5236,11 +5263,12 @@ const RecActionBar = ({ onAddRec, onAddCustomRec, compact, onToggleCompact, sele
 };
 
 
-const RecSectionHeader = ({ title, count }) => (
+const RecSectionHeader = ({ title, count, right }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 4px", marginBottom: 10 }}>
     <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-2)" }}>{title}</span>
     <span style={{ background: "var(--b-1)", color: "var(--t-3)", fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "1px 9px" }}>{count}</span>
     <div style={{ flex: 1, height: 1, background: "var(--b-1)", marginLeft: 4 }} />
+    {right && <div style={{ flexShrink: 0 }}>{right}</div>}
   </div>
 );
 
@@ -5542,8 +5570,7 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
               onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
             ><IconPlus size={13} /> Custom</button>
           </div>
-          <RecFilterBar filter={activeFilter} setFilter={setActiveFilter} counts={filterCounts} />
-          <RecSectionHeader title="Concerns" count={ocr.length + mpi.length} />
+          <RecSectionHeader title="Concerns" count={ocr.length + mpi.length} right={<RecFilterBar filter={activeFilter} setFilter={setActiveFilter} counts={filterCounts} />} />
           {(() => {
             const allCards = [
               ...ocr.map((c, i) => ({ c, letter: String.fromCharCode(65 + i), reorderable: false, isOcr: true })),
