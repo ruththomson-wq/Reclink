@@ -1788,409 +1788,58 @@ const RecEditorModal = ({
           <div onClick={dismissLinkTour} style={{ position: "absolute", inset: 0, background: "rgba(16,24,40,0.72)", zIndex: 101, cursor: "pointer", borderRadius: "0 0 16px 16px" }} />
         )}
 
-        {/* Concern picker — varies by flow */}
-        {isNewRec ? (
-          <div style={{ display: "flex", alignItems: "stretch", border: "1px solid var(--b-1)", borderRadius: 8, background: "var(--bg-cream-soft)" }}>
-            <div style={{ padding: "12px 16px", flexShrink: 0, borderRight: "1px solid var(--b-1)" }}>
-              <label className="field-label">Inspection result</label>
-              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                <GradeStatusBtn kind="fail" label="Fail" active={status === "fail"} onClick={() => { setStatus("fail"); setDirty(true); }} />
-                <GradeStatusBtn kind="caution" label="Caution" active={status === "caution"} onClick={() => { setStatus("caution"); setDirty(true); }} />
-              </div>
-            </div>
-            <div style={{ flex: 1, padding: "12px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
-                <label className="field-label" style={{ margin: 0 }}>Concern name</label>
-                <InfoTooltip tip="Link to an existing inspection question to pre-fill data and group results." />
-              </div>
-              {preLinked ? (
-                <div style={{ height: 36, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", display: "flex", alignItems: "center", fontSize: 14, color: "var(--t-2)", fontWeight: 500, overflow: "hidden" }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inspectionPoint}</span>
-                </div>
-              ) : (
-                <FormItemSearchField
-                  value={customConcernName}
-                  keepQueryOnCustom={true}
-                  onChange={(v, item) => { setCustomConcernName(v); setDirty(true); if (item && item.id !== "__custom__") { setFormItemCommitted(v); setFormItemCommittedId(item.id); } }}
-                  formItems={formItems}
-                  placeholder="Search for an inspection question or add custom concern"
-                />
-              )}
+        {/* Unified: INSPECTION RESULT + CONCERN NAME */}
+        <div style={{ display: "flex", alignItems: "stretch", border: "1px solid var(--b-1)", borderRadius: 8, background: "var(--bg-cream-soft)" }}>
+          <div style={{ padding: "12px 16px", flexShrink: 0, borderRight: "1px solid var(--b-1)" }}>
+            <label className="field-label">Inspection result</label>
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <GradeStatusBtn kind="fail"    label="Fail"    active={status === "fail"}    onClick={() => { setStatus("fail");    setDirty(true); }} />
+              <GradeStatusBtn kind="caution" label="Caution" active={status === "caution"} onClick={() => { setStatus("caution"); setDirty(true); }} />
             </div>
           </div>
-        ) : (preLinked || lockedConcern) ? (
-          <div style={{ position: "relative" }}>
-            {/* ── Spotlight wrapper — elevated above backdrop during onboarding ── */}
-            <div style={{ position: "relative", zIndex: linkTourActive ? 102 : undefined, background: linkTourActive ? "var(--bg-white)" : undefined, borderRadius: linkTourActive ? 10 : undefined, padding: linkTourActive ? "12px" : undefined, margin: linkTourActive ? "-12px" : undefined, boxShadow: linkTourActive ? "0 2px 24px rgba(0,0,0,0.18)" : undefined }}>
-            {/* Header label */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <label className="field-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
-                <IconLink size={12} style={{ color: "var(--t-4)", flexShrink: 0 }} />
-                {lockedConcern ? "Link to a parent concern" : "Link to existing concern (optional)"}
-              </label>
-              <InfoTooltip tip="Linking will group under an existing concern so that the customer sees them together" />
-              {isFirstView && (
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.08, textTransform: "uppercase", background: "var(--blue-100)", color: "var(--blue-600)", padding: "1px 5px", borderRadius: 3 }}>NEW</span>
-              )}
+          <div style={{ flex: 1, padding: "12px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+              <label className="field-label" style={{ margin: 0 }}>Concern name</label>
+              <InfoTooltip tip="Link to an existing inspection question to pre-fill data and group results." />
             </div>
-            {/* PLACEMENT: committed row only after user actively picks (not auto-locked from copy fields) */}
-            <div style={{ position: "relative" }}>
-            {userPickedConcern && !autoConcernLocked && currentPlacementId !== "__unlinked__" && !changingPlacement ? (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, flex: 1, minWidth: 0, padding: "8px 10px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6 }}>
-                    <IconLink size={12} style={{ color: "var(--blue-500)", flexShrink: 0 }} />
-                    <span style={{ color: "var(--t-3)" }}>Linked to</span>
-                    <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ fontSize: 11 }}>{placementTypeLabel}</span>
-                    <span style={{ color: "var(--t-1)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{placementTitle}</span>
-                  </div>
-                  <button
-                    onClick={() => { setChangingPlacement(true); setPlacementDropdownOpen(true); }}
-                    style={{ flexShrink: 0, padding: "0 12px", height: 36, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, color: "var(--t-2)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-1)"; e.currentTarget.style.borderColor = "var(--b-3)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-2)"; e.currentTarget.style.borderColor = "var(--b-2)"; }}
-                  >Change</button>
-                </div>
-                <div style={{ fontSize: 12.5, color: "var(--t-4)", marginTop: -4, marginBottom: 8, paddingLeft: 2 }}>
-                  (Optional) Click "Change" to group this recommendation under a different concern.
-                </div>
-              </>
+            {(preLinked || lockedConcern) ? (
+              <div style={{ height: 36, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", display: "flex", alignItems: "center", fontSize: 14, color: "var(--t-2)", fontWeight: 500, overflow: "hidden" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inspectionPoint || lockedConcernLabel || "—"}</span>
+              </div>
             ) : (
-              /* PLACEMENT dropdown — default state: always editable */
-              <>
-              {changingPlacement && placementTitle && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, padding: "4px 2px" }}>
-                  <span style={{ fontSize: 12, color: "var(--t-4)", fontWeight: 600, letterSpacing: 0.02, flexShrink: 0 }}>Currently linked:</span>
-                  <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ fontSize: 11 }}>{placementTypeLabel}</span>
-                  <span style={{ fontSize: 12.5, color: "var(--t-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{placementTitle}</span>
-                </div>
-              )}
-              <div ref={placementDropdownRef} style={{ position: "relative", marginBottom: (isNewRec && currentPlacementId === "__unlinked__") ? 0 : 8, border: `1px solid ${placementDropdownOpen ? "var(--blue-500)" : "var(--b-2)"}`, borderRadius: 6, boxShadow: placementDropdownOpen ? "0 0 0 4px rgba(2,103,155,0.15)" : "none", transition: "border-color 120ms, box-shadow 120ms", background: "var(--bg-white)", animation: isFirstView ? "placementGlow 2s ease-in-out infinite" : "none" }}>
-                <button
-                  onClick={() => setPlacementDropdownOpen(v => !v)}
-                  style={{ width: "100%", height: 36, padding: "0 10px", background: "transparent", border: "none", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
-                >
-                  {currentPlacementId === "__unlinked__" ? (
-                    <>
-                      <span className="pill asc-cos" style={{ flexShrink: 0 }}>ASC</span>
-                      <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14, fontWeight: autoConcernLocked && customConcernName ? 500 : 700, color: "var(--t-1)" }}>{autoConcernLocked && customConcernName ? customConcernName : (isNewRec ? "New custom concern" : (lockedConcern && inspectionPoint ? inspectionPoint : "Keep standalone"))}</span>
-                        {autoConcernLocked && customConcernName && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-4)", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 4, padding: "1px 6px" }}>current concern</span>}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{placementTypeLabel}</span>
-                      <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14, fontWeight: 500, color: "var(--t-1)" }}>{placementTitle}</span>
-                        {(lockedConcern || autoConcernLocked) && !userPickedConcern && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-4)", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 4, padding: "1px 6px" }}>current concern</span>}
-                      </span>
-                    </>
-                  )}
-                  <IconChevDown size={14} style={{ flexShrink: 0, color: "var(--t-2)", transition: "transform 180ms", transform: placementDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
-                </button>
-                {placementDropdownOpen && allConcerns.length > 0 && (
-                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 300, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 7, boxShadow: "var(--shadow-modal)", maxHeight: 260, overflowY: "auto" }} className="scrollable">
-                    <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--b-1)", position: "sticky", top: 0, background: "var(--bg-white)", zIndex: 1 }} onMouseDown={e => e.preventDefault()}>
-                      <input
-                        ref={placementSearchRef}
-                        value={placementSearch}
-                        onChange={e => setPlacementSearch(e.target.value)}
-                        placeholder="Search concerns…"
-                        style={{ width: "100%", boxSizing: "border-box", height: 28, padding: "0 8px", border: "1px solid var(--b-2)", borderRadius: 5, fontSize: 13, color: "var(--t-1)", background: "var(--bg-cream-soft)", outline: "none" }}
-                      />
-                    </div>
-                    {(() => {
-                      const q = placementSearch.trim().toLowerCase();
-                      const allFiltered = q
-                        ? allConcerns.filter(c => c.id === "__unlinked__" || c.title.toLowerCase().includes(q))
-                        : allConcerns;
-                      // Keep standalone always last
-                      const filtered = [
-                        ...allFiltered.filter(c => c.id !== "__unlinked__"),
-                        ...allFiltered.filter(c => c.id === "__unlinked__"),
-                      ];
-                      const rows = [];
-                      let lastHeader = null;
-                      filtered.forEach(c => {
-                        const header = c.id === "__unlinked__" ? "Keep standalone"
-                          : c._formReturn ? "Return to original form concern"
-                          : c.type === "occ" ? "Link to an original customer concern"
-                          : "Link to an additional service concern";
-                        if (header !== lastHeader) {
-                          lastHeader = header;
-                          if (header) rows.push(
-                            <div key={"hdr-" + header} style={{ padding: "6px 12px 3px", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", borderTop: rows.length > 0 ? "1px solid var(--b-1)" : "none", marginTop: rows.length > 0 ? 4 : 0 }}>{header}</div>
-                          );
-                        }
-                        rows.push(
-                          <div
-                            key={c.id}
-                            onMouseDown={e => { e.preventDefault(); setCurrentPlacementId(c.id); setPlacementDropdownOpen(false); setPlacementSearch(""); setChangingPlacement(false); setUserPickedConcern(true); setAutoConcernLocked(false); }}
-                            style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", background: c.id === currentPlacementId ? "var(--blue-25)" : "" }}
-                            onMouseEnter={e => { if (c.id !== currentPlacementId) e.currentTarget.style.background = "var(--bg-cream)"; }}
-                            onMouseLeave={e => { if (c.id !== currentPlacementId) e.currentTarget.style.background = ""; }}
-                          >
-                            {c.id === "__unlinked__" ? (
-                              <><span className="pill asc-cos" style={{ flexShrink: 0 }}>ASC</span><span style={{ fontSize: 13.5, color: "var(--t-1)", fontWeight: 400 }}>{placementTitle || sourceConcernTitle || inspectionPoint || "Keep standalone"}</span></>
-                            ) : c._formReturn ? (
-                              <><span className="pill asc-cos" style={{ flexShrink: 0 }}>FORM</span><span style={{ fontSize: 13.5, color: "var(--t-1)", fontWeight: 400 }}>{c.title}</span></>
-                            ) : (
-                              <><span className={`pill ${c.type === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{c.type === "occ" ? "OCC" : "ASC"}</span><span style={{ fontSize: 13.5, color: "var(--t-1)", fontWeight: c.type === "custom" ? 700 : 400 }}>{c.title}</span></>
-                            )}
-                          </div>
-                        );
-                      });
-                      return rows;
-                    })()}
-                  </div>
-                )}
-              </div>
-              </>
-            )}
-            </div>
-            {isNewRec && !newBannerDismissed && (() => {
-              // Show connector only when the "Concern name" input won't also show — avoid double connectors
-              const nameFieldVisible = currentPlacementId === "__unlinked__" && !autoConcernLocked;
-              const bannerContent = (
-                <div style={{ padding: "8px 12px", background: "var(--blue-25)", border: "1px solid var(--blue-100)", borderRadius: 7, display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 15, lineHeight: 1, color: "var(--yellow-600)" }}>✦</span>
-                  <span style={{ flex: 1, fontSize: 13.5, color: "var(--t-2)", lineHeight: 1.5 }}>(Optional) Select the dropdown to group this recommendation under an existing concern.</span>
-                  <button onClick={() => { setNewBannerDismissed(true); if (linkTourActive) dismissLinkTour(); }} style={{ flexShrink: 0, background: "none", border: "none", fontWeight: 700, fontSize: 13.5, color: "var(--blue-600)", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"} onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>Acknowledged</button>
-                </div>
-              );
-              return nameFieldVisible ? (
-                <div style={{ marginTop: 8, marginBottom: 6 }}>{bannerContent}</div>
-              ) : (
-                <div style={{ display: "flex", gap: 8, marginTop: 2, marginBottom: 8, paddingLeft: 10 }}>
-                  <div style={{ width: 16, flexShrink: 0, display: "flex", flexDirection: "column" }}>
-                    <div style={{ flex: "0 0 20px", borderLeft: "1.5px solid var(--b-3)", borderBottom: "1.5px solid var(--b-3)", borderBottomLeftRadius: 3 }} />
-                  </div>
-                  <div style={{ flex: 1, paddingTop: 4 }}>{bannerContent}</div>
-                </div>
-              );
-            })()}
-            {!isNewRec && !newBannerDismissed && (
-              <div style={{ display: "flex", gap: 8, marginTop: 2, marginBottom: 8, paddingLeft: 10 }}>
-                {/* └─ subdirectory indicator */}
-                <div style={{ width: 16, flexShrink: 0, display: "flex", flexDirection: "column" }}>
-                  <div style={{ flex: "0 0 20px", borderLeft: "1.5px solid var(--b-3)", borderBottom: "1.5px solid var(--b-3)", borderBottomLeftRadius: 3 }} />
-                </div>
-                <div style={{ flex: 1, paddingTop: 4 }}>
-                  <div style={{ padding: "8px 12px", background: "var(--blue-25)", border: "1px solid var(--blue-100)", borderRadius: 7, display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 15, lineHeight: 1, color: "var(--yellow-600)" }}>✦</span>
-                    <span style={{ flex: 1, fontSize: 13.5, color: "var(--t-2)", lineHeight: 1.5 }}>(Optional) Select the dropdown to group this recommendation under an existing concern.</span>
-                    <button onClick={() => { setNewBannerDismissed(true); if (linkTourActive) dismissLinkTour(); }} style={{ flexShrink: 0, background: "none", border: "none", fontWeight: 700, fontSize: 13.5, color: "var(--blue-600)", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"} onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>Acknowledged</button>
-                  </div>
-                </div>
-              </div>
-            )}
-            </div>{/* ── end spotlight wrapper ── */}
-            {isNewRec && currentPlacementId === "__unlinked__" && !autoConcernLocked && (
-              <div style={{ display: "flex", gap: 8, marginTop: 2, marginBottom: 8, paddingLeft: 10 }}>
-                {/* └─ subdirectory indicator */}
-                <div style={{ width: 16, flexShrink: 0, display: "flex", flexDirection: "column" }}>
-                  <div style={{ flex: "0 0 20px", borderLeft: "1.5px solid var(--b-3)", borderBottom: "1.5px solid var(--b-3)", borderBottomLeftRadius: 3 }} />
-                </div>
-                <div style={{ flex: 1, paddingTop: 6 }}>
-                  <label className="field-label" style={{ marginBottom: 5, display: "block" }}>Concern name</label>
-                  <FormItemSearchField
-                    value={customConcernName}
-                    keepQueryOnCustom={true}
-                    onChange={(v, item) => {
-                      setCustomConcernName(v);
-                      setDirty(true);
-                      if (item) {
-                        if (item.id === "__custom__") {
-                          // Keep custom — just close dropdown, keep the typed name as-is
-                          setFormItemCommitted(null);
-                          setFormItemCommittedId(null);
-                          setAutoConcernLocked(false);
-                          setKeepCustom(false);
-                          setCurrentPlacementId("__unlinked__");
-                          setUserPickedConcern(false);
-                        } else {
-                          // Matched an inspection item — mirror full "Pull inspection question" behavior
-                          setFormItemCommitted(v);
-                          setFormItemCommittedId(item.id);
-                          setFormItemQuery(v);
-                          setAutoConcernLocked(true);
-                          setUserPickedConcern(false);
-                          if (item.concernId) {
-                            setCurrentPlacementId(item.concernId);
-                          }
+              <FormItemSearchField
+                key={formSearchKey}
+                value={isNewRec ? customConcernName : formItemQuery}
+                keepQueryOnCustom={true}
+                onChange={(v, item) => {
+                  if (isNewRec) {
+                    setCustomConcernName(v); setDirty(true);
+                    if (item && item.id !== "__custom__") { setFormItemCommitted(v); setFormItemCommittedId(item.id); }
+                  } else {
+                    setFormItemQuery(v); setDirty(true);
+                    if (item) {
+                      if (item.id === "__custom__") {
+                        setFormItemCommitted(null); setFormItemCommittedId(null); setAutoConcernLocked(false);
+                        setCustomConcernName(""); setCurrentPlacementId("__unlinked__"); setUserPickedConcern(false); setKeepCustom(true);
+                      } else {
+                        setFormItemCommitted(item.id === "__new_concern__" ? (v || "New concern") : v);
+                        setFormItemCommittedId(item.id !== "__new_concern__" ? item.id : null);
+                        if (item.id !== "__new_concern__") {
+                          setCustomConcernName(v); setAutoConcernLocked(true); setUserPickedConcern(false);
+                          if (item.concernId) setCurrentPlacementId(item.concernId);
                         }
                       }
-                    }}
-                    formItems={formItems}
-                    placeholder="e.g. Windshield replacement…"
-                  />
-                </div>
-              </div>
+                    }
+                  }
+                }}
+                formItems={formItems}
+                placeholder="Search for an inspection question or add custom concern"
+              />
             )}
           </div>
-        ) : !isNewRec ? (
-          /* Standalone (e.g. +Custom toolbar): concern picker */
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <label className="field-label" style={{ margin: 0 }}>Select existing concern (optional)</label>
-            </div>
-            {(() => {
-              const isCustomLinked = concernManuallyLinked && linkedConcernId && (!selectedOption || selectedOption.type === "ungrouped");
-              if (isCustomLinked) {
-                const allItems = (concernOptions || []).flatMap((g) => g.items || []);
-                const linkedSel = allItems.find((item) => item.id === linkedConcernId);
-                return (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", userSelect: "none" }}>
-                      {linkedSel && linkedSel.type !== "ungrouped" && <span className={`pill ${linkedSel.type}`} style={{ flexShrink: 0 }}>{linkedSel.typeLabel}</span>}
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{linkedSel ? linkedSel.title.replace(" (current)", "") : "Linked concern"}</span>
-                    </div>
-                    <button onClick={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} style={{ flexShrink: 0, height: 30, padding: "0 12px", borderRadius: 6, background: "var(--bg-white)", border: "1px solid var(--b-2)", color: "var(--t-2)", fontWeight: 600, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}>Create custom concern</button>
-                  </div>
-                );
-              }
-              return <ConcernDropdown value={concern} highlight={false} nameValue={whatNeedsDone} onNameChange={(e) => { setWhatNeedsDone(e.target.value); setDirty(true); }} onChange={(v, opts) => { setDirty(true); if (opts && opts.viaButton) { setConcernManuallyLinked(true); setLinkedConcernId(v); } else { setConcern(v); } if (showOnboarding) { setOnboardingDone(true); setOnboardingDismissed(true); } }} groups={concernOptions} inputDisabled={concernManuallyLinked} />;
-            })()}
-            {concernManuallyLinked && (() => {
-              const allItems = (concernOptions || []).flatMap((g) => g.items || []);
-              const sel = allItems.find((item) => item.id === linkedConcernId);
-              if (!sel || sel.type === "ungrouped") return null;
-              return <AddedToTag addedTo={{ type: sel.type, label: sel.typeLabel, title: sel.title.replace(" (current)", "") }} onUnlink={() => { setConcernManuallyLinked(false); setLinkedConcernId(null); }} />;
-            })()}
-            {!newBannerDismissed && !(userPickedConcern && !autoConcernLocked && currentPlacementId !== "__unlinked__" && !changingPlacement) && (
-              <div style={{ marginTop: 8, padding: "8px 12px", background: "var(--blue-25)", border: "1px solid var(--blue-100)", borderRadius: 7, display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: linkTourActive ? 102 : undefined }}>
-                <span style={{ fontSize: 15, lineHeight: 1, color: "var(--yellow-600)" }}>✦</span>
-                <span style={{ flex: 1, fontSize: 13.5, color: "var(--t-2)", lineHeight: 1.5 }}>(Optional) Select the dropdown to group this recommendation under an existing concern.</span>
-                <button onClick={() => { setNewBannerDismissed(true); if (linkTourActive) dismissLinkTour(); }} style={{ flexShrink: 0, background: "none", border: "none", fontWeight: 700, fontSize: 13.5, color: "var(--blue-600)", cursor: "pointer", padding: 0, whiteSpace: "nowrap" }} onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"} onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>Acknowledged</button>
-              </div>
-            )}
-          </div>
-          )
-        : null}
-
-        {/* Placement / Link to parent concern — redesigned for preLinked & lockedConcern flows */}
-        {/* Inspection result / Copy fields — varies by flow */}
-        {lockedConcern ? (
-          /* MPI line-item flow: Inspection result always shows; tire grid included here so it sits above the linking section */
-          <div style={{ background: "var(--bg-cream-soft)", border: "1px solid var(--b-1)", borderRadius: 8, padding: "10px 12px" }}>
-            <label className="field-label" style={{ marginBottom: 8, display: "block" }}>Inspection result</label>
-            <InspectionResultSection status={status} onStatus={(s) => { setStatus(s); setDirty(true); }} naked />
-            {isTire && (
-              <div style={{ marginTop: 12 }}>
-                <TireTreadSection readings={tireReadings} onChange={handleTire} unit={(linkedPoint && linkedPoint.unit) || (tire && tire.unit) || "mm"} naked />
-              </div>
-            )}
-          </div>
-        ) : (!isTire && !isNewRec) ? (
-            /* Normal flow: Copy fields + optional Fail/Caution */
-            <div style={{ display: "flex", flexDirection: "column", background: "var(--bg-cream-soft)", border: "1px solid var(--b-1)", borderRadius: 8 }}>
-              {/* Top row: Inspection result (left) + Copy fields (right) */}
-              <div style={{ display: "flex" }}>
-                {/* Left: Inspection result — hidden when a form item is committed OR when in "change" mode (formSearchKey > 0) */}
-                {!formItemCommitted && (formSearchKey === 0 || keepCustom) && (
-                <div style={{ padding: "10px 12px", flexShrink: 0, borderRight: "1px solid var(--b-1)", borderRadius: "8px 0 0 8px" }}>
-                  <label className="field-label" style={{ marginBottom: 8, display: "block" }}>Inspection result</label>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <GradeStatusBtn kind="fail"    label="Fail"    active={status === "fail"}    onClick={() => { setStatus("fail");    setDirty(true); }} />
-                    <GradeStatusBtn kind="caution" label="Caution" active={status === "caution"} onClick={() => { setStatus("caution"); setDirty(true); }} />
-                  </div>
-                </div>
-                )}
-                {/* Right: Copy fields from inspection */}
-                <div style={{ flex: 1, padding: "10px 12px", minWidth: 0, position: "relative" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
-                    <label className="field-label" style={{ margin: 0 }}>Pull inspection question <span style={{ fontWeight: 400, color: "var(--t-3)" }}>(optional)</span></label>
-                    <InfoTooltip tip="Search for an inspection question to pre-fill inspection fields and pull in additional data." />
-                  </div>
-                  {formItemCommitted ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, height: 34, padding: "0 10px 0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-white)" }}>
-                      <span style={{ flex: 1, fontSize: 14, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formItemCommitted}</span>
-                      <button
-                        onClick={() => { setFormItemCommitted(null); setFormItemQuery(""); setFormItemCommittedId(null); setFormSearchKey(k => k + 1); setCurrentPlacementId("__unlinked__"); setUserPickedConcern(false); setAutoConcernLocked(false); setCustomConcernName(""); setKeepCustom(false); }}
-                        style={{ flexShrink: 0, height: 24, padding: "0 8px", background: "transparent", border: "1px solid var(--b-2)", borderRadius: 4, fontSize: 12, fontWeight: 600, color: "var(--blue-600)", cursor: "pointer" }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "var(--blue-25)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--b-2)"; }}
-                      >Change</button>
-                    </div>
-                  ) : keepCustom ? (
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 34, padding: "0 12px", border: "1px solid var(--blue-200)", borderRadius: 6, background: "var(--blue-25)" }}>
-                      <button
-                        onClick={() => { setKeepCustom(false); setFormItemQuery(""); setFormSearchKey(0); }}
-                        style={{ display: "flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--blue-500)" }}
-                        title="Clear"
-                      ><IconX size={13} /></button>
-                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--blue-600)", whiteSpace: "nowrap" }}>Keep custom</span>
-                      <button
-                        onClick={() => { setKeepCustom(false); setFormItemQuery(""); setFormSearchKey(0); }}
-                        style={{ marginLeft: 4, flexShrink: 0, height: 22, padding: "0 8px", background: "transparent", border: "1px solid var(--blue-200)", borderRadius: 4, fontSize: 12, fontWeight: 600, color: "var(--blue-600)", cursor: "pointer" }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "var(--blue-50)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                      >Search instead</button>
-                    </div>
-                  ) : (
-                    <FormItemSearchField
-                      key={formSearchKey}
-                      autoOpen={formSearchKey > 0}
-                      value={formItemQuery}
-                      onChange={(v, item) => {
-                        setFormItemQuery(v);
-                        if (item) {
-                          if (item.id === "__custom__") {
-                            // "Keep custom" — clear any auto-lock so Name it stays visible, show committed keepCustom state
-                            setFormItemCommitted(null);
-                            setFormItemCommittedId(null);
-                            setAutoConcernLocked(false);
-                            setCustomConcernName("");
-                            setCurrentPlacementId("__unlinked__");
-                            setUserPickedConcern(false);
-                            setKeepCustom(true);
-                          } else {
-                            setFormItemCommitted(item.id === "__new_concern__" ? (v || "New concern") : v);
-                            setFormItemCommittedId(item.id !== "__new_concern__" ? item.id : null);
-                            // Auto-fill concern name and mark as auto-locked
-                            if (item.id !== "__new_concern__") {
-                              setCustomConcernName(v);
-                              setAutoConcernLocked(true);
-                              setUserPickedConcern(false);
-                              // If item belongs to an existing concern, link to it; otherwise stay on __unlinked__ with pre-filled name
-                              if (item.concernId) {
-                                setCurrentPlacementId(item.concernId);
-                              }
-                            }
-                          }
-                        }
-                      }}
-                      formItems={formItems}
-                      placeholder="Search for an inspection question"
-                    />
-                  )}
-                </div>
-              </div>
-              {/* Bottom expansion — tire grid or full status buttons, when a form item is committed */}
-              {formItemCommitted && (
-                <div style={{ borderTop: "1px solid var(--b-1)", padding: "10px 12px" }}>
-                  {copyFieldsIsTire ? (
-                    <TireTreadSection readings={tireReadings} onChange={handleTire} unit={formLinkedPoint?.unit || "mm"} naked />
-                  ) : (
-                    <InspectionResultSection
-                      status={status}
-                      onStatus={(s) => { setStatus(s); setDirty(true); }}
-                      naked
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-        ) : null}
-
-        {/* Inspection result — non-lockedConcern tire items get standalone TireTreadSection here;
-            lockedConcern tire items already have it in the top box above;
-            non-tires only show InspectionResultSection when not preLinked/lockedConcern/isNewRec */}
-        {(!lockedConcern && isTire) ? (
+        </div>
+        {isTire && (
           <TireTreadSection readings={tireReadings} onChange={handleTire} unit={(linkedPoint && linkedPoint.unit) || (tire && tire.unit) || "mm"} />
-        ) : (!preLinked && !lockedConcern && !isNewRec) && (
-          <InspectionResultSection status={status} onStatus={(s) => { setStatus(s); setDirty(true); }} />
         )}
 
         {/* What needs done + Op code — hidden until concern step is complete */}
@@ -2603,10 +2252,10 @@ const DummySelect = ({ v }) => (
 // ────────────────────────────────────────────────────────────
 
 const concernPalette = {
-  occ:    { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "#7DC98A", pillBg: "var(--occ-bg)",     pillFill: "var(--occ-bg)",     pillT: "var(--occ-text)",    label: "OCC" },
-  custom: { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "#7AAEE0", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_m:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "#7AAEE0", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_c:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "#7AAEE0", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  occ:    { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "OCC" },
+  custom: { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "ASC" },
+  asc_m:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "ASC" },
+  asc_c:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "ASC" },
 };
 
 const RecStatusBadge = ({ status }) => {
@@ -3068,30 +2717,27 @@ const MediaTag = ({ media }) => {
   const [hover, setHover] = React.useState(false);
   const [popPos, setPopPos] = React.useState({ top: 0, left: 0 });
   const tagRef = React.useRef(null);
-  if (!media) return null;
-  const photos = media.photos || 0, videos = media.videos || 0;
-  if (!photos && !videos) return null;
+  const photos = media?.photos || 0, videos = media?.videos || 0;
+  const active = photos + videos > 0;
   const labelParts = [];
   if (photos) labelParts.push(`${photos} photo${photos !== 1 ? "s" : ""}`);
   if (videos) labelParts.push(`${videos} video${videos !== 1 ? "s" : ""}`);
   const label = labelParts.join(" · ");
-  const count = photos + videos;
   return (
     <span
       style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
       ref={tagRef}
-      onMouseEnter={() => { if (tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
+      onMouseEnter={() => { if (active && tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } if (active) setHover(true); }}
       onMouseLeave={() => setHover(false)}
       onClick={(e) => e.stopPropagation()}
     >
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        background: "var(--bg-cream)", color: "var(--t-3)", border: "1px solid var(--b-2)",
-        borderRadius: 5, padding: "2px 7px", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", cursor: "default",
-      }}>
-        Media <IconImage size={11} />
-      </span>
-      {hover && (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+      </svg>
+      {active && (
+        <span style={{ position: "absolute", top: -5, right: -5, minWidth: 14, height: 14, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{photos + videos}</span>
+      )}
+      {active && hover && (
         <div style={{
           position: "fixed", top: popPos.top, right: "auto", left: popPos.left,
           background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8,
@@ -3121,24 +2767,23 @@ const PartsTag = ({ parts, amount }) => {
   const list = (parts && parts.length)
     ? parts
     : ((Number(amount) || 0) > 0 ? [{ name: "Parts", qty: 1, price: Number(amount) }] : []);
-  if (!list.length) return null;
+  const active = list.length > 0;
   const total = list.reduce((s, p) => s + (Number(p.price) || 0) * (Number(p.qty) || 1), 0);
   return (
     <span
       style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
       ref={tagRef}
-      onMouseEnter={() => { if (tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
+      onMouseEnter={() => { if (active && tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } if (active) setHover(true); }}
       onMouseLeave={() => setHover(false)}
       onClick={(e) => e.stopPropagation()}
     >
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        background: "var(--blue-50)", color: "var(--blue-700)", border: "1px solid var(--blue-200)",
-        borderRadius: 5, padding: "2px 7px", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", cursor: "default",
-      }}>
-        Parts <IconGear size={11} />
-      </span>
-      {hover && (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+      {active && (
+        <span style={{ position: "absolute", top: -5, right: -5, minWidth: 14, height: 14, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{list.length}</span>
+      )}
+      {active && hover && (
         <div style={{
           position: "fixed", top: popPos.top, left: popPos.left, width: 244,
           background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8,
@@ -3192,7 +2837,7 @@ const ConcernTypePill = ({ label, bg, color }) => {
 
 
 // ── Shared header row used by ConcernCard (Edit MPI), RecConcernCard, and RecCompactConcernCard.
-const ConcernCardHeader = ({
+const ConcernCardHeader = ({ recTabLayout = false,
   concern, palette, letter,
   reorderable, onReorder, onDragStart, onDragEnd,
   onTitleChange,   // (id, title) → void; if falsy, no rename
@@ -3210,7 +2855,7 @@ const ConcernCardHeader = ({
   const commitEdit = () => { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft || concern.title); };
   const cancelEdit = () => { setEditingTitle(false); setTitleDraft(concern.title); };
   return (
-    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, padding: "7px 0", ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
+    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, padding: "7px 0", ...(recTabLayout ? { paddingRight: 12 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
       {/* Left group — title area, gapped — owns the 8px left inset so the outer flex has no padding, keeping right columns pixel-aligned with rec rows */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: 8 }}>
 
@@ -3243,30 +2888,61 @@ const ConcernCardHeader = ({
           </span>
         )}
       </div>
-      {/* Price column — far right, padding depends on whether action button exists */}
-      {showTotal && (
-        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: onAddRec ? 8 : 14 }}>
-          {hasZeroShown
-            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)" }}>${shownTotal.toFixed(0)}</span>
-              </span>
-            : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", ...REC_FONT }}>${total.toFixed(0)}</span>
-          }
-        </div>
-      )}
-      {/* Action column — only shown when +REC button exists */}
-      {onAddRec && (
-        <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+      {recTabLayout ? (
+        <>
+          {/* ATTACH spacer (72px) */}
+          <div style={{ width: 72, flexShrink: 0 }} />
+          {/* PRICE (72px) — aligns with rec row price column */}
           {showTotal && (
-            <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: 20, background: palette.divBd || palette.headBd, borderRadius: 1 }} />
+            <div style={{ width: 72, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 14 }}>
+              {hasZeroShown
+                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)" }}>${shownTotal.toFixed(0)}</span>
+                  </span>
+                : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", ...REC_FONT }}>${total.toFixed(0)}</span>
+              }
+            </div>
           )}
-          <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
-            style={{ height: 28, padding: "0 9px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 13, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
-          ><IconPlus size={11} /> REC</button>
-        </div>
+          {/* APPROVAL column (220px) — contains +REC button */}
+          <div style={{ width: 220, flexShrink: 0, display: "flex", alignItems: "center", paddingLeft: 14 }}>
+            {onAddRec && (
+              <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
+                style={{ height: 26, padding: "0 9px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
+              ><IconPlus size={10} /> REC</button>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Price column — far right, padding depends on whether action button exists */}
+          {showTotal && (
+            <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: onAddRec ? 8 : 14 }}>
+              {hasZeroShown
+                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)" }}>${shownTotal.toFixed(0)}</span>
+                  </span>
+                : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", ...REC_FONT }}>${total.toFixed(0)}</span>
+              }
+            </div>
+          )}
+          {/* Action column — only shown when +REC button exists */}
+          {onAddRec && (
+            <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+              {showTotal && (
+                <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: 20, background: palette.divBd || palette.headBd, borderRadius: 1 }} />
+              )}
+              <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
+                style={{ height: 28, padding: "0 9px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 13, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
+              ><IconPlus size={11} /> REC</button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -3731,10 +3407,9 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         const mediaPresent = rec.media && (rec.media.photos || rec.media.videos);
         // Badges only (no price) — price gets its own column
         const badgeItems = [
-          mediaPresent && <MediaTag key="m" media={rec.media} />,
-          (rec.partsList?.length || Number(rec.parts) > 0) && <PartsTag key="p" parts={rec.partsList} amount={rec.parts} />,
-          rec.status && <RecStatusBadge key="s" status={rec.status} />,
-        ].filter(Boolean);
+          <MediaTag key="m" media={rec.media} />,
+          <PartsTag key="p" parts={rec.partsList} amount={rec.parts} />,
+        ];
         const _recTotal = rec.total ?? 0;
         const priceEl = (rec.shownToCustomer === 0 && _recTotal > 0)
           ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
@@ -3749,7 +3424,6 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
           style={{
           display: "flex", alignItems: "stretch",
           borderBottom: isLastRec ? "none" : "1px solid var(--b-2)",
-          borderRadius: isLastRec ? "0 0 7px 7px" : 0,
           background: "var(--bg-white)",
           cursor: "pointer",
           opacity: draggingRecId === rec.id ? 0.4 : 1,
@@ -3762,7 +3436,14 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
 
           {/* Text column — flex:1 */}
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "8px 0 8px 10px" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+              {rec.status && (() => { const st = REC_STATUS[rec.status]; return st ? (
+                <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", flexShrink: 0,
+                  background: st.label === "Fail" ? "var(--red-50)" : "var(--yellow-50)",
+                  color: st.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)",
+                  border: `1px solid ${st.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}`,
+                }}>{st.label}</span>
+              ) : null; })()}
               <span style={{ fontSize: 14, color: "var(--t-1)" }}>{rec.text}</span>
               {rec.fresh && <JustAddedTag key={rec.id} />}
             </div>
@@ -3774,17 +3455,11 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
             )}
           </div>
           {/* Badges + price together — one right-side group so they stay visually adjacent */}
-          {(badgeItems.filter(Boolean).length > 0 || priceEl) && (
-            <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8, padding: "0 12px 0 8px", minWidth: 76, justifyContent: "flex-end" }}>
-              {badgeItems.filter(Boolean).map((node, idx) => (
-                <React.Fragment key={idx}>{node}</React.Fragment>
-              ))}
-              {priceEl && badgeItems.filter(Boolean).length > 0 && (
-                <span style={{ width: 1, height: 15, background: "var(--b-2)", flexShrink: 0 }} />
-              )}
-              {priceEl && <span style={{ fontVariantNumeric: "tabular-nums" }}>{priceEl}</span>}
-            </div>
-          )}
+          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, padding: "0 12px 0 8px", justifyContent: "flex-end" }}>
+            {badgeItems}
+            {priceEl && <span style={{ width: 1, height: 15, background: "var(--b-2)", flexShrink: 0 }} />}
+            {priceEl && <span style={{ fontVariantNumeric: "tabular-nums" }}>{priceEl}</span>}
+          </div>
           {/* Action column — 84px with left border, matches header action column */}
           <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
             onClick={(e) => e.stopPropagation()}>
@@ -4724,10 +4399,9 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
   const isApproved = approval === "approved";
   const isDeclined = approval === "declined";
 
-  const inlineTags = [];
-
-  // Status badge (muted, in same row as other tags)
-  if (stat) inlineTags.push(
+  // Left tags: fail/caution status badge (shown on left below rec text)
+  const leftTags = [];
+  if (stat) leftTags.push(
     <span key="status" style={{
       display: "inline-flex", alignItems: "center",
       fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4,
@@ -4738,112 +4412,49 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
     }}>{stat.label}</span>
   );
 
-  // Parts tag — "In Stock" gets a checkmark, others unchanged
-  if (rec.partsTag) inlineTags.push(
-    <span key="parts" style={{ display: "inline-flex", alignItems: "center", gap: 3,
-      fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-      background: rec.partsTag.tone === "stock" ? "var(--green-50)" : "var(--yellow-25)",
-      color: rec.partsTag.tone === "stock" ? "var(--green-700)" : "var(--yellow-700)",
-      border: `1px solid ${rec.partsTag.tone === "stock" ? "#BDD9BD" : "#F3DDA1"}` }}>
-      {rec.partsTag.tone === "stock" && (
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      )}
-      {rec.partsTag.label}
-    </span>
-  );
+  // ATTACH column: icon-only MediaTag + PartsTag — blue if active, grey if not; hover shows popup
+  const rightTags = [
+    <MediaTag key="media-icon" media={rec.media} />,
+    <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} />,
+  ];
 
-  // Work tag — "done" → "Work complete" with checkmark; others shown as-is
-  if (rec.workTag) {
-    const isDone = rec.workTag.tone === "done";
-    inlineTags.push(
-      <span key="work" style={{ display: "inline-flex", alignItems: "center", gap: 3,
-        fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-        background: isDone ? "var(--green-50)" : "var(--bg-cream-soft)",
-        color: isDone ? "var(--green-700)" : "var(--t-3)",
-        border: `1px solid ${isDone ? "#BDD9BD" : "var(--b-2)"}` }}>
-        {isDone && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-        {isDone ? "Work complete" : rec.workTag.label}
-      </span>
-    );
-  }
-
-  // estStatus tags (Incomplete Parts, Requested, etc.) — skip Approved (shown elsewhere)
-  if (rec.estStatus) {
-    rec.estStatus.forEach((es, i) => {
-      if (es.tone === "approved") return;
-      const isIncomplete = es.tone === "incomplete";
-      const isDeclined = es.tone === "declined";
-      const isRequested = es.tone === "requested";
-      const isDone = es.tone === "done" || es.tone === "completed";
-      let bg, color, border, icon;
-      if (isDone) {
-        bg = "var(--green-50)"; color = "var(--green-700)"; border = "#BDD9BD";
-        icon = <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
-      } else if (isIncomplete) {
-        bg = "#FFF7ED"; color = "#B45309"; border = "#FCD6A0";
-        icon = <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
-      } else if (isDeclined) {
-        bg = "var(--red-50)"; color = "var(--red-600)"; border = "#F0B6B6";
-        icon = <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
-      } else if (isRequested) {
-        bg = "var(--blue-25)"; color = "var(--blue-600)"; border = "var(--blue-100)";
-        icon = null;
-      } else {
-        bg = "var(--bg-cream-soft)"; color = "var(--t-3)"; border = "var(--b-2)";
-        icon = null;
-      }
-      inlineTags.push(
-        <span key={"est-" + i} style={{ display: "inline-flex", alignItems: "center", gap: 3,
-          fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-          background: bg, color, border: `1px solid ${border}` }}>
-          {icon}{es.label}
-        </span>
-      );
-    });
-  }
-
-  // Media tag — interactive hover showing thumbnails
-  if (hasMedia) {
-    inlineTags.push(<MediaTag key="media" media={rec.media} />);
-  }
-
-  // Parts tag — gear icon + hover showing estimate breakdown
-  if (Number(rec.parts) > 0) {
-    inlineTags.push(<PartsTag key="ptag" amount={rec.parts} />);
-  }
-
+  const isDiscounted = shownToCustomer === 0 && total > 0;
   const priceEl = total != null ? (
-    shownToCustomer === 0 && total > 0 ? (
-      <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: 0 }}>
-        <span style={{ fontSize: 11.5, color: "var(--t-4)", textDecoration: "line-through", fontVariantNumeric: "tabular-nums" }}>${Number(total).toFixed(0)}</span>
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--red-600)", fontVariantNumeric: "tabular-nums" }}>$0</span>
-      </span>
-    ) : (
-      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>${Number(total).toFixed(0)}</span>
-    )
+    <span style={{ fontSize: 14, fontWeight: 700, color: isDiscounted ? "var(--red-600)" : "var(--t-1)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+      ${Number(isDiscounted ? 0 : (shownToCustomer != null ? shownToCustomer : total)).toFixed(0)}
+    </span>
   ) : null;
 
   const mkBtn = (label, val) => {
     const active = approval === val;
     const isApprove = val === "approved";
+    const activeColor = isApprove ? "var(--green-700)" : "var(--red-600)";
+    const activeBg = isApprove ? "var(--green-50)" : "var(--red-50)";
+    const activeBorder = isApprove ? "#BDD9BD" : "#F0B6B6";
     return (
       <button onClick={e => { e.stopPropagation(); onApprovalChange && onApprovalChange(active ? null : val); }}
+        title={isApprove ? "Approve" : "Decline"}
         style={{
-          height: 28, minWidth: 84, padding: "0 11px",
-          background: active ? (isApprove ? "var(--green-700)" : "var(--red-600)") : "transparent",
-          border: "none",
-          borderRadius: 5,
-          color: active ? "#fff" : "var(--t-3)",
-          fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
-          transition: "background 120ms, color 120ms",
-          whiteSpace: "nowrap",
-          boxShadow: active ? "0 1px 3px rgba(0,0,0,0.18)" : "none",
+          height: 24, padding: "0 4px", flex: 1, minWidth: 0,
+          background: active ? activeBg : "transparent",
+          border: `1px solid ${active ? activeBorder : "var(--b-2)"}`,
+          borderRadius: isApprove ? "4px 0 0 4px" : "0 4px 4px 0",
+          marginLeft: isApprove ? 0 : -1,
+          position: "relative", zIndex: active ? 1 : 0,
+          color: active ? activeColor : "var(--t-4)",
+          cursor: "pointer",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          transition: "background 120ms, color 120ms, border-color 120ms",
           flexShrink: 0,
         }}
-        onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(0,0,0,0.06)"; }}
-        onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
-      >{label}</button>
+        onMouseEnter={e => { if (!active) { e.currentTarget.style.background = isApprove ? "var(--green-50)" : "var(--red-50)"; e.currentTarget.style.color = activeColor; e.currentTarget.style.borderColor = activeBorder; e.currentTarget.style.zIndex = "1"; } }}
+        onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-4)"; e.currentTarget.style.borderColor = "var(--b-2)"; e.currentTarget.style.zIndex = active ? "1" : "0"; } }}
+      >
+        {isApprove
+          ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        }
+      </button>
     );
   };
 
@@ -4853,24 +4464,24 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
   // ── Expanded: full 3-column layout ──
   if (expanded) {
     return (
-      <div style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "stretch", minHeight: 72, background: "var(--bg-white)", paddingRight: 12 }}>
+      <div key="expanded" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "stretch", minHeight: 72, background: "var(--bg-white)", paddingRight: 12 }}>
         {/* Checkbox — top-left */}
-        <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 14 }}
+        <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 12 }}
           onClick={e => e.stopPropagation()}>
           <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
         </div>
 
-        {/* Rec text + inline tags */}
-        <div style={{ flex: 1, minWidth: 0, padding: "12px 14px 12px 0", cursor: onRecClick ? "pointer" : "default" }}
+        {/* Rec text — status badge prepended inline */}
+        <div style={{ flex: 1, minWidth: 0, padding: "10px 14px 10px 0", cursor: onRecClick ? "pointer" : "default" }}
           onClick={() => onRecClick && onRecClick(rec)}
           onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = ""; }}>
-          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic" }}>
-            {rec.recommendation || "No recommendation added"}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+            {leftTags.length > 0 && <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>{leftTags}</div>}
+            <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic" }}>
+              {rec.recommendation || "No recommendation added"}
+            </div>
           </div>
-          {inlineTags.length > 0 && (
-            <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>{inlineTags}</div>
-          )}
         </div>
 
         {/* REC ESTIMATE */}
@@ -4908,17 +4519,18 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
         </div>
 
         {/* Right column */}
-        <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "flex-start", marginTop: 15, paddingBottom: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Toggle + chevron */}
-          <div style={{ display: "flex", alignItems: "center", paddingLeft: 14 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "inline-flex", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 8, padding: 2, gap: 1 }}>
-              {mkBtn("✓ Approve", "approved")}
-              {mkBtn("✕ Decline", "declined")}
+        <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "flex-start", paddingBottom: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* APPROVAL + chevron */}
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 14, paddingTop: 8, paddingRight: 4, paddingBottom: 8 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+              {mkBtn("✓", "approved")}
+              {mkBtn("✗", "declined")}
             </div>
+            <div style={{ width: 8, flexShrink: 0 }} />
             <div onClick={() => setExpanded(false)}
-              style={{ marginLeft: "auto", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer" }}
+              style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer", border: "1px solid var(--b-2)", background: "var(--bg-white)", flexShrink: 0 }}
               onMouseEnter={e => e.currentTarget.style.background = "var(--b-1)"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              onMouseLeave={e => e.currentTarget.style.background = "var(--bg-white)"}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
             </div>
           </div>
@@ -4973,38 +4585,43 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
 
   // ── Compact row ──
   return (
-    <div style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", background: "var(--bg-white)", paddingRight: 12, userSelect: "none" }}
+    <div key="compact" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", minHeight: 44, background: "var(--bg-white)", paddingRight: 12, userSelect: "none" }}
       onClick={() => onRecClick && onRecClick(rec)}
       onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; }}
     >
-      {/* Checkbox — top-left, matching expanded */}
-      <div style={{ width: 36, flexShrink: 0, display: "flex", justifyContent: "center", paddingTop: 14 }}
+      {/* Checkbox */}
+      <div style={{ width: 36, flexShrink: 0, display: "flex", justifyContent: "center", paddingTop: 12 }}
         onClick={e => e.stopPropagation()}>
         <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
       </div>
-      {/* Rec text + inline tags */}
-      <div style={{ flex: 1, minWidth: 0, padding: "12px 14px 12px 0" }}>
-        <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {rec.recommendation || "No recommendation added"}
+      {/* Rec text — status badge prepended inline */}
+      <div style={{ flex: 1, minWidth: 0, padding: "10px 8px 10px 0" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 5, overflow: "hidden" }}>
+          {leftTags.length > 0 && <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>{leftTags}</div>}
+          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+            {rec.recommendation || "No recommendation added"}
+          </div>
         </div>
-        {inlineTags.length > 0 && (
-          <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>{inlineTags}</div>
-        )}
+      </div>
+      {/* ATTACH — media + parts icon tags */}
+      <div style={{ width: 72, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, alignSelf: "stretch" }}>
+        {rightTags}
       </div>
       {/* Price */}
-      <div style={{ flexShrink: 0, textAlign: "right", minWidth: 48, paddingTop: 15 }}>{priceEl}</div>
+      <div style={{ width: 72, flexShrink: 0, textAlign: "right", paddingTop: 10, paddingRight: 14 }}>{priceEl}</div>
       {/* Approve / Decline + chevron */}
-      <div style={{ display: "flex", alignItems: "center", flexShrink: 0, width: 220, paddingLeft: 14, paddingTop: 15 }}
+      <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", display: "flex", alignItems: "center", paddingLeft: 14, paddingTop: 8, paddingRight: 4, paddingBottom: 8 }}
         onClick={e => e.stopPropagation()}>
-        <div style={{ display: "inline-flex", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 8, padding: 2, gap: 1 }}>
-          {mkBtn("✓ Approve", "approved")}
-          {mkBtn("✕ Decline", "declined")}
+        <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+          {mkBtn("✓", "approved")}
+          {mkBtn("✗", "declined")}
         </div>
+        <div style={{ width: 8, flexShrink: 0 }} />
         <div onClick={e => { e.stopPropagation(); setExpanded(true); }}
-          style={{ marginLeft: "auto", width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer" }}
+          style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer", border: "1px solid var(--b-2)", background: "var(--bg-white)", flexShrink: 0 }}
           onMouseEnter={e => e.currentTarget.style.background = "var(--b-1)"}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+          onMouseLeave={e => e.currentTarget.style.background = "var(--bg-white)"}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
         </div>
       </div>
@@ -5024,7 +4641,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
       {...(reorderable ? { "data-concern-reorderable": "1" } : {})}
       style={{
         marginBottom: 8,
-        border: "1px solid var(--b-2)", borderLeft: `3px solid ${p.divBd}`, borderRadius: 8,
+        border: "1px solid var(--b-2)", borderRadius: 8,
         background: "var(--bg-white)", overflow: "hidden",
         opacity: dragging ? 0.4 : 1, transition: "opacity 140ms",
       }}>
@@ -5130,8 +4747,8 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
       data-concern-drop={concern.id}
       {...(reorderable ? { "data-concern-reorderable": "1" } : {})}
       style={{
-        border: "1px solid var(--b-2)", borderLeft: `3px solid ${p.divBd}`, borderRadius: 8,
-        background: "var(--bg-white)", overflow: "visible",
+        border: "1px solid var(--b-2)", borderRadius: 8,
+        background: "var(--bg-white)", overflow: "hidden",
         boxShadow: "var(--shadow-card)", marginBottom: 8, marginLeft: 0,
         opacity: dragging ? 0.4 : 1, transition: "opacity 140ms, box-shadow 140ms",
       }}>
@@ -5152,6 +4769,7 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         showTotal={true}
         autoRename={autoRename}
         preApproved={concern.preApproved || null}
+        recTabLayout={true}
         style={{ borderBottom: "1px solid var(--b-2)", borderRadius: "7px 7px 0 0" }}
       />
 
@@ -5262,6 +4880,19 @@ const RecActionBar = ({ onAddRec, onAddCustomRec, compact, onToggleCompact, sele
   );
 };
 
+
+const RecColHeader = ({ compact }) => (
+  <div style={{ display: "flex", alignItems: "center", paddingRight: 13, paddingLeft: 8, paddingBottom: 5 }}>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)" }}>Concern / Recommendation</span>
+    </div>
+    {compact && <div style={{ width: 72, flexShrink: 0 }} />}
+    {compact && <div style={{ width: 72, flexShrink: 0 }} />}
+    <div style={{ width: 220, flexShrink: 0, textAlign: "center" }}>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)" }}>Approval</span>
+    </div>
+  </div>
+);
 
 const RecSectionHeader = ({ title, count, right }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 4px", marginBottom: 10 }}>
@@ -5552,9 +5183,8 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg-cream-soft)" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 20px" }} className="scrollable">
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", maxWidth: 920 + 280, margin: "0 auto" }}>
-          <div style={{ flex: 1, minWidth: 0, maxWidth: 920 }}>
+      <div style={{ flex: 1, overflowY: "scroll", padding: "16px 16px 20px" }} className="scrollable">
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {/* Toolbar: Add lines to DMS · spacer · Compact · + Custom */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <button style={{ height: 34, padding: "0 14px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "var(--t-4)", cursor: "not-allowed" }}>Add lines to DMS</button>
@@ -5571,6 +5201,7 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
             ><IconPlus size={13} /> Custom</button>
           </div>
           <RecSectionHeader title="Concerns" count={ocr.length + mpi.length} right={<RecFilterBar filter={activeFilter} setFilter={setActiveFilter} counts={filterCounts} />} />
+          <RecColHeader compact={compact} />
           {(() => {
             const allCards = [
               ...ocr.map((c, i) => ({ c, letter: String.fromCharCode(65 + i), reorderable: false, isOcr: true })),
@@ -5597,8 +5228,6 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
               );
             });
           })()}
-          </div>
-          <DecisionProgressPanel recApprovals={recApprovals} items={items} />
         </div>
       </div>
       <RecCalcFooter
@@ -7270,6 +6899,7 @@ const MPIPage = () => {
         misc:  Number(data.misc)  || 0,
         shownToCustomer: data.hidePrice ? 0 : Number(total.toFixed(2)),
         fresh: true,
+        partsList: data.partsList ?? [],
         ...(data.status ? { status: typeof data.status === "string" ? { kind: data.status } : data.status } : {}),
       };
       const applyUpdate = (r) => r.id === modal.editingRecId ? { ...r, ...updatedFields } : r;
@@ -7320,6 +6950,7 @@ const MPIPage = () => {
       shownToCustomer: data.hidePrice ? 0 : Number(total.toFixed(2)),
       status: recStatus,
       fresh: true,
+      partsList: data.partsList ?? [],
       ...(data.media ? { media: data.media } : {}),
       // Store the original form item name so it can be recovered if this rec is later moved to an OCC
       // and then extracted back to a standalone concern.
@@ -7645,19 +7276,7 @@ const MPIPage = () => {
           }}
           onClick={(e) => { if (e.target === e.currentTarget && editorVariant !== "panel") setModal(null); }}
         >
-          {/* Context preview — in flex flow, immediately left of the panel */}
-          <ModalContextPreview
-            concerns={concerns}
-            recConcerns={recConcerns}
-            targetConcernId={modal.defaultConcern}
-            liveState={modalLive}
-            panel={editorVariant === "panel"}
-            editingRecId={modal.editingRecId}
-            pvwCollapsed={pvwCollapsed}
-            onReorderRec={(fromConcernId, recId, toConcernId, targetRecId, before) => moveRecRelativeTo(recId, fromConcernId, toConcernId, targetRecId, before)}
-            onExtractRec={extractRecFromPreview}
-            onChangeLiveTarget={(newConcernId) => setModal(m => ({ ...m, externalConcernId: newConcernId }))}
-          />
+
           <div style={{
             position: "relative",
             width: "100%",
@@ -7668,29 +7287,7 @@ const MPIPage = () => {
               ? "panelIn 240ms cubic-bezier(.2,.8,.2,1)"
               : "modalIn 220ms cubic-bezier(.2,.8,.2,1)",
           }}>
-            {/* Preview collapse/expand toggle — sits on the left edge of this panel */}
-            <button
-              onClick={() => setPvwCollapsed(c => !c)}
-              title={pvwCollapsed ? "Show preview" : "Hide preview"}
-              style={{
-                position: "absolute",
-                left: 0, top: 18,
-                transform: "translateX(-50%)",
-                width: 22, height: 44,
-                borderRadius: 11,
-                background: "var(--bg-white)",
-                border: "1px solid var(--b-2)",
-                color: "var(--t-3)",
-                cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
-                zIndex: 10, padding: 0,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.color = "var(--t-1)"; e.currentTarget.style.borderColor = "var(--b-3)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "var(--t-3)"; e.currentTarget.style.borderColor = "var(--b-2)"; }}
-            >
-              <IconChevRight size={12} style={{ transform: pvwCollapsed ? undefined : "rotate(180deg)" }} />
-            </button>
+
             <RecEditorModal
               key={modal._openTime}
               inspectionPoint={modal.inspectionPoint}
