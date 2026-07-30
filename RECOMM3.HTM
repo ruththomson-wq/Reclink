@@ -42,9 +42,9 @@
   --blue-25:  #F4F8FC;  /* brand-25 */
 
   /* concern types */
-  --occ-text: #1F6F4B;
-  --occ-bg:   #DCEEDD;
-  --occ-strong:#1F8A4C;
+  --occ-text: #01476E;
+  --occ-bg:   #D3E4F1;
+  --occ-strong:#02679B;
 
   --custom-text: #B0480A;
   --custom-bg:   #FBE0CB;
@@ -94,12 +94,12 @@ input, select, textarea { font-family: inherit; color: inherit; }
   font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
   padding: 2px 7px; border-radius: 4px; line-height: 1.45;
 }
-.pill.occ    { background: var(--occ-bg);    color: var(--occ-text); }
+.pill.occ    { background: var(--occ-strong); color: #fff; border: none; }
 .pill.custom { background: var(--custom-bg); color: var(--custom-text); }
 .pill.form   { background: var(--form-bg);   color: var(--form-text); }
-.pill.asc-cos{ background: var(--asc-cos-bg);color: var(--asc-cos-text); }
+.pill.asc-cos{ display: none; }
 .pill.ungrouped { background: #F0F1F3; color: #535862; }
-.pill.preapproved { background: var(--green-100); color: var(--green-700); text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
+.pill.preapproved { background: var(--blue-100); color: var(--blue-700); text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
 .pill.urgent { background: var(--red-100); color: var(--red-700); text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
 
 /* form input */
@@ -198,6 +198,15 @@ input, select, textarea { font-family: inherit; color: inherit; }
 .scrollable::-webkit-scrollbar { width: 10px; height: 10px; }
 .scrollable::-webkit-scrollbar-thumb { background: var(--b-2); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
 .scrollable::-webkit-scrollbar-thumb:hover { background: var(--b-3); border: 2px solid transparent; background-clip: padding-box; }
+
+/* Approve/Decline buttons — label smoothly reveals on hover */
+.rec-appdec-btn { transition: background 120ms, color 120ms, border-color 120ms; }
+.rec-appdec-label {
+  display: inline-block; max-width: 0; opacity: 0; margin-left: 0;
+  overflow: hidden; white-space: nowrap;
+  transition: max-width 220ms ease, opacity 160ms ease, margin-left 220ms ease;
+}
+.rec-appdec-btn:hover .rec-appdec-label { max-width: 60px; opacity: 1; margin-left: 5px; }
     html, body { height: 100%; background: var(--bg-cream-soft); }
     #root { height: 100vh; }
   </style>
@@ -2252,10 +2261,10 @@ const DummySelect = ({ v }) => (
 // ────────────────────────────────────────────────────────────
 
 const concernPalette = {
-  occ:    { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "OCC" },
-  custom: { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "ASC" },
-  asc_m:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "ASC" },
-  asc_c:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--bg-cream)", pillFill: "var(--bg-cream)", pillT: "var(--t-3)", label: "ASC" },
+  occ:    { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--occ-bg)", pillFill: "var(--occ-bg)", pillT: "var(--occ-text)", label: "OCC" },
+  custom: { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  asc_m:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  asc_c:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
 };
 
 const RecStatusBadge = ({ status }) => {
@@ -2727,7 +2736,7 @@ const MediaTag = ({ media }) => {
     <span
       style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
       ref={tagRef}
-      onMouseEnter={() => { if (active && tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } if (active) setHover(true); }}
+      onMouseEnter={() => { if (tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
       onMouseLeave={() => setHover(false)}
       onClick={(e) => e.stopPropagation()}
     >
@@ -2737,21 +2746,27 @@ const MediaTag = ({ media }) => {
       {active && (
         <span style={{ position: "absolute", top: -5, right: -5, minWidth: 14, height: 14, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{photos + videos}</span>
       )}
-      {active && hover && (
+      {hover && (
         <div style={{
           position: "fixed", top: popPos.top, right: "auto", left: popPos.left,
-          background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8,
-          boxShadow: "var(--shadow-modal)", zIndex: 9999, padding: 10, fontWeight: 400,
+          background: active ? "var(--bg-white)" : "#101828", border: active ? "1px solid var(--b-2)" : "none", borderRadius: 8,
+          boxShadow: active ? "var(--shadow-modal)" : "0 8px 22px rgba(0,0,0,0.28)", zIndex: 9999, padding: active ? 10 : "8px 10px", fontWeight: 400,
         }}>
-          <div style={{ display: "flex", gap: 6 }}>
-            {Array.from({ length: photos }).map((_, i) => (
-              <div key={"p" + i} style={{ width: 46, height: 36, borderRadius: 5, background: "var(--bg-gray)", border: "1px solid var(--b-2)", display: "grid", placeItems: "center", color: "var(--t-4)" }}><IconImage size={16} /></div>
-            ))}
-            {Array.from({ length: videos }).map((_, i) => (
-              <div key={"v" + i} style={{ width: 46, height: 36, borderRadius: 5, background: "#101828", display: "grid", placeItems: "center", color: "#fff" }}><IconPlay size={14} /></div>
-            ))}
-          </div>
-          <div style={{ marginTop: 7, fontSize: 14, color: "var(--t-3)", whiteSpace: "nowrap" }}>{label}</div>
+          {active ? (
+            <>
+              <div style={{ display: "flex", gap: 6 }}>
+                {Array.from({ length: photos }).map((_, i) => (
+                  <div key={"p" + i} style={{ width: 46, height: 36, borderRadius: 5, background: "var(--bg-gray)", border: "1px solid var(--b-2)", display: "grid", placeItems: "center", color: "var(--t-4)" }}><IconImage size={16} /></div>
+                ))}
+                {Array.from({ length: videos }).map((_, i) => (
+                  <div key={"v" + i} style={{ width: 46, height: 36, borderRadius: 5, background: "#101828", display: "grid", placeItems: "center", color: "#fff" }}><IconPlay size={14} /></div>
+                ))}
+              </div>
+              <div style={{ marginTop: 7, fontSize: 14, color: "var(--t-3)", whiteSpace: "nowrap" }}>{label}</div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: "#fff", whiteSpace: "nowrap" }}>No media attached</div>
+          )}
         </div>
       )}
     </span>
@@ -2773,7 +2788,7 @@ const PartsTag = ({ parts, amount }) => {
     <span
       style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
       ref={tagRef}
-      onMouseEnter={() => { if (active && tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } if (active) setHover(true); }}
+      onMouseEnter={() => { if (tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
       onMouseLeave={() => setHover(false)}
       onClick={(e) => e.stopPropagation()}
     >
@@ -2783,22 +2798,28 @@ const PartsTag = ({ parts, amount }) => {
       {active && (
         <span style={{ position: "absolute", top: -5, right: -5, minWidth: 14, height: 14, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{list.length}</span>
       )}
-      {active && hover && (
+      {hover && (
         <div style={{
-          position: "fixed", top: popPos.top, left: popPos.left, width: 244,
-          background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8,
-          boxShadow: "var(--shadow-modal)", zIndex: 9999, padding: "8px 0", fontWeight: 400, textAlign: "left",
+          position: "fixed", top: popPos.top, left: popPos.left, width: active ? 244 : "auto",
+          background: active ? "var(--bg-white)" : "#101828", border: active ? "1px solid var(--b-2)" : "none", borderRadius: 8,
+          boxShadow: active ? "var(--shadow-modal)" : "0 8px 22px rgba(0,0,0,0.28)", zIndex: 9999, padding: active ? "8px 0" : "8px 10px", fontWeight: 400, textAlign: "left",
         }}>
-          <div style={{ padding: "2px 12px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-4)" }}>Parts</div>
-          {list.map((p, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "4px 12px", fontSize: 14, color: "var(--t-1)" }}>
-              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{(p.qty || 1) > 1 ? ` ×${p.qty}` : ""}</span>
-              <span style={{ color: "var(--t-3)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>${((Number(p.price) || 0) * (Number(p.qty) || 1)).toFixed(0)}</span>
-            </div>
-          ))}
-          <div style={{ borderTop: "1px solid var(--b-1)", marginTop: 6, padding: "6px 12px 0", display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, color: "var(--t-1)" }}>
-            <span>Total parts</span><span style={{ fontVariantNumeric: "tabular-nums" }}>${total.toFixed(0)}</span>
-          </div>
+          {active ? (
+            <>
+              <div style={{ padding: "2px 12px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-4)" }}>Parts</div>
+              {list.map((p, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "4px 12px", fontSize: 14, color: "var(--t-1)" }}>
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{(p.qty || 1) > 1 ? ` ×${p.qty}` : ""}</span>
+                  <span style={{ color: "var(--t-3)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>${((Number(p.price) || 0) * (Number(p.qty) || 1)).toFixed(0)}</span>
+                </div>
+              ))}
+              <div style={{ borderTop: "1px solid var(--b-1)", marginTop: 6, padding: "6px 12px 0", display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, color: "var(--t-1)" }}>
+                <span>Total parts</span><span style={{ fontVariantNumeric: "tabular-nums" }}>${total.toFixed(0)}</span>
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: "#fff", whiteSpace: "nowrap" }}>No parts added</div>
+          )}
         </div>
       )}
     </span>
@@ -2812,24 +2833,36 @@ const conceptTip = {
 };
 const ConcernTypePill = ({ label, bg, color }) => {
   const [hover, setHover] = React.useState(false);
+  const [pos, setPos] = React.useState({ top: 0, left: 0 });
+  const ref = React.useRef(null);
   const tip = conceptTip[label];
+  if (label === "ASC") return null; // ASC tags removed from the UI
+  const showTip = () => {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.left });
+    }
+    setHover(true);
+  };
   return (
     <span
+      ref={ref}
       style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
-      onMouseEnter={() => setHover(true)}
+      onMouseEnter={showTip}
       onMouseLeave={() => setHover(false)}
       onClick={(e) => e.stopPropagation()}
     >
-      <span className="pill" style={{ background: bg, color, cursor: tip ? "help" : "default" }}>{label}</span>
-      {hover && tip && (
+      <span className="pill" style={{ background: "var(--occ-strong)", color: "#fff", border: "none", cursor: tip ? "help" : "default" }}>{label}</span>
+      {hover && tip && ReactDOM.createPortal(
         <div style={{
-          position: "absolute", top: "calc(100% + 6px)", left: 0, width: 224,
+          position: "fixed", top: pos.top, left: pos.left, width: 224,
           background: "#101828", color: "#fff", fontSize: 14, fontWeight: 500, lineHeight: 1.45,
-          padding: "8px 10px", borderRadius: 6, boxShadow: "0 8px 22px rgba(0,0,0,0.28)", zIndex: 80,
+          padding: "8px 10px", borderRadius: 6, boxShadow: "0 8px 22px rgba(0,0,0,0.28)", zIndex: 9999,
           whiteSpace: "normal", textTransform: "none", letterSpacing: 0,
         }}>
           {tip}
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );
@@ -2855,7 +2888,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
   const commitEdit = () => { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft || concern.title); };
   const cancelEdit = () => { setEditingTitle(false); setTitleDraft(concern.title); };
   return (
-    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, padding: "7px 0", ...(recTabLayout ? { paddingRight: 12 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
+    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, borderLeft: concern.type === "occ" ? "3px solid var(--blue-600)" : "3px solid transparent", padding: "7px 0", ...(recTabLayout ? { paddingRight: 12 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
       {/* Left group — title area, gapped — owns the 8px left inset so the outer flex has no padding, keeping right columns pixel-aligned with rec rows */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: 8 }}>
 
@@ -3227,7 +3260,7 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
                   borderBottom: c.recs.length > 0 || isTarget ? "1px solid var(--b-1)" : "none",
                 }}>
                   <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--green-700)", letterSpacing: 0.02, whiteSpace: "nowrap" }}>Pre-Approved</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--blue-700)", letterSpacing: 0.02, whiteSpace: "nowrap" }}>Pre-Approved</span>
                     {c.preApproved && (
                       <span style={{ fontSize: 11.5, color: "var(--t-4)" }}>
                         {"Labor $" + (Number(c.preApproved.labor)||0).toFixed(0)}
@@ -3340,7 +3373,6 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
       style={{
         marginBottom: 8,
         border: `1px solid ${isDragOver ? "var(--blue-500)" : "var(--b-2)"}`,
-        borderLeft: `3px solid ${isDragOver ? "var(--blue-600)" : p.divBd}`,
         borderRadius: 8,
         background: isDragOver ? "var(--blue-50)" : "transparent",
         boxShadow: isDragOver ? "0 0 0 3px rgba(2,103,155,0.16)" : "none",
@@ -3389,7 +3421,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
             background: "var(--bg-white)",
           }}>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--green-700)", letterSpacing: 0.02 }}>Pre-Approved</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--blue-700)", letterSpacing: 0.02 }}>Pre-Approved</span>
               <span style={{ fontSize: 12.5, color: "var(--t-4)" }}>Labor ${pa.labor.toFixed(0)}{pa.parts > 0 ? ` · Parts $${pa.parts.toFixed(0)}` : ""}{pa.misc > 0 ? ` · Misc $${pa.misc.toFixed(0)}` : ""}</span>
             </div>
             {/* Price column — matches rec row */}
@@ -3424,6 +3456,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
           style={{
           display: "flex", alignItems: "stretch",
           borderBottom: isLastRec ? "none" : "1px solid var(--b-2)",
+          borderRadius: isLastRec ? "0 0 7px 7px" : 0,
           background: "var(--bg-white)",
           cursor: "pointer",
           opacity: draggingRecId === rec.id ? 0.4 : 1,
@@ -3444,7 +3477,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
                   border: `1px solid ${st.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}`,
                 }}>{st.label}</span>
               ) : null; })()}
-              <span style={{ fontSize: 14, color: "var(--t-1)" }}>{rec.text}</span>
+              <span style={{ fontSize: 14, color: "var(--t-1)", flex: 1, minWidth: 0 }}>{rec.text}</span>
               {rec.fresh && <JustAddedTag key={rec.id} />}
             </div>
             {rec.total != null && (
@@ -4020,7 +4053,9 @@ const RecMoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDrag
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-cream)"}
                 onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               >
-                <span className="pill" style={{ background: cp.pillFill, color: cp.pillT, marginTop: 2 }}>{cp.label}</span>
+                {cp.label === "OCC" && (
+                  <span className="pill" style={{ background: "var(--occ-strong)", color: "#fff", border: "none", marginTop: 2 }}>{cp.label}</span>
+                )}
                 <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 10 }}>
                   <span style={{ fontSize: 14, color: "var(--t-1)", fontWeight: 500 }}>{c.title}</span>
                   <span style={{ fontSize: 14, color: "var(--t-4)", whiteSpace: "nowrap" }}>{count} rec{count !== 1 ? "s" : ""}</span>
@@ -4434,6 +4469,7 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
     return (
       <button onClick={e => { e.stopPropagation(); onApprovalChange && onApprovalChange(active ? null : val); }}
         title={isApprove ? "Approve" : "Decline"}
+        className="rec-appdec-btn"
         style={{
           height: 24, padding: "0 4px", flex: 1, minWidth: 0,
           background: active ? activeBg : "transparent",
@@ -4451,9 +4487,10 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
         onMouseLeave={e => { if (!active) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-4)"; e.currentTarget.style.borderColor = "var(--b-2)"; e.currentTarget.style.zIndex = active ? "1" : "0"; } }}
       >
         {isApprove
-          ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+          : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         }
+        <span className="rec-appdec-label" style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.02 }}>{isApprove ? "Approve" : "Decline"}</span>
       </button>
     );
   };
@@ -4472,15 +4509,19 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
         </div>
 
         {/* Rec text — status badge prepended inline */}
-        <div style={{ flex: 1, minWidth: 0, padding: "10px 14px 10px 0", cursor: onRecClick ? "pointer" : "default" }}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "10px 14px 10px 0", cursor: onRecClick ? "pointer" : "default" }}
           onClick={() => onRecClick && onRecClick(rec)}
           onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
           onMouseLeave={e => { e.currentTarget.style.background = ""; }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
             {leftTags.length > 0 && <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>{leftTags}</div>}
-            <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic" }}>
+            <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", flex: 1, minWidth: 0 }}>
               {rec.recommendation || "No recommendation added"}
             </div>
+          </div>
+          {/* Media + parts icons — bottom-left of the rec row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+            {rightTags}
           </div>
         </div>
 
@@ -4591,15 +4632,15 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
       onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; }}
     >
       {/* Checkbox */}
-      <div style={{ width: 36, flexShrink: 0, display: "flex", justifyContent: "center", paddingTop: 12 }}
+      <div style={{ width: 36, flexShrink: 0, display: "flex", justifyContent: "center", alignItems: "center", height: 20, marginTop: 10 }}
         onClick={e => e.stopPropagation()}>
         <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
       </div>
       {/* Rec text — status badge prepended inline */}
       <div style={{ flex: 1, minWidth: 0, padding: "10px 8px 10px 0" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 5, overflow: "hidden" }}>
-          {leftTags.length > 0 && <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>{leftTags}</div>}
-          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+          {leftTags.length > 0 && <div style={{ display: "flex", gap: 4, flexShrink: 0, marginTop: 2 }}>{leftTags}</div>}
+          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", flex: 1, minWidth: 0, whiteSpace: "normal", wordBreak: "break-word" }}>
             {rec.recommendation || "No recommendation added"}
           </div>
         </div>
@@ -4955,13 +4996,13 @@ const initialRecConcerns = [
   {
     id: "occ1", section: "ocr", type: "occ", preApproved: { labor: 380, parts: 0, misc: 10 }, title: "My car is shaking while I drive.",
     recs: [
-      { id: "occ1-r1", status: null, recommendation: "Road test confirmed a vibration at highway speed. Recommend a four-wheel balance and inspection of suspension and steering components.", internal: null, shopchat: null, shopchatCount: 0, media: { photos: 2, videos: 1 }, labor: 380.00, parts: 0.00, misc: 10.00, taxes: null, total: 390.00, estSummary: "2.50 hrs, Diagnostics", shownToCustomer: 0, estStatus: [{ tone: "approved", label: "Approved" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "done", label: "Done" }, partsTag: null },
+      { id: "occ1-r1", status: "fail", recommendation: "Road test confirmed a vibration at highway speed. Recommend a four-wheel balance and inspection of suspension and steering components.", internal: null, shopchat: null, shopchatCount: 0, media: { photos: 2, videos: 1 }, labor: 380.00, parts: 0.00, misc: 10.00, taxes: null, total: 390.00, estSummary: "2.50 hrs, Diagnostics", shownToCustomer: 0, estStatus: [{ tone: "approved", label: "Approved" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "done", label: "Done" }, partsTag: null },
     ],
   },
   {
     id: "occ2", section: "ocr", type: "occ", preApproved: { labor: 180, parts: 95, misc: 10 }, title: "50K service",
     recs: [
-      { id: "occ2-r1", status: null, recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "declined", label: "Declined" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" } },
+      { id: "occ2-r1", status: "caution", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "declined", label: "Declined" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" } },
     ],
   },
   {
@@ -5183,23 +5224,23 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg-cream-soft)" }}>
+      {/* Toolbar: Add lines to DMS · spacer · Compact · + Custom */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--bg-white)", borderBottom: "1px solid var(--b-1)" }}>
+        <button style={{ height: 34, padding: "0 14px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", color: "var(--t-4)", cursor: "not-allowed" }}>Add lines to DMS</button>
+        <div style={{ flex: 1 }} />
+        <div onClick={() => setCompact(c => !c)} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", color: compact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, userSelect: "none" }}>
+          Compact
+          <div style={{ width: 32, height: 17, borderRadius: 999, background: compact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
+            <div style={{ position: "absolute", top: 1.5, left: compact ? 15 : 1.5, width: 14, height: 14, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
+          </div>
+        </div>
+        <button onClick={onAddCustomRec} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
+        ><IconPlus size={13} /> Custom</button>
+      </div>
       <div style={{ flex: 1, overflowY: "scroll", padding: "16px 16px 20px" }} className="scrollable">
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          {/* Toolbar: Add lines to DMS · spacer · Compact · + Custom */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <button style={{ height: 34, padding: "0 14px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "var(--t-4)", cursor: "not-allowed" }}>Add lines to DMS</button>
-            <div style={{ flex: 1 }} />
-            <div onClick={() => setCompact(c => !c)} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: compact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, userSelect: "none" }}>
-              Compact
-              <div style={{ width: 32, height: 17, borderRadius: 999, background: compact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
-                <div style={{ position: "absolute", top: 1.5, left: compact ? 15 : 1.5, width: 14, height: 14, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
-              </div>
-            </div>
-            <button onClick={onAddCustomRec} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
-              onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
-            ><IconPlus size={13} /> Custom</button>
-          </div>
           <RecSectionHeader title="Concerns" count={ocr.length + mpi.length} right={<RecFilterBar filter={activeFilter} setFilter={setActiveFilter} counts={filterCounts} />} />
           <RecColHeader compact={compact} />
           {(() => {
@@ -5372,7 +5413,9 @@ const MediaConcernCard = ({ concern, letter }) => {
     <div style={{ border: "1px solid var(--b-2)", borderLeft: `3px solid ${p.divBd}`, borderRadius: 8, background: "var(--bg-white)", marginBottom: 10, overflow: "hidden" }}>
       {/* Header — matches RecConcernCard */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 14px 7px 10px", borderBottom: "1px solid var(--b-2)" }}>
-        <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 4, background: p.pillFill, color: p.pillT, letterSpacing: "0.05em", textTransform: "uppercase", flexShrink: 0 }}>{p.label}</span>
+        {p.label === "OCC" && (
+          <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 4, background: "var(--occ-strong)", color: "#fff", letterSpacing: "0.05em", textTransform: "uppercase", flexShrink: 0 }}>{p.label}</span>
+        )}
         {letter && (
           <div style={{ width: 22, height: 22, borderRadius: 999, background: "var(--blue-600)", color: "#fff", fontSize: 11, fontWeight: 800, display: "grid", placeItems: "center", flexShrink: 0 }}>{letter}</div>
         )}
@@ -6319,7 +6362,7 @@ const MPIPage = () => {
   const [concerns, setConcerns] = React.useState(initialConcerns);
   const [recConcerns, setRecConcerns] = React.useState(initialRecConcerns);
   const [sections, setSections] = React.useState(initialSections);
-  const [tab, setTab] = React.useState("mpi");
+  const [tab, setTab] = React.useState("rec");
   const [mpiCompact, setMpiCompact] = React.useState(true);
   const [concernsOpen, setConcernsOpen] = React.useState(true);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
