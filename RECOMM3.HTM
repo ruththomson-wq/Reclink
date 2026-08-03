@@ -2877,8 +2877,11 @@ const ConcernCardHeader = ({ recTabLayout = false,
   onAddRec,        // (id) → void; if falsy, no +REC button
   total = 0, shownTotal = 0, hasZeroShown = false, showTotal = true,
   autoRename = false,
+  recApprovals = null,
   style = {},
 }) => {
+  const approvedCount = recApprovals ? concern.recs.filter(r => recApprovals.get(r.id) === "approved").length : 0;
+  const recsCount = concern.recs.length;
   const canRename = concern.type !== "occ" && !!onTitleChange;
   const [editingTitle, setEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(concern.title);
@@ -2888,7 +2891,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
   const commitEdit = () => { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft || concern.title); };
   const cancelEdit = () => { setEditingTitle(false); setTitleDraft(concern.title); };
   return (
-    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, borderLeft: concern.type === "occ" ? "3px solid var(--blue-600)" : "3px solid transparent", padding: "7px 0", ...(recTabLayout ? { paddingRight: 12 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
+    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, borderLeft: concern.type === "occ" ? "3px solid var(--blue-600)" : "3px solid transparent", padding: "7px 0", ...(recTabLayout ? { paddingRight: 8 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
       {/* Left group — title area, gapped — owns the 8px left inset so the outer flex has no padding, keeping right columns pixel-aligned with rec rows */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: 8 }}>
 
@@ -2923,9 +2926,15 @@ const ConcernCardHeader = ({ recTabLayout = false,
       </div>
       {recTabLayout ? (
         <>
-          {/* ATTACH spacer (72px) */}
-          <div style={{ width: 72, flexShrink: 0 }} />
-          {/* PRICE (72px) — aligns with rec row price column */}
+          {/* REC button — sits before price, no approval-count text */}
+          {onAddRec && (
+            <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
+              style={{ height: 26, padding: "0 9px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, marginRight: 14 }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
+            ><IconPlus size={10} /> REC</button>
+          )}
+          {/* PRICE (72px) — the true far-right column */}
           {showTotal && (
             <div style={{ width: 72, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 14 }}>
               {hasZeroShown
@@ -2937,16 +2946,6 @@ const ConcernCardHeader = ({ recTabLayout = false,
               }
             </div>
           )}
-          {/* APPROVAL column (220px) — contains +REC button */}
-          <div style={{ width: 220, flexShrink: 0, display: "flex", alignItems: "center", paddingLeft: 14 }}>
-            {onAddRec && (
-              <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
-                style={{ height: 26, padding: "0 9px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.borderColor = "var(--blue-500)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
-              ><IconPlus size={10} /> REC</button>
-            )}
-          </div>
         </>
       ) : (
         <>
@@ -2966,7 +2965,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
           {onAddRec && (
             <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
               {showTotal && (
-                <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: 20, background: palette.divBd || palette.headBd, borderRadius: 1 }} />
+                <span style={{ position: "absolute", left: 0, top: -7, bottom: -7, width: 1, background: "var(--b-2)", borderRadius: 1 }} />
               )}
               <button onClick={(e) => { e.stopPropagation(); onAddRec(concern.id); }}
                 style={{ height: 28, padding: "0 9px", background: "var(--bg-white)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 13, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
@@ -3404,7 +3403,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         autoRename={autoRename}
         style={{
           borderRadius: showDropBanner ? 0 : ((hasRecs || !!concern.preApproved) ? "8px 8px 0 0" : 8),
-          borderBottom: ((hasRecs || !!concern.preApproved) && !showDropBanner) ? "1px solid var(--b-2)" : "none",
+          borderBottom: (!!concern.preApproved && !showDropBanner) ? "none" : ((hasRecs && !showDropBanner) ? "1px solid var(--b-2)" : "none"),
         }}
       />
 
@@ -3415,21 +3414,21 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         return (
           <div key="preapproved" style={{
             display: "flex", alignItems: "center", gap: 8,
-            padding: "8px 0 8px 14px",
+            padding: "5px 0 5px 8px",
+            borderLeft: "3px solid var(--blue-600)",
+            borderTop: "1px solid var(--b-2)",
             borderBottom: hasMore ? "1px solid var(--b-2)" : "none",
             borderRadius: hasMore ? 0 : "0 0 7px 7px",
-            background: "var(--bg-white)",
+            background: "var(--blue-25)",
           }}>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--blue-700)", letterSpacing: 0.02 }}>Pre-Approved</span>
               <span style={{ fontSize: 12.5, color: "var(--t-4)" }}>Labor ${pa.labor.toFixed(0)}{pa.parts > 0 ? ` · Parts $${pa.parts.toFixed(0)}` : ""}{pa.misc > 0 ? ` · Misc $${pa.misc.toFixed(0)}` : ""}</span>
             </div>
-            {/* Price column — matches rec row */}
-            <div style={{ width: 76, flexShrink: 0, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+            {/* Price column — extends to the true right edge (no reserved action space; this row has no button) */}
+            <div style={{ width: 160, flexShrink: 0, textAlign: "right", fontVariantNumeric: "tabular-nums", paddingRight: 14 }}>
               <span style={{ fontSize: 14, fontWeight: 400, color: "var(--t-1)" }}>${paTotal.toFixed(0)}</span>
             </div>
-            {/* Blank action column — matches header action column width */}
-            <div style={{ width: 84, flexShrink: 0 }} />
           </div>
         );
       })()}
@@ -3469,17 +3468,22 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
 
           {/* Text column — flex:1 */}
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "8px 0 8px 10px" }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-              {rec.status && (() => { const st = REC_STATUS[rec.status]; return st ? (
-                <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", flexShrink: 0,
-                  background: st.label === "Fail" ? "var(--red-50)" : "var(--yellow-50)",
-                  color: st.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)",
-                  border: `1px solid ${st.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}`,
-                }}>{st.label}</span>
-              ) : null; })()}
-              <span style={{ fontSize: 14, color: "var(--t-1)", flex: 1, minWidth: 0 }}>{rec.text}</span>
-              {rec.fresh && <JustAddedTag key={rec.id} />}
-            </div>
+            {(rec.status || rec.extraTag || rec.fresh) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+                {rec.status && (() => { const st = REC_STATUS[rec.status]; return st ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", flexShrink: 0,
+                    background: st.label === "Fail" ? "var(--red-50)" : "var(--yellow-50)",
+                    color: st.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)",
+                    border: `1px solid ${st.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}`,
+                  }}>{st.label}</span>
+                ) : null; })()}
+                {rec.extraTag && (
+                  <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 500, padding: "1px 7px", borderRadius: 4, flexShrink: 0, background: "var(--b-1)", color: "var(--t-3)", border: "1px solid var(--b-2)" }}>{rec.extraTag}</span>
+                )}
+                {rec.fresh && <JustAddedTag key={rec.id} />}
+              </div>
+            )}
+            <span style={{ fontSize: 14, color: "var(--t-1)" }}>{rec.text}</span>
             {rec.total != null && (
               <div style={{ marginTop: 3, fontSize: 13, color: "var(--t-3)", lineHeight: 1.3 }}>
                 {(() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return (m ? m[1] : "0") + " hrs · "; })()}Labor ${Number(rec.labor || 0).toFixed(0)} · Parts ${Number(rec.parts || 0).toFixed(0)}
@@ -3487,24 +3491,11 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
               </div>
             )}
           </div>
-          {/* Badges + price together — one right-side group so they stay visually adjacent */}
-          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, padding: "0 12px 0 8px", justifyContent: "flex-end" }}>
+          {/* Badges + price together — one right-side group, extends to the true right edge (no reserved action space) */}
+          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, padding: "0 14px 0 8px", justifyContent: "flex-end" }}>
             {badgeItems}
             {priceEl && <span style={{ width: 1, height: 15, background: "var(--b-2)", flexShrink: 0 }} />}
             {priceEl && <span style={{ fontVariantNumeric: "tabular-nums" }}>{priceEl}</span>}
-          </div>
-          {/* Action column — 84px with left border, matches header action column */}
-          <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-            onClick={(e) => e.stopPropagation()}>
-            {onDeleteRec && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onDeleteRec(rec.id); }}
-                style={{ height: 28, padding: "0 9px", background: "transparent", border: "none", borderRadius: 5, color: "var(--t-4)", cursor: "pointer", display: "none", alignItems: "center", justifyContent: "center" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#dc2626"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--t-4)"; }}
-                title="Delete recommendation"
-              ><IconTrash size={15} /></button>
-            )}
           </div>
         </div>
         );
@@ -4396,7 +4387,7 @@ const RecFilterBar = ({ filter, setFilter, counts }) => {
     { id: "incomplete", label: "Needs pricing" },
   ];
   return (
-    <div style={{ display: "inline-flex", borderRadius: 10, background: "var(--bg-cream)", border: "1px solid var(--b-2)", padding: 3, gap: 2 }}>
+    <div style={{ display: "inline-flex", borderRadius: 10, background: "var(--bg-white)", border: "1px solid var(--b-2)", padding: 3, gap: 2 }}>
       {chips.map((c, i) => {
         const active = filter === c.id;
         const count = counts[c.id] ?? 0;
@@ -4425,8 +4416,12 @@ const RecFilterBar = ({ filter, setFilter, counts }) => {
 };
 
 // ── A single recommendation line within a concern.
-const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecClick, selected = false, onToggleSelect, defaultExpanded = false, compact = true }) => {
+const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange, onRecClick, selected = false, onToggleSelect, defaultExpanded = false, compact = true }) => {
   const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const [workStatus, setWorkStatus] = React.useState(() => {
+    if (!rec.workTag) return "—";
+    return rec.workTag.tone === "done" ? "Done" : rec.workTag.label;
+  });
   const stat = REC_STATUS[rec.status];
   const hasMedia = rec.media && typeof rec.media === "object" && (rec.media.photos > 0 || rec.media.videos > 0);
   const total = rec.total;
@@ -4434,7 +4429,7 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
   const isApproved = approval === "approved";
   const isDeclined = approval === "declined";
 
-  // Left tags: fail/caution status badge (shown on left below rec text)
+  // Left tags: fail/caution status badge, plus an infrequent grey qualifier tag (ACV, Traxtion, Previously Declined)
   const leftTags = [];
   if (stat) leftTags.push(
     <span key="status" style={{
@@ -4446,12 +4441,36 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
       border: `1px solid ${stat.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}`,
     }}>{stat.label}</span>
   );
+  if (rec.extraTag) leftTags.push(
+    <span key="extra" style={{
+      display: "inline-flex", alignItems: "center",
+      fontSize: 11, fontWeight: 500, padding: "1px 7px", borderRadius: 4,
+      background: "var(--b-1)", color: "var(--t-3)", border: "1px solid var(--b-2)",
+    }}>{rec.extraTag}</span>
+  );
 
   // ATTACH column: icon-only MediaTag + PartsTag — blue if active, grey if not; hover shows popup
   const rightTags = [
     <MediaTag key="media-icon" media={rec.media} />,
     <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} />,
   ];
+
+  const detailsBtn = (
+    <button key="details-btn" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        padding: "3px 8px", borderRadius: 6,
+        background: "var(--blue-50)", border: "1px solid var(--blue-100)",
+        color: "var(--blue-700)", fontSize: 11, fontWeight: 700,
+        letterSpacing: "0.04em", textTransform: "uppercase", cursor: "pointer",
+      }}>
+      DETAILS
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--blue-700)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 120ms" }}>
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </button>
+  );
 
   const isDiscounted = shownToCustomer === 0 && total > 0;
   const priceEl = total != null ? (
@@ -4496,48 +4515,56 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
   };
 
 
-  const estStatusNonApproved = (rec.estStatus || []).filter(s => s.tone !== "approved");
-
   // ── Expanded: full 3-column layout ──
   if (expanded) {
     return (
-      <div key="expanded" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "stretch", minHeight: 72, background: "var(--bg-white)", paddingRight: 12 }}>
+      <div key="expanded" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "stretch", minHeight: 72, background: "var(--bg-white)", paddingRight: 8 }}>
         {/* Checkbox — top-left */}
         <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 12 }}
           onClick={e => e.stopPropagation()}>
           <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
         </div>
 
-        {/* Rec text — status badge prepended inline */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "10px 14px 10px 0", cursor: onRecClick ? "pointer" : "default" }}
-          onClick={() => onRecClick && onRecClick(rec)}
-          onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = ""; }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-            {leftTags.length > 0 && <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>{leftTags}</div>}
-            <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", flex: 1, minWidth: 0 }}>
-              {rec.recommendation || "No recommendation added"}
-            </div>
+        {/* Rec text — status badge inline with the recommendation, wraps underneath if it doesn't fit */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "10px 14px 10px 0", cursor: onRecClick ? "pointer" : "default" }}
+          onClick={() => onRecClick && onRecClick(rec)}>
+          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.6 }}>
+            {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, marginRight: 6, verticalAlign: "middle" } }))}
+            {rec.recommendation || "No recommendation added"}
           </div>
+          {rec.internal && (
+            <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 6, background: "#FFFBEB", border: "1px solid #F3DDA1" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal</div>
+              <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.4 }}>{rec.internal}</div>
+            </div>
+          )}
           {/* Media + parts icons — bottom-left of the rec row */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
             {rightTags}
+            {detailsBtn}
           </div>
         </div>
 
         {/* REC ESTIMATE */}
         <div style={{ width: 240, flexShrink: 0, borderLeft: "1px solid var(--b-2)", padding: "10px 14px 12px" }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 7 }}>REC ESTIMATE</div>
           {[
-            rec.estSummary ? ["Hours", rec.estSummary, true] : null,
-            ["Labor",      rec.labor  != null ? `$${Number(rec.labor).toFixed(2)}`  : null, false],
-            ["Parts",      rec.parts  != null ? `$${Number(rec.parts).toFixed(2)}`  : null, false],
-            ["Misc Fees",  rec.misc   != null ? `$${Number(rec.misc).toFixed(2)}`   : null, false],
-            ["Taxes on P + L + Misc", null, false],
-          ].filter(Boolean).map(([label, val, bold]) => (
+            rec.estSummary ? ["Hours", rec.estSummary, true, "No input", false] : null,
+            ["Labor",      rec.labor  != null ? `$${Number(rec.labor).toFixed(2)}`  : null, false, "Incomplete Labor", true],
+            ["Parts",      rec.parts  != null ? `$${Number(rec.parts).toFixed(2)}`  : null, false, "Incomplete Parts", true],
+            ["Misc Fees",  rec.misc   != null ? `$${Number(rec.misc).toFixed(2)}`   : null, false, "No input", false],
+            ["Taxes on P + L + Misc", null, false, "No input", false],
+          ].filter(Boolean).map(([label, val, bold, emptyLabel, isAlert]) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
               <span style={{ fontSize: 12, color: "var(--t-3)" }}>{label}</span>
-              <span style={{ fontSize: 12, fontWeight: bold ? 700 : 400, color: val ? "var(--t-2)" : "var(--t-5)", fontVariantNumeric: "tabular-nums" }}>{val || "No input"}</span>
+              <span style={{ fontSize: 12, fontWeight: bold ? 700 : 400, color: val ? "var(--t-2)" : (isAlert ? "#B45309" : "var(--t-5)"), fontVariantNumeric: "tabular-nums", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                {!val && isAlert && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <path d="M12 9v4"/><path d="M12 17h.01"/>
+                  </svg>
+                )}
+                {val || emptyLabel}
+              </span>
             </div>
           ))}
           <div style={{ height: 1, background: "var(--b-1)", margin: "6px 0" }} />
@@ -4545,79 +4572,76 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t-2)" }}>Total (w/ tax + misc)</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${rec.total != null ? Number(rec.total).toFixed(2) : "0.00"}</span>
           </div>
-          {rec.shownToCustomer != null && (
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 5,
-              border: `1px solid ${rec.shownToCustomer === 0 ? "#F0B6B6" : "#BDD9BD"}`,
-              background: rec.shownToCustomer === 0 ? "var(--red-50)" : "var(--green-50)" }}>
-              {rec.shownToCustomer === 0
-                ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--red-600)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: rec.shownToCustomer === 0 ? "var(--red-600)" : "var(--green-700)" }}>
-                {rec.shownToCustomer === 0 ? "$0 shown to customer" : `$${Number(rec.shownToCustomer).toFixed(0)} shown to customer`}
-              </span>
-            </div>
+          {rec.shownToCustomer === 0 && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 5, border: "1px solid #F0B6B6", background: "var(--red-50)" }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--red-600)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--red-600)" }}>Customer sees $0</span>
+            </span>
           )}
         </div>
 
         {/* Right column */}
-        <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "flex-start", paddingBottom: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* APPROVAL + chevron */}
-          <div style={{ display: "flex", alignItems: "center", paddingLeft: 14, paddingTop: 8, paddingRight: 4, paddingBottom: 8 }} onClick={e => e.stopPropagation()}>
+        <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", paddingTop: 12, paddingBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+          {/* APPROVAL */}
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 8, paddingTop: 0, paddingRight: 0, paddingBottom: 0 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
               {mkBtn("✓", "approved")}
               {mkBtn("✗", "declined")}
             </div>
-            <div style={{ width: 8, flexShrink: 0 }} />
-            <div onClick={() => setExpanded(false)}
-              style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer", border: "1px solid var(--b-2)", background: "var(--bg-white)", flexShrink: 0 }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--b-1)"}
-              onMouseLeave={e => e.currentTarget.style.background = "var(--bg-white)"}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
-            </div>
-          </div>
-          {/* ESTIMATE STATUS */}
-          <div style={{ padding: "0 14px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 6 }}>ESTIMATE STATUS</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {estStatusNonApproved.length === 0
-                ? <span style={{ fontSize: 12, color: "var(--t-5)" }}>—</span>
-                : estStatusNonApproved.map((es, i) => {
-                    const isInc = es.tone === "incomplete"; const isDec = es.tone === "declined";
-                    const isDone = es.tone === "done" || es.tone === "completed"; const isReq = es.tone === "requested";
-                    let bg, color, border;
-                    if (isDone)     { bg = "var(--green-50)"; color = "var(--green-700)"; border = "#BDD9BD"; }
-                    else if (isInc) { bg = "#FFF7ED"; color = "#B45309"; border = "#FCD6A0"; }
-                    else if (isDec) { bg = "var(--red-50)"; color = "var(--red-600)"; border = "#F0B6B6"; }
-                    else if (isReq) { bg = "var(--blue-25)"; color = "var(--blue-600)"; border = "var(--blue-100)"; }
-                    else            { bg = "var(--bg-cream-soft)"; color = "var(--t-3)"; border = "var(--b-2)"; }
-                    return <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4, background: bg, color, border: `1px solid ${border}`, alignSelf: "flex-start" }}>{es.label}</span>;
-                  })}
-            </div>
           </div>
           {/* WORK */}
-          <div style={{ padding: "0 14px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 6 }}>WORK</div>
-            {rec.workTag ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-                background: rec.workTag.tone === "done" ? "var(--green-50)" : "var(--bg-cream-soft)",
-                color: rec.workTag.tone === "done" ? "var(--green-700)" : "var(--t-3)",
-                border: `1px solid ${rec.workTag.tone === "done" ? "#BDD9BD" : "var(--b-2)"}` }}>
-                {rec.workTag.tone === "done" && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
-                {rec.workTag.tone === "done" ? "Done" : rec.workTag.label} ×
-              </span>
-            ) : <span style={{ fontSize: 12, color: "var(--t-5)" }}>—</span>}
+          <div style={{ padding: "0 0 0 8px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 3 }}>WORK</div>
+            {(() => {
+              const wsColors = {
+                "—":                 { bg: "var(--bg-white)",       color: "var(--t-2)",     border: "var(--b-2)" },
+                "Need parts pulled": { bg: "var(--yellow-50)",      color: "var(--yellow-700)", border: "var(--yellow-100)" },
+                "In Progress":       { bg: "var(--bg-cream-soft)",  color: "var(--t-3)",     border: "var(--b-2)" },
+                "Done":              { bg: "var(--green-50)",       color: "var(--green-700)", border: "#BDD9BD" },
+              };
+              const wc = wsColors[workStatus] || wsColors["—"];
+              return (
+                <div style={{ position: "relative" }}>
+                  <select
+                    className="select"
+                    value={workStatus}
+                    onChange={(e) => setWorkStatus(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      height: 30, fontSize: 12, padding: "0 24px 0 8px",
+                      color: wc.color, borderColor: wc.border, background: wc.bg,
+                      appearance: "none", WebkitAppearance: "none", MozAppearance: "none",
+                    }}
+                  >
+                    <option value="—" style={{ background: "var(--bg-white)", color: "var(--t-2)" }}>—</option>
+                    <option value="Need parts pulled" style={{ background: "var(--yellow-50)", color: "var(--yellow-700)" }}>Need parts pulled</option>
+                    <option value="In Progress" style={{ background: "var(--bg-cream-soft)", color: "var(--t-3)" }}>In Progress</option>
+                    <option value="Done" style={{ background: "var(--green-50)", color: "var(--green-700)" }}>Done</option>
+                  </select>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={wc.color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              );
+            })()}
           </div>
           {/* PARTS */}
-          <div style={{ padding: "0 14px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 6 }}>PARTS</div>
-            {rec.partsTag ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
-                background: rec.partsTag.tone === "stock" ? "var(--green-50)" : "var(--yellow-25)",
-                color: rec.partsTag.tone === "stock" ? "var(--green-700)" : "var(--yellow-700)",
-                border: `1px solid ${rec.partsTag.tone === "stock" ? "#BDD9BD" : "#F3DDA1"}` }}>
-                {rec.partsTag.label}
-              </span>
-            ) : <span style={{ fontSize: 12, color: "var(--t-5)" }}>—</span>}
+          <div style={{ padding: "0 0 0 8px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 3 }}>PARTS</div>
+            {rec.partsTag ? (() => {
+              const tone = rec.partsTag.tone;
+              const bg     = tone === "stock" ? "var(--green-50)" : tone === "out-of-stock" ? "var(--red-50)" : "var(--yellow-25)";
+              const color  = tone === "stock" ? "var(--green-700)" : tone === "out-of-stock" ? "var(--red-600)" : "var(--yellow-700)";
+              const border = tone === "stock" ? "#BDD9BD" : tone === "out-of-stock" ? "#F0B6B6" : "#F3DDA1";
+              return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: bg, color, border: `1px solid ${border}` }}>
+                  {rec.partsTag.label}
+                </span>
+              );
+            })() : (
+              <div style={{ height: 26, display: "flex", alignItems: "center", padding: "0 8px", borderRadius: 5, border: "1px solid var(--b-2)", background: "var(--bg-white)", fontSize: 12, color: "var(--t-4)" }}>—</div>
+            )}
           </div>
         </div>
       </div>
@@ -4626,44 +4650,39 @@ const RecRecRow = ({ rec, concernId, isFirst, approval, onApprovalChange, onRecC
 
   // ── Compact row ──
   return (
-    <div key="compact" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", minHeight: 44, background: "var(--bg-white)", paddingRight: 12, userSelect: "none" }}
+    <div key="compact" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", minHeight: 44, background: "var(--bg-white)", paddingRight: 8, userSelect: "none" }}
       onClick={() => onRecClick && onRecClick(rec)}
-      onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; }}
     >
       {/* Checkbox */}
-      <div style={{ width: 36, flexShrink: 0, display: "flex", justifyContent: "center", alignItems: "center", height: 20, marginTop: 10 }}
+      <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 12 }}
         onClick={e => e.stopPropagation()}>
         <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
       </div>
-      {/* Rec text — status badge prepended inline */}
+      {/* Rec text — status badge inline with the recommendation, wraps underneath if it doesn't fit */}
       <div style={{ flex: 1, minWidth: 0, padding: "10px 8px 10px 0" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
-          {leftTags.length > 0 && <div style={{ display: "flex", gap: 4, flexShrink: 0, marginTop: 2 }}>{leftTags}</div>}
-          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.45, fontStyle: rec.recommendation ? "normal" : "italic", flex: 1, minWidth: 0, whiteSpace: "normal", wordBreak: "break-word" }}>
-            {rec.recommendation || "No recommendation added"}
-          </div>
+        <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.6, whiteSpace: "normal", wordBreak: "break-word" }}>
+          {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, marginRight: 6, verticalAlign: "middle" } }))}
+          {rec.recommendation || "No recommendation added"}
         </div>
-      </div>
-      {/* ATTACH — media + parts icon tags */}
-      <div style={{ width: 72, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, alignSelf: "stretch" }}>
-        {rightTags}
+        {rec.internal && (
+          <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 6, background: "#FFFBEB", border: "1px solid #F3DDA1" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal</div>
+            <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.4 }}>{rec.internal}</div>
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+          {rightTags}
+          {detailsBtn}
+        </div>
       </div>
       {/* Price */}
       <div style={{ width: 72, flexShrink: 0, textAlign: "right", paddingTop: 10, paddingRight: 14 }}>{priceEl}</div>
-      {/* Approve / Decline + chevron */}
-      <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", display: "flex", alignItems: "center", paddingLeft: 14, paddingTop: 8, paddingRight: 4, paddingBottom: 8 }}
+      {/* Approve / Decline */}
+      <div style={{ width: 220, flexShrink: 0, alignSelf: "flex-start", display: "flex", alignItems: "center", paddingLeft: 8, paddingTop: 10, paddingRight: 0, paddingBottom: 8 }}
         onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
           {mkBtn("✓", "approved")}
           {mkBtn("✗", "declined")}
-        </div>
-        <div style={{ width: 8, flexShrink: 0 }} />
-        <div onClick={e => { e.stopPropagation(); setExpanded(true); }}
-          style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer", border: "1px solid var(--b-2)", background: "var(--bg-white)", flexShrink: 0 }}
-          onMouseEnter={e => e.currentTarget.style.background = "var(--b-1)"}
-          onMouseLeave={e => e.currentTarget.style.background = "var(--bg-white)"}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
         </div>
       </div>
     </div>
@@ -4748,7 +4767,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
             {/* Text + badges — flex:1, padding sets row height */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 0 9px 10px" }}>
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <span style={{ fontSize: 14, color: "var(--t-1)" }}>{rec.recommendation || <span style={{ color: "var(--t-5)", fontStyle: "italic" }}>No recommendation added</span>}</span>
+                <span style={{ fontSize: 14, color: "var(--t-1)" }}>{rec.recommendation || <span style={{ color: "var(--t-5)" }}>No recommendation added</span>}</span>
                 {rec.total != null && (
                   <div style={{ marginTop: 3, fontSize: 13, color: "var(--t-3)", lineHeight: 1.3 }}>
                     {(() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return (m ? m[1] : "0") + " hrs · "; })()}Labor ${Number(rec.labor || 0).toFixed(0)} · Parts ${Number(rec.parts || 0).toFixed(0)}
@@ -4768,7 +4787,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
             </div>
             {/* 84px spacer matches header action column width — use positioned divider, not borderLeft, to avoid box-model width shift */}
             <div style={{ width: 84, flexShrink: 0, position: "relative" }}>
-              <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: "60%", background: p.divBd || p.headBd }} />
+              <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: "60%", background: "var(--b-2)" }} />
             </div>
           </div>
         );
@@ -4778,7 +4797,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
 };
 
 // ── A concern card — MPI-style colored header + a list of recommendation rows.
-const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename, recApprovals, onApprovalChange, compact = true }) => {
+const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename, recApprovals, onApprovalChange, compact = true, isFirst = false }) => {
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
@@ -4792,7 +4811,11 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         background: "var(--bg-white)", overflow: "hidden",
         boxShadow: "var(--shadow-card)", marginBottom: 8, marginLeft: 0,
         opacity: dragging ? 0.4 : 1, transition: "opacity 140ms, box-shadow 140ms",
+        position: "relative",
       }}>
+      {concern.type === "occ" && (
+        <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: "var(--blue-600)", zIndex: 1, pointerEvents: "none" }} />
+      )}
 
       <ConcernCardHeader
         concern={concern}
@@ -4810,10 +4833,34 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         showTotal={true}
         autoRename={autoRename}
         preApproved={concern.preApproved || null}
+        recApprovals={recApprovals}
         recTabLayout={true}
-        style={{ borderBottom: "1px solid var(--b-2)", borderRadius: "7px 7px 0 0" }}
+        style={{ borderBottom: concern.preApproved ? "none" : "1px solid var(--b-2)", borderRadius: compact ? 0 : "7px 7px 0 0" }}
       />
 
+      {concern.type === "occ" && concern.preApproved && (() => {
+        const pa = concern.preApproved;
+        const paTotal = (pa.labor || 0) + (pa.parts || 0) + (pa.misc || 0);
+        const hasMore = concern.recs.length > 0;
+        return (
+          <div key="preapproved" style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "5px 8px 5px 8px",
+            borderLeft: "3px solid var(--blue-600)",
+            borderTop: "1px solid var(--b-2)",
+            borderBottom: hasMore ? "1px solid var(--b-2)" : "none",
+            background: "var(--blue-25)",
+          }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--blue-700)", letterSpacing: 0.02 }}>Pre-Approved</span>
+              <span style={{ fontSize: 12.5, color: "var(--t-4)" }}>Labor ${pa.labor.toFixed(0)}{pa.parts > 0 ? ` · Parts $${pa.parts.toFixed(0)}` : ""}{pa.misc > 0 ? ` · Misc $${pa.misc.toFixed(0)}` : ""}</span>
+            </div>
+            <div style={{ width: 72, flexShrink: 0, textAlign: "right", fontVariantNumeric: "tabular-nums", paddingRight: 14 }}>
+              <span style={{ fontSize: 14, fontWeight: 400, color: "var(--t-1)" }}>${paTotal.toFixed(0)}</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {concern.recs.map((rec, i) => (
         <RecRecRow
@@ -5002,7 +5049,7 @@ const initialRecConcerns = [
   {
     id: "occ2", section: "ocr", type: "occ", preApproved: { labor: 180, parts: 95, misc: 10 }, title: "50K service",
     recs: [
-      { id: "occ2-r1", status: "caution", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "declined", label: "Declined" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" } },
+      { id: "occ2-r1", status: "caution", extraTag: "ACV", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "declined", label: "Declined" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" } },
     ],
   },
   {
@@ -5012,20 +5059,20 @@ const initialRecConcerns = [
   {
     id: "asc1", section: "mpi", type: "asc_m", title: "Head lights / tail lights / turn signals / brake lights / hazard warning lights / exterior lamps",
     recs: [
-      { id: "asc1-r1", status: "fail", recommendation: "Alternate Value Option - Please ask your advisor about the alternate value options available for this service.", internal: "lksujalsujasujkals kdjalksdjasljdas lkdjalskdjalskdjalskdjaskdjalksdja lsdkj", shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: 0, estSummary: null, shownToCustomer: 0, declineCount: 2, estStatus: [{ tone: "incomplete", label: "Incomplete Labor" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: null },
+      { id: "asc1-r1", status: "fail", extraTag: "Previously Declined", recommendation: "Alternate Value Option - Please ask your advisor about the alternate value options available for this service.", internal: "Checked with parts supplier — OEM headlight assembly is on backorder 2 weeks. Aftermarket equivalent is available same-day if the customer wants to avoid the delay.", shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: 0, estSummary: null, shownToCustomer: 0, declineCount: 2, estStatus: [{ tone: "incomplete", label: "Incomplete Labor" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: null },
     ],
   },
   {
     id: "asc2", section: "mpi", type: "asc_m", title: "Windshield wiper and washer operation",
     recs: [
-      { id: "asc2-r1", status: "fail", recommendation: "Replace front wiper motor — intermittent failure confirmed on test.", internal: "bhai ye dikhega kya? nv nvjkdnvdfjk", shopchat: "bhai picchle vaale se bhi bada shopchat test karte hainbhai bade shopchat ke saath dekhna kya ho…", shopchatCount: 5, media: { photos: 1, videos: 0 }, labor: 10.00, parts: 20.00, misc: 1.12, taxes: null, total: 31.12, estSummary: "10.00 hrs, TestPrice", shownToCustomer: 0, declineCount: 3, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "done", label: "Done" }, partsTag: { tone: "stock", label: "In Stock" } },
+      { id: "asc2-r1", status: "fail", recommendation: "Replace front wiper motor — intermittent failure confirmed on test.", internal: "Motor sticks intermittently on cold starts — confirmed on 3 test cycles this morning. Customer has declined this twice already; worth mentioning the visibility/safety risk on the next follow-up.", shopchat: "bhai picchle vaale se bhi bada shopchat test karte hainbhai bade shopchat ke saath dekhna kya ho…", shopchatCount: 5, media: { photos: 1, videos: 0 }, labor: 10.00, parts: 20.00, misc: 1.12, taxes: null, total: 31.12, estSummary: "10.00 hrs, TestPrice", shownToCustomer: 0, declineCount: 3, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "done", label: "Done" }, partsTag: { tone: "stock", label: "In Stock" } },
       { id: "asc2-r2", status: "caution", recommendation: "Replace washer pump and refill reservoir — low flow observed.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 35.00, parts: 28.00, misc: 2.00, taxes: null, total: 65.00, estSummary: "0.50 hrs", shownToCustomer: 65.00, estStatus: [{ tone: "approved", label: "Approved" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" } },
     ],
   },
   {
     id: "asc3", section: "mpi", type: "asc_m", title: "Cabin air filter",
     recs: [
-      { id: "asc3-r1", status: "caution", recommendation: null, internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "gray", label: "Need parts pulled" }, partsTag: null },
+      { id: "asc3-r1", status: "caution", extraTag: "Traxtion", recommendation: null, internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "gray", label: "Need parts pulled" }, partsTag: { tone: "out-of-stock", label: "Out of Stock" } },
     ],
   },
   {
@@ -5239,35 +5286,35 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
           onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
         ><IconPlus size={13} /> Custom</button>
       </div>
-      <div style={{ flex: 1, overflowY: "scroll", padding: "16px 16px 20px" }} className="scrollable">
+      <div style={{ flex: 1, overflowY: "scroll", padding: "16px 16px 20px", background: "var(--bg-canvas)" }} className="scrollable">
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <RecSectionHeader title="Concerns" count={ocr.length + mpi.length} right={<RecFilterBar filter={activeFilter} setFilter={setActiveFilter} counts={filterCounts} />} />
-          <RecColHeader compact={compact} />
           {(() => {
             const allCards = [
               ...ocr.map((c, i) => ({ c, letter: String.fromCharCode(65 + i), reorderable: false, isOcr: true })),
               ...mpi.map((c) => ({ c, reorderable: mpi.length > 1, isOcr: false })),
             ];
             if (allCards.length === 0) return <RecEmptyDrop label="No concerns match the active filter." />;
-            return allCards.map(({ c, letter, reorderable }, idx) => {
+            const cards = allCards.map(({ c, letter, reorderable }, idx) => {
               const p = concernPalette[c.type] || concernPalette.asc_m;
               return (
-                <React.Fragment key={c.id + String(compact)}>
-                  <RecConcernCard
-                    concern={c}
-                    letter={letter}
-                    compact={compact}
-                    reorderable={reorderable}
-                    onReorderConcern={reorderable ? (targetId, before) => reorderConcern(c.id, targetId, before) : undefined}
-                    onConcernDragStart={() => setConcernDrag(c.id)}
-                    onConcernDragEnd={() => setConcernDrag(null)}
-                    dragging={concernDrag === c.id}
-                    autoRename={c.id === newConcernId}
-                    {...common}
-                  />
-                </React.Fragment>
+                <RecConcernCard
+                  key={c.id + String(compact)}
+                  concern={c}
+                  letter={letter}
+                  compact={compact}
+                  isFirst={idx === 0}
+                  reorderable={reorderable}
+                  onReorderConcern={reorderable ? (targetId, before) => reorderConcern(c.id, targetId, before) : undefined}
+                  onConcernDragStart={() => setConcernDrag(c.id)}
+                  onConcernDragEnd={() => setConcernDrag(null)}
+                  dragging={concernDrag === c.id}
+                  autoRename={c.id === newConcernId}
+                  {...common}
+                />
               );
             });
+            return cards;
           })()}
         </div>
       </div>
