@@ -84,7 +84,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; font-family: var(--font-sans); color: var(--t-1); }
-button { font-family: inherit; }
+button { font-family: inherit; text-transform: uppercase; }
 input, select, textarea { font-family: inherit; color: inherit; }
 
 /* shared utilities */
@@ -1448,7 +1448,7 @@ const FormItemSearchField = ({ value = "", onChange, formItems = [], placeholder
 /* Enhanced Itemized Parts Table */
 const EnhancedPartsTable = ({ parts = [], onChange }) => {
   const [rows, setRows] = React.useState(() => parts.length > 0 ? parts : [
-    { id: 1, checked: true,  partNo: "", qty: "", desc: "", mfr: "", sell: "", inStock: false, eta: "Later today", coreChecked: true },
+    { id: 1, checked: true,  partNo: "", qty: "", desc: "", mfr: "", sell: "", inStock: false, eta: "Later today", coreChecked: true, dmsWarning: true },
     { id: 2, checked: false, partNo: "", qty: "", desc: "", mfr: "", sell: "", inStock: false, eta: "Later today", coreChecked: false },
   ]);
   const notify = (next) => { setRows(next); onChange && onChange(next); };
@@ -1511,6 +1511,12 @@ const EnhancedPartsTable = ({ parts = [], onChange }) => {
                 <input type="checkbox" className="checkbox" checked={!!row.coreChecked} onChange={e=>up(row.id,{coreChecked:e.target.checked})} style={{ width: 13, height: 13 }} />
                 <span style={{ fontSize: 13, color: "var(--t-2)", fontWeight: 500 }}>Core charge</span>
                 <InfoTooltip tip="A refundable deposit for a returnable part core." size={12} />
+              </div>
+            )}
+            {row.dmsWarning && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px 6px 38px", background: "#FFFBEB", borderTop: "1px solid #F3DDA1" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span style={{ fontSize: 12.5, color: "#92400E", lineHeight: 1.4 }}>DMS connection intermittent. Showing last used price and parts details for this part.</span>
               </div>
             )}
           </div>
@@ -2261,10 +2267,10 @@ const DummySelect = ({ v }) => (
 // ────────────────────────────────────────────────────────────
 
 const concernPalette = {
-  occ:    { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--occ-bg)", pillFill: "var(--occ-bg)", pillT: "var(--occ-text)", label: "OCC" },
-  custom: { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_m:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
-  asc_c:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillBg: "var(--asc-cos-bg)", pillFill: "var(--asc-cos-bg)", pillT: "var(--asc-cos-text)", label: "ASC" },
+  occ:    { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillT: "var(--occ-strong)", label: "OCC" },
+  custom: { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillT: "var(--t-3)", label: "ASC" },
+  asc_m:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillT: "var(--t-3)", label: "ASC" },
+  asc_c:  { headBg: "var(--bg-white)", headBd: "var(--b-2)", divBd: "var(--b-3)", pillT: "var(--t-3)", label: "ASC" },
 };
 
 const RecStatusBadge = ({ status }) => {
@@ -2550,7 +2556,7 @@ const MoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDragSta
                     onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-cream)"}
                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   >
-                    <span className="pill asc-cos" style={{ flexShrink: 0 }}>ASC</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-3)", flexShrink: 0 }}>ASC</span>
                     <span style={{ fontSize: 13.5, color: "var(--t-1)", fontWeight: 400 }}>{standaloneName || "Keep standalone"}</span>
                   </button>
                 </>
@@ -2775,7 +2781,7 @@ const MediaTag = ({ media }) => {
 
 // Parts tag — hovering reveals the parts breakdown for the rec.
 // Falls back to a single line when only a parts total is known.
-const PartsTag = ({ parts, amount }) => {
+const PartsTag = ({ parts, amount, estStatus }) => {
   const [hover, setHover] = React.useState(false);
   const [popPos, setPopPos] = React.useState({ top: 0, left: 0 });
   const tagRef = React.useRef(null);
@@ -2784,6 +2790,7 @@ const PartsTag = ({ parts, amount }) => {
     : ((Number(amount) || 0) > 0 ? [{ name: "Parts", qty: 1, price: Number(amount) }] : []);
   const active = list.length > 0;
   const total = list.reduce((s, p) => s + (Number(p.price) || 0) * (Number(p.qty) || 1), 0);
+  const incompleteParts = estStatus?.some(s => s.tone === "incomplete" && s.label && s.label.toLowerCase().includes("parts"));
   return (
     <span
       style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
@@ -2792,34 +2799,124 @@ const PartsTag = ({ parts, amount }) => {
       onMouseLeave={() => setHover(false)}
       onClick={(e) => e.stopPropagation()}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={incompleteParts ? "#D97706" : active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
       </svg>
-      {active && (
+      {incompleteParts ? (
+        <span style={{ position: "absolute", top: -5, right: -5, minWidth: 14, height: 14, background: "#D97706", color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 2px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>!</span>
+      ) : active ? (
         <span style={{ position: "absolute", top: -5, right: -5, minWidth: 14, height: 14, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{list.length}</span>
-      )}
+      ) : null}
       {hover && (
         <div style={{
-          position: "fixed", top: popPos.top, left: popPos.left, width: active ? 244 : "auto",
+          position: "fixed", top: popPos.top, left: popPos.left, width: active ? 280 : "auto",
           background: active ? "var(--bg-white)" : "#101828", border: active ? "1px solid var(--b-2)" : "none", borderRadius: 8,
           boxShadow: active ? "var(--shadow-modal)" : "0 8px 22px rgba(0,0,0,0.28)", zIndex: 9999, padding: active ? "8px 0" : "8px 10px", fontWeight: 400, textAlign: "left",
         }}>
           {active ? (
             <>
               <div style={{ padding: "2px 12px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-4)" }}>Parts</div>
-              {list.map((p, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "4px 12px", fontSize: 14, color: "var(--t-1)" }}>
-                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}{(p.qty || 1) > 1 ? ` ×${p.qty}` : ""}</span>
-                  <span style={{ color: "var(--t-3)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>${((Number(p.price) || 0) * (Number(p.qty) || 1)).toFixed(0)}</span>
-                </div>
-              ))}
-              <div style={{ borderTop: "1px solid var(--b-1)", marginTop: 6, padding: "6px 12px 0", display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, color: "var(--t-1)" }}>
-                <span>Total parts</span><span style={{ fontVariantNumeric: "tabular-nums" }}>${total.toFixed(0)}</span>
+              {list.map((p, i) => {
+                const lineTotal = (Number(p.price) || 0) * (Number(p.qty) || 1);
+                const inStock = p.inStock !== false; // default true if not specified
+                return (
+                  <div key={i} style={{ padding: "5px 12px", borderBottom: i < list.length - 1 ? "1px solid var(--b-1)" : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-1)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontSize: 12, color: "var(--t-3)" }}>×{p.qty || 1}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${lineTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 2 }}>
+                      {p.partNo && <span style={{ fontSize: 11, color: "var(--t-4)", fontFamily: "monospace" }}>#{p.partNo}</span>}
+                      {inStock
+                        ? <span style={{ fontSize: 10.5, fontWeight: 700, color: "#059669", background: "#ECFDF5", border: "1px solid #6EE7B7", borderRadius: 4, padding: "0 5px", lineHeight: "16px" }}>In stock</span>
+                        : <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t-3)", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 4, padding: "0 5px", lineHeight: "16px" }}>Out of stock</span>
+                      }
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ padding: "6px 12px", display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "var(--t-1)", background: "var(--bg-cream-soft)" }}>
+                <span>Total parts</span><span style={{ fontVariantNumeric: "tabular-nums" }}>${total.toFixed(2)}</span>
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 13, color: "#fff", whiteSpace: "nowrap" }}>No parts added</div>
+            <div style={{ fontSize: 13, color: "#fff", whiteSpace: "nowrap" }}>{incompleteParts ? "Incomplete parts" : "No parts added"}</div>
           )}
+        </div>
+      )}
+    </span>
+  );
+};
+
+
+const InternalNoteTag = ({ note }) => {
+  const [hover, setHover] = React.useState(false);
+  const [popPos, setPopPos] = React.useState({ top: 0, left: 0 });
+  const ref = React.useRef(null);
+  return (
+    <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }} ref={ref}
+      onMouseEnter={() => { if (ref.current) { const r = ref.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
+      onMouseLeave={() => setHover(false)}
+      onClick={e => e.stopPropagation()}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="#D97706"
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      {hover && (
+        <div style={{ position: "fixed", top: popPos.top, left: popPos.left, width: 260,
+          background: "#101828", borderRadius: 8,
+          boxShadow: "0 8px 22px rgba(0,0,0,0.28)", zIndex: 9999,
+          padding: "9px 12px" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>Internal Note</div>
+          <div style={{ fontSize: 13, color: "#fff", lineHeight: 1.5, whiteSpace: "normal" }}>{note}</div>
+        </div>
+      )}
+    </span>
+  );
+};
+
+const WorkTag = ({ workTag, estStatus }) => {
+  const [hover, setHover] = React.useState(false);
+  const [popPos, setPopPos] = React.useState({ top: 0, left: 0 });
+  const tagRef = React.useRef(null);
+  const incompleteLabor = estStatus?.some(s => s.tone === "incomplete" && s.label && s.label.toLowerCase().includes("labor"));
+  const isDone = workTag?.tone === "done";
+  const active = isDone || !!workTag;
+  const tooltipText = isDone ? "Work complete" : incompleteLabor ? "Incomplete labor" : workTag ? (workTag.label || "Work in progress") : "No work status";
+  return (
+    <span style={{ position: "relative", display: "inline-flex", flexShrink: 0, width: 20, height: 20, alignItems: "center", justifyContent: "center" }} ref={tagRef}
+      onMouseEnter={() => { if (tagRef.current) { const r = tagRef.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
+      onMouseLeave={() => setHover(false)}
+      onClick={(e) => e.stopPropagation()}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke={incompleteLabor ? "#D97706" : active ? "var(--blue-600)" : "var(--b-3)"}
+        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", flexShrink: 0 }}>
+        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+        <rect x="9" y="3" width="6" height="4" rx="1"/>
+        <path d="M9 12h6M9 16h4"/>
+      </svg>
+      {(isDone || incompleteLabor) && (
+        <span style={{ position: "absolute", top: -5, right: -5, minWidth: 14, height: 14,
+          background: isDone ? "var(--blue-600)" : "#D97706",
+          color: "#fff", borderRadius: 999, fontSize: 9, fontWeight: 800,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "0 2px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>
+          {isDone ? "\u2713" : "!"}
+        </span>
+      )}
+      {hover && (
+        <div style={{ position: "fixed", top: popPos.top, left: popPos.left,
+          background: "#101828", borderRadius: 6,
+          boxShadow: "0 8px 22px rgba(0,0,0,0.28)", zIndex: 9999,
+          padding: "7px 10px", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 13, color: "#fff" }}>{tooltipText}</span>
         </div>
       )}
     </span>
@@ -2831,12 +2928,62 @@ const conceptTip = {
   OCC: "Original Customer Concern — an issue the customer reported at drop-off.",
   ASC: "Additional Service Concern — work the shop recommends from the inspection.",
 };
-const ConcernTypePill = ({ label, bg, color }) => {
+const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
+  const [hover, setHover] = React.useState(false);
+  const [popPos, setPopPos] = React.useState({ top: 0, left: 0 });
+  const ref = React.useRef(null);
+  const paTotal = (pa.labor || 0) + (pa.parts || 0) + (pa.misc || 0);
+  const rows = [
+    { label: "Labor", value: pa.labor },
+    { label: "Parts", value: pa.parts },
+    { label: "Misc", value: pa.misc },
+  ].filter(r => (r.value || 0) > 0);
+  return (
+    <span
+      ref={ref}
+      onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick(concernId, { id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }); }}
+      onMouseEnter={() => { if (ref.current) { const r = ref.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
+      onMouseLeave={() => setHover(false)}
+      style={{ fontSize: 11, fontWeight: 700, color: "var(--blue-700)", background: hover ? "var(--blue-100, #DBEAFE)" : "var(--blue-50)", border: `1px solid ${hover ? "var(--blue-400, #60A5FA)" : "var(--blue-200)"}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, lineHeight: "16px", transition: "background 120ms, border-color 120ms", position: "relative" }}
+    >
+      Pre-Approved · ${paTotal.toFixed(0)}
+      {hover && (
+        <div style={{ position: "fixed", top: popPos.top, left: popPos.left, width: 200, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 9999, padding: "8px 0", fontWeight: 400 }}>
+          <div style={{ padding: "2px 12px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-4)" }}>Pre-Approved</div>
+          {rows.map((r, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "4px 12px", fontSize: 13.5, color: "var(--t-1)" }}>
+              <span style={{ color: "var(--t-3)" }}>{r.label}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                {r.label === "Parts" && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#059669", background: "#ECFDF5", border: "1px solid #6EE7B7", borderRadius: 4, padding: "0 5px", lineHeight: "16px" }}>In stock</span>}
+                <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>${(r.value || 0).toFixed(0)}</span>
+              </div>
+            </div>
+          ))}
+          <div style={{ borderTop: "1px solid var(--b-1)", marginTop: 4, padding: "6px 12px 6px", display: "flex", justifyContent: "space-between", fontSize: 13.5, fontWeight: 700, color: "var(--t-1)" }}>
+            <span>Total</span><span style={{ fontVariantNumeric: "tabular-nums" }}>${paTotal.toFixed(0)}</span>
+          </div>
+          <div style={{ padding: "4px 12px 8px" }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick(concernId, { id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 10px", background: "var(--blue-50)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-700)", cursor: "pointer" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-100, #DBEAFE)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue-50)"; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+};
+
+const ConcernTypePill = ({ label, bg, color, border, combined = false }) => {
   const [hover, setHover] = React.useState(false);
   const [pos, setPos] = React.useState({ top: 0, left: 0 });
   const ref = React.useRef(null);
   const tip = conceptTip[label];
-  if (label === "ASC") return null; // ASC tags removed from the UI
   const showTip = () => {
     if (ref.current) {
       const r = ref.current.getBoundingClientRect();
@@ -2852,7 +2999,11 @@ const ConcernTypePill = ({ label, bg, color }) => {
       onMouseLeave={() => setHover(false)}
       onClick={(e) => e.stopPropagation()}
     >
-      <span className="pill" style={{ background: "var(--occ-strong)", color: "#fff", border: "none", cursor: tip ? "help" : "default" }}>{label}</span>
+      {combined ? (
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", background: "var(--blue-50, #EFF6FF)", color: "var(--blue-700, #1D4ED8)", border: "1px solid var(--blue-200, #BFDBFE)", borderRadius: 999, padding: "2px 8px", cursor: tip ? "help" : "default", lineHeight: 1, whiteSpace: "nowrap" }}>{label}</span>
+      ) : (
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: color || "var(--occ-strong)", cursor: tip ? "help" : "default", lineHeight: 1 }}>{label}</span>
+      )}
       {hover && tip && ReactDOM.createPortal(
         <div style={{
           position: "fixed", top: pos.top, left: pos.left, width: 224,
@@ -2878,6 +3029,8 @@ const ConcernCardHeader = ({ recTabLayout = false,
   total = 0, shownTotal = 0, hasZeroShown = false, showTotal = true,
   autoRename = false,
   recApprovals = null,
+  checkboxEl = null,
+  preApprovedEl = null,
   style = {},
 }) => {
   const approvedCount = recApprovals ? concern.recs.filter(r => recApprovals.get(r.id) === "approved").length : 0;
@@ -2892,15 +3045,16 @@ const ConcernCardHeader = ({ recTabLayout = false,
   const cancelEdit = () => { setEditingTitle(false); setTitleDraft(concern.title); };
   return (
     <div style={{ display: "flex", alignItems: "center", background: palette.headBg, borderLeft: concern.type === "occ" ? "3px solid var(--blue-600)" : "3px solid transparent", padding: "7px 0", ...(recTabLayout ? { paddingRight: 8 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
+      {checkboxEl && <div style={{ paddingLeft: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>{checkboxEl}</div>}
       {/* Left group — title area, gapped — owns the 8px left inset so the outer flex has no padding, keeping right columns pixel-aligned with rec rows */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: 8 }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: checkboxEl ? 6 : 8 }}>
 
-        <ConcernTypePill label={palette.label} bg={palette.pillBg} color={palette.pillT} />
-        {letter != null && (
-          <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 11, fontWeight: 700, width: 18, height: 18, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
-            {typeof letter === "number" ? letter : String(letter).toUpperCase()}
-          </span>
-        )}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4 }}>
+        {concern.type === "occ" && letter != null
+          ? <ConcernTypePill combined label={"OCC · " + (typeof letter === "number" ? letter : String(letter).toUpperCase())} color="var(--occ-strong)" />
+          : <ConcernTypePill label={palette.label} color={palette.pillT} />
+        }
+        {concern.type !== "occ" && <span style={{ fontSize: 11, color: "var(--t-4)", flexShrink: 0 }}>·</span>}
         {canRename && editingTitle ? (
           <input autoFocus value={titleDraft}
             onChange={(e) => setTitleDraft(e.target.value)}
@@ -2923,6 +3077,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
             )}
           </span>
         )}
+        </div>
       </div>
       {recTabLayout ? (
         <>
@@ -2934,9 +3089,11 @@ const ConcernCardHeader = ({ recTabLayout = false,
               onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
             ><IconPlus size={10} /> REC</button>
           )}
+          {/* Pre-approved pill — left of price */}
+          {preApprovedEl && <div style={{ flexShrink: 0 }}>{preApprovedEl}</div>}
           {/* PRICE (72px) — the true far-right column */}
           {showTotal && (
-            <div style={{ width: 72, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 14 }}>
+            <div style={{ width: 72, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 6 }}>
               {hasZeroShown
                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 500, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
@@ -2949,9 +3106,11 @@ const ConcernCardHeader = ({ recTabLayout = false,
         </>
       ) : (
         <>
+          {/* Pre-approved pill — left of price */}
+          {preApprovedEl && <div style={{ flexShrink: 0 }}>{preApprovedEl}</div>}
           {/* Price column — far right, padding depends on whether action button exists */}
           {showTotal && (
-            <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: onAddRec ? 8 : 14 }}>
+            <div style={{ flexShrink: 0, width: 90, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: onAddRec ? 8 : 14 }}>
               {hasZeroShown
                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 500, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
@@ -3243,9 +3402,13 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
           <div key={c.id} data-pvw-concern-drop={c.id} style={{ borderRadius: 7, overflow: "hidden", border: "1px solid var(--b-2)", borderLeft: `3px solid ${p.divBd}`, background: "var(--bg-white)" }}>
             {/* Concern header */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 7, padding: "7px 12px", background: "var(--bg-white)" }}>
-              <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} />
-              {letter && (
-                <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 10, fontWeight: 700, width: 16, height: 16, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center" }}>{letter}</span>
+              {c.type === "occ" && letter ? (
+                <ConcernTypePill label={"OCC · " + String(letter).toUpperCase()} color={p.pillT} combined />
+              ) : (
+                <>
+                  <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} border={p.pillBorder} />
+                  {letter && <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 10, fontWeight: 700, width: 16, height: 16, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center" }}>{letter}</span>}
+                </>
               )}
               <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: "var(--t-1)", textTransform: "uppercase", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{c.title}</span>
             </div>
@@ -3401,37 +3564,16 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         showTotal={hasRecs || !!concern.preApproved}
         hasZeroShown={false}
         autoRename={autoRename}
+        preApprovedEl={concern.type === "occ" && concern.preApproved
+          ? <PreApprovedPill pa={concern.preApproved} concernId={concern.id} concernTitle={concern.title} onRecClick={onRecClick} />
+          : null}
         style={{
-          borderRadius: showDropBanner ? 0 : ((hasRecs || !!concern.preApproved) ? "8px 8px 0 0" : 8),
-          borderBottom: (!!concern.preApproved && !showDropBanner) ? "none" : ((hasRecs && !showDropBanner) ? "1px solid var(--b-2)" : "none"),
+          borderRadius: showDropBanner ? 0 : (hasRecs ? "8px 8px 0 0" : 8),
+          borderBottom: hasRecs && !showDropBanner ? "1px solid var(--b-2)" : "none",
         }}
       />
 
-      {concern.type === "occ" && concern.preApproved && (() => {
-        const pa = concern.preApproved;
-        const paTotal = pa.labor + pa.parts + pa.misc;
-        const hasMore = concern.recs.length > 0;
-        return (
-          <div key="preapproved" style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "5px 0 5px 8px",
-            borderLeft: "3px solid var(--blue-600)",
-            borderTop: "1px solid var(--b-2)",
-            borderBottom: hasMore ? "1px solid var(--b-2)" : "none",
-            borderRadius: hasMore ? 0 : "0 0 7px 7px",
-            background: "var(--blue-25)",
-          }}>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--blue-700)", letterSpacing: 0.02 }}>Pre-Approved</span>
-              <span style={{ fontSize: 12.5, color: "var(--t-4)" }}>Labor ${pa.labor.toFixed(0)}{pa.parts > 0 ? ` · Parts $${pa.parts.toFixed(0)}` : ""}{pa.misc > 0 ? ` · Misc $${pa.misc.toFixed(0)}` : ""}</span>
-            </div>
-            {/* Price column — extends to the true right edge (no reserved action space; this row has no button) */}
-            <div style={{ width: 160, flexShrink: 0, textAlign: "right", fontVariantNumeric: "tabular-nums", paddingRight: 14 }}>
-              <span style={{ fontSize: 14, fontWeight: 400, color: "var(--t-1)" }}>${paTotal.toFixed(0)}</span>
-            </div>
-          </div>
-        );
-      })()}
+
 
       {concern.recs.map((rec, ri) => {
         const isLastRec = ri === concern.recs.length - 1;
@@ -3467,23 +3609,10 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         >
 
           {/* Text column — flex:1 */}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "8px 0 8px 10px" }}>
-            {(rec.status || rec.extraTag || rec.fresh) && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
-                {rec.status && (() => { const st = REC_STATUS[rec.status]; return st ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", flexShrink: 0,
-                    background: st.label === "Fail" ? "var(--red-50)" : "var(--yellow-50)",
-                    color: st.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)",
-                    border: `1px solid ${st.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}`,
-                  }}>{st.label}</span>
-                ) : null; })()}
-                {rec.extraTag && (
-                  <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 500, padding: "1px 7px", borderRadius: 4, flexShrink: 0, background: "var(--b-1)", color: "var(--t-3)", border: "1px solid var(--b-2)" }}>{rec.extraTag}</span>
-                )}
-                {rec.fresh && <JustAddedTag key={rec.id} />}
-              </div>
-            )}
-            <span style={{ fontSize: 14, color: "var(--t-1)" }}>{rec.text}</span>
+          <div style={{ flex: 1, minWidth: 0, padding: "8px 0 8px 10px" }}>
+            <div style={{ fontSize: 14, lineHeight: 1.5, wordBreak: "break-word" }}>
+              {rec.status && (() => { const st = REC_STATUS[rec.status]; return st ? (<span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", background: st.label === "Fail" ? "var(--red-50)" : "var(--yellow-50)", color: st.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)", border: `1px solid ${st.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}` }}>{st.label}</span>) : null; })()}{rec.extraTag && (<span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, fontSize: 11, fontWeight: 500, padding: "1px 7px", borderRadius: 4, background: "var(--b-1)", color: "var(--t-3)", border: "1px solid var(--b-2)" }}>{rec.extraTag}</span>)}{rec.fresh && <JustAddedTag key={rec.id} />}<span style={{ color: rec.text || rec.recommendation ? "var(--t-1)" : "var(--t-4)", verticalAlign: "middle" }}>{rec.text || rec.recommendation || "No recommendation added"}</span>
+            </div>
             {rec.total != null && (
               <div style={{ marginTop: 3, fontSize: 13, color: "var(--t-3)", lineHeight: 1.3 }}>
                 {(() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return (m ? m[1] : "0") + " hrs · "; })()}Labor ${Number(rec.labor || 0).toFixed(0)} · Parts ${Number(rec.parts || 0).toFixed(0)}
@@ -3491,12 +3620,12 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
               </div>
             )}
           </div>
-          {/* Badges + price together — one right-side group, extends to the true right edge (no reserved action space) */}
-          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, padding: "0 14px 0 8px", justifyContent: "flex-end" }}>
-            {badgeItems}
-            {priceEl && <span style={{ width: 1, height: 15, background: "var(--b-2)", flexShrink: 0 }} />}
-            {priceEl && <span style={{ fontVariantNumeric: "tabular-nums" }}>{priceEl}</span>}
+          {/* Price — fixed 90px width, aligns with concern-level price */}
+          <div style={{ width: 90, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 8, fontVariantNumeric: "tabular-nums" }}>
+            {priceEl}
           </div>
+          {/* 84px zone — badges sit here, aligned with +REC button above */}
+          {onAddRec && <div style={{ width: 84, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>{badgeItems}</div>}
         </div>
         );
       })}
@@ -4449,23 +4578,25 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
     }}>{rec.extraTag}</span>
   );
 
-  // ATTACH column: icon-only MediaTag + PartsTag — blue if active, grey if not; hover shows popup
+  // Icons: MediaTag, PartsTag, WorkTag — inline to right of rec text
   const rightTags = [
+    rec.internal ? <InternalNoteTag key="internal-icon" note={rec.internal} /> : null,
     <MediaTag key="media-icon" media={rec.media} />,
-    <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} />,
-  ];
+    <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} estStatus={rec.estStatus} />,
+    <WorkTag key="work-icon" workTag={rec.workTag} estStatus={rec.estStatus} />,
+  ].filter(Boolean);
 
-  const detailsBtn = (
-    <button key="details-btn" onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+  const moreBtn = (
+    <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        padding: "3px 8px", borderRadius: 6,
-        background: "var(--blue-50)", border: "1px solid var(--blue-100)",
-        color: "var(--blue-700)", fontSize: 11, fontWeight: 700,
-        letterSpacing: "0.04em", textTransform: "uppercase", cursor: "pointer",
-      }}>
-      DETAILS
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--blue-700)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+        border: "1px solid var(--b-2)", background: "var(--bg-white)",
+        color: "var(--t-3)", cursor: "pointer",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
         style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 120ms" }}>
         <polyline points="6 9 12 15 18 9" />
       </svg>
@@ -4490,10 +4621,10 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         title={isApprove ? "Approve" : "Decline"}
         className="rec-appdec-btn"
         style={{
-          height: 24, padding: "0 4px", flex: 1, minWidth: 0,
+          height: 30, padding: "0 4px", flex: 1, minWidth: 0,
           background: active ? activeBg : "transparent",
           border: `1px solid ${active ? activeBorder : "var(--b-2)"}`,
-          borderRadius: isApprove ? "4px 0 0 4px" : "0 4px 4px 0",
+          borderRadius: isApprove ? "8px 0 0 8px" : "0 8px 8px 0",
           marginLeft: isApprove ? 0 : -1,
           position: "relative", zIndex: active ? 1 : 0,
           color: active ? activeColor : "var(--t-4)",
@@ -4528,20 +4659,23 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         {/* Rec text — status badge inline with the recommendation, wraps underneath if it doesn't fit */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "10px 14px 10px 0", cursor: onRecClick ? "pointer" : "default" }}
           onClick={() => onRecClick && onRecClick(rec)}>
-          <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.6 }}>
-            {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, marginRight: 6, verticalAlign: "middle" } }))}
-            {rec.recommendation || "No recommendation added"}
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>
+            {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, display: "inline-block", verticalAlign: "middle", marginRight: 5 } }))}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", verticalAlign: "middle" }}>{rec.recommendation || "No recommendation added"}</span>
           </div>
+          {(() => {
+            const hrs = (() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return m ? m[1] : "0"; })();
+            const parts = [hrs + " hrs", "Labor $" + Number(rec.labor || 0).toFixed(0), "Parts $" + Number(rec.parts || 0).toFixed(0), Number(rec.misc || 0) > 0 ? "Misc $" + Number(rec.misc).toFixed(0) : null].filter(Boolean).join(" · ");
+            return <div style={{ marginTop: 3, marginBottom: 6, fontSize: 12, color: "var(--t-4)", lineHeight: 1.3 }}>{parts}</div>;
+          })()}
           {rec.internal && (
             <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 6, background: "#FFFBEB", border: "1px solid #F3DDA1" }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal</div>
               <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.4 }}>{rec.internal}</div>
             </div>
           )}
-          {/* Media + parts icons — bottom-left of the rec row */}
+          {/* Media + parts + work icons — bottom-left of the rec row */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-            {rightTags}
-            {detailsBtn}
+            {rightTags.filter(t => t && t.key !== "internal-icon")}
           </div>
         </div>
 
@@ -4581,34 +4715,48 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         </div>
 
         {/* Right column */}
-        <div style={{ width: 220, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", paddingTop: 12, paddingBottom: 8, display: "flex", flexDirection: "column", gap: 6 }}>
-          {/* APPROVAL */}
-          <div style={{ display: "flex", alignItems: "center", paddingLeft: 8, paddingTop: 0, paddingRight: 0, paddingBottom: 0 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
+        <div style={{ width: 260, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", paddingTop: 10, paddingBottom: 8, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+          {/* Customer pays row */}
+          {priceEl && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 10, paddingRight: 6 }} onClick={e => e.stopPropagation()}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: "var(--t-3)" }}>Customer pays</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{priceEl}</span>
+          </div>}
+          {/* APPROVAL + collapse */}
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", width: 172 }}>
               {mkBtn("✓", "approved")}
               {mkBtn("✗", "declined")}
             </div>
+            <div style={{ flex: 1 }} />
+            <button onClick={e => { e.stopPropagation(); setExpanded(false); }}
+              style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, border: "1px solid var(--b-2)", background: "var(--bg-white)", color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+            </button>
           </div>
-          {/* WORK */}
-          <div style={{ padding: "0 0 0 8px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 3 }}>WORK</div>
+          {/* Divider */}
+          <div style={{ height: 1, background: "var(--b-1)", marginLeft: 10, marginRight: 6 }} />
+          {/* WORK row */}
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--t-3)", width: 48, flexShrink: 0 }}>Work</span>
             {(() => {
               const wsColors = {
-                "—":                 { bg: "var(--bg-white)",       color: "var(--t-2)",     border: "var(--b-2)" },
+                "—":                 { bg: "var(--bg-white)",       color: "var(--t-4)",        border: "var(--b-2)" },
                 "Need parts pulled": { bg: "var(--yellow-50)",      color: "var(--yellow-700)", border: "var(--yellow-100)" },
-                "In Progress":       { bg: "var(--bg-cream-soft)",  color: "var(--t-3)",     border: "var(--b-2)" },
-                "Done":              { bg: "var(--green-50)",       color: "var(--green-700)", border: "#BDD9BD" },
+                "In Progress":       { bg: "var(--bg-cream-soft)",  color: "var(--t-3)",        border: "var(--b-2)" },
+                "Done":              { bg: "var(--green-50)",       color: "var(--green-700)",  border: "#BDD9BD" },
               };
               const wc = wsColors[workStatus] || wsColors["—"];
               return (
-                <div style={{ position: "relative" }}>
+                <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
                   <select
                     className="select"
                     value={workStatus}
                     onChange={(e) => setWorkStatus(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
                     style={{
-                      height: 30, fontSize: 12, padding: "0 24px 0 8px",
+                      width: "100%", height: 28, fontSize: 12, padding: "0 24px 0 8px",
                       color: wc.color, borderColor: wc.border, background: wc.bg,
                       appearance: "none", WebkitAppearance: "none", MozAppearance: "none",
                     }}
@@ -4626,9 +4774,9 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
               );
             })()}
           </div>
-          {/* PARTS */}
-          <div style={{ padding: "0 0 0 8px" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 3 }}>PARTS</div>
+          {/* PARTS row */}
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--t-3)", width: 48, flexShrink: 0 }}>Parts</span>
             {rec.partsTag ? (() => {
               const tone = rec.partsTag.tone;
               const bg     = tone === "stock" ? "var(--green-50)" : tone === "out-of-stock" ? "var(--red-50)" : "var(--yellow-25)";
@@ -4640,7 +4788,7 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
                 </span>
               );
             })() : (
-              <div style={{ height: 26, display: "flex", alignItems: "center", padding: "0 8px", borderRadius: 5, border: "1px solid var(--b-2)", background: "var(--bg-white)", fontSize: 12, color: "var(--t-4)" }}>—</div>
+              <span style={{ fontSize: 12, color: "var(--t-4)" }}>Not set</span>
             )}
           </div>
         </div>
@@ -4658,31 +4806,34 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         onClick={e => e.stopPropagation()}>
         <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
       </div>
-      {/* Rec text — status badge inline with the recommendation, wraps underneath if it doesn't fit */}
-      <div style={{ flex: 1, minWidth: 0, padding: "10px 8px 10px 0" }}>
-        <div style={{ fontSize: 13.5, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", lineHeight: 1.6, whiteSpace: "normal", wordBreak: "break-word" }}>
-          {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, marginRight: 6, verticalAlign: "middle" } }))}
-          {rec.recommendation || "No recommendation added"}
-        </div>
-        {rec.internal && (
-          <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 6, background: "#FFFBEB", border: "1px solid #F3DDA1" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal</div>
-            <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.4 }}>{rec.internal}</div>
+      {/* Rec text + icons inline to the right */}
+      <div style={{ flex: 1, minWidth: 0, padding: "10px 16px 10px 0", display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>
+            {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, display: "inline-block", verticalAlign: "middle", marginRight: 5 } }))}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", verticalAlign: "middle" }}>{rec.recommendation || "No recommendation added"}</span>
           </div>
-        )}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+          {(() => {
+            const hrs = (() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return m ? m[1] : "0"; })();
+            const parts = [hrs + " hrs", "Labor $" + Number(rec.labor || 0).toFixed(0), "Parts $" + Number(rec.parts || 0).toFixed(0), Number(rec.misc || 0) > 0 ? "Misc $" + Number(rec.misc).toFixed(0) : null].filter(Boolean).join(" · ");
+            return <div style={{ marginTop: 3, fontSize: 12, color: "var(--t-4)", lineHeight: 1.3 }}>{parts}</div>;
+          })()}
+        </div>
+        {/* Icons column: media/parts/work on top, Internal below */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, paddingTop: 2 }} onClick={e => e.stopPropagation()}>
           {rightTags}
-          {detailsBtn}
         </div>
       </div>
-      {/* Price */}
-      <div style={{ width: 72, flexShrink: 0, textAlign: "right", paddingTop: 10, paddingRight: 14 }}>{priceEl}</div>
-      {/* Approve / Decline */}
-      <div style={{ width: 220, flexShrink: 0, alignSelf: "flex-start", display: "flex", alignItems: "center", paddingLeft: 8, paddingTop: 10, paddingRight: 0, paddingBottom: 8 }}
+      {/* Approve / Decline + More — with price above */}
+      <div style={{ width: 260, flexShrink: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", alignItems: "stretch", paddingTop: 10, paddingBottom: 8, gap: 8, borderLeft: "1px solid var(--b-2)" }}
         onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
-          {mkBtn("✓", "approved")}
-          {mkBtn("✗", "declined")}
+        {priceEl && <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 10, paddingRight: 6 }}><span style={{ fontSize: 12, fontWeight: 500, color: "var(--t-3)" }}>Customer pays</span><span style={{ fontVariantNumeric: "tabular-nums" }}>{priceEl}</span></div>}
+        <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }}>
+          <div style={{ display: "flex", width: 172 }}>
+            {mkBtn("✓", "approved")}
+            {mkBtn("✗", "declined")}
+          </div>
+          <div style={{ flex: 1 }} />
+          {moreBtn}
         </div>
       </div>
     </div>
@@ -4766,20 +4917,25 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
 
             {/* Text + badges — flex:1, padding sets row height */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 0 9px 10px" }}>
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <span style={{ fontSize: 14, color: "var(--t-1)" }}>{rec.recommendation || <span style={{ color: "var(--t-5)" }}>No recommendation added</span>}</span>
-                {rec.total != null && (
-                  <div style={{ marginTop: 3, fontSize: 13, color: "var(--t-3)", lineHeight: 1.3 }}>
-                    {(() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return (m ? m[1] : "0") + " hrs · "; })()}Labor ${Number(rec.labor || 0).toFixed(0)} · Parts ${Number(rec.parts || 0).toFixed(0)}
-                    {Number(rec.misc || 0) > 0 && ` · Misc $${Number(rec.misc).toFixed(0)}`}
-                  </div>
-                )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>{recStatus && <span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, padding: "1px 7px", background: (typeof recStatus === "string" ? recStatus : recStatus?.kind) === "fail" ? "var(--red-50)" : "var(--yellow-50)", color: (typeof recStatus === "string" ? recStatus : recStatus?.kind) === "fail" ? "var(--red-600)" : "var(--yellow-700)", border: "1px solid " + ((typeof recStatus === "string" ? recStatus : recStatus?.kind) === "fail" ? "#F0B6B6" : "var(--yellow-100)"), borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", whiteSpace: "nowrap" }}>{(typeof recStatus === "string" ? recStatus : recStatus?.kind) === "fail" ? "Fail" : "Caution"}</span>}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)" }}>{rec.recommendation || "No recommendation added"}</span></div>
+                {(() => {
+                  const hrs = (() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return m ? m[1] : "0"; })();
+                  const line = [hrs + " hrs", "Labor $" + Number(rec.labor || 0).toFixed(0), "Parts $" + Number(rec.parts || 0).toFixed(0), Number(rec.misc || 0) > 0 ? "Misc $" + Number(rec.misc).toFixed(0) : null].filter(Boolean).join(" · ");
+                  return <div style={{ marginTop: 3, fontSize: 12, color: "var(--t-4)", lineHeight: 1.3 }}>{line}</div>;
+                })()}
               </div>
-              {badgeTags.length > 0 && (
-                <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                  {badgeTags}
-                </div>
-              )}
+              {(() => {
+                const iconTags = [
+                  mediaData && React.createElement(MediaTag, { key: "m", media: mediaData }),
+                  (rec.partsList?.length || Number(rec.parts) > 0) && React.createElement(PartsTag, { key: "pt", parts: rec.partsList, amount: rec.parts }),
+                ].filter(Boolean);
+                return iconTags.length > 0 ? (
+                  <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    {iconTags}
+                  </div>
+                ) : null;
+              })()}
             </div>
             {/* Price — 76px fixed column, aligns with header price */}
             <div style={{ width: 76, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums" }}>
@@ -4797,11 +4953,15 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
 };
 
 // ── A concern card — MPI-style colored header + a list of recommendation rows.
-const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onTitleChange, onAddRec, autoRename, recApprovals, onApprovalChange, compact = true, isFirst = false }) => {
+const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onToggleConcernRecs, onTitleChange, onAddRec, autoRename, recApprovals, onApprovalChange, compact = true, isFirst = false }) => {
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
   const hasZeroShown = concern.recs.some((r) => r.shownToCustomer === 0 && r.total > 0);
+  // (per-concern checkbox removed — select-all is in section header)
+  const preApprovedEl = (concern.type === "occ" && concern.preApproved)
+    ? <PreApprovedPill pa={concern.preApproved} concernId={concern.id} concernTitle={concern.title} onRecClick={onRecClick} />
+    : null;
   return (
     <div
       data-concern-drop={concern.id}
@@ -4835,32 +4995,11 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         preApproved={concern.preApproved || null}
         recApprovals={recApprovals}
         recTabLayout={true}
-        style={{ borderBottom: concern.preApproved ? "none" : "1px solid var(--b-2)", borderRadius: compact ? 0 : "7px 7px 0 0" }}
+        preApprovedEl={preApprovedEl}
+        style={{ borderBottom: "1px solid var(--b-2)", borderRadius: compact ? 0 : "7px 7px 0 0" }}
       />
 
-      {concern.type === "occ" && concern.preApproved && (() => {
-        const pa = concern.preApproved;
-        const paTotal = (pa.labor || 0) + (pa.parts || 0) + (pa.misc || 0);
-        const hasMore = concern.recs.length > 0;
-        return (
-          <div key="preapproved" style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "5px 8px 5px 8px",
-            borderLeft: "3px solid var(--blue-600)",
-            borderTop: "1px solid var(--b-2)",
-            borderBottom: hasMore ? "1px solid var(--b-2)" : "none",
-            background: "var(--blue-25)",
-          }}>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--blue-700)", letterSpacing: 0.02 }}>Pre-Approved</span>
-              <span style={{ fontSize: 12.5, color: "var(--t-4)" }}>Labor ${pa.labor.toFixed(0)}{pa.parts > 0 ? ` · Parts $${pa.parts.toFixed(0)}` : ""}{pa.misc > 0 ? ` · Misc $${pa.misc.toFixed(0)}` : ""}</span>
-            </div>
-            <div style={{ width: 72, flexShrink: 0, textAlign: "right", fontVariantNumeric: "tabular-nums", paddingRight: 14 }}>
-              <span style={{ fontSize: 14, fontWeight: 400, color: "var(--t-1)" }}>${paTotal.toFixed(0)}</span>
-            </div>
-          </div>
-        );
-      })()}
+
 
       {concern.recs.map((rec, i) => (
         <RecRecRow
@@ -4907,60 +5046,81 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
   );
 };
 
-const RecActionBar = ({ onAddRec, onAddCustomRec, compact, onToggleCompact, selectedCount = 0, totalCount = 0, onSelectAll, onBulkApprove, onBulkDecline, onBulkReset }) => {
+const RecActionBar = ({ onAddCustomRec, compact, onToggleCompact, selectedCount = 0, onBulkApprove, onBulkDecline, onBulkReset }) => {
   const hasSelection = selectedCount > 0;
-  const allSelected = totalCount > 0 && selectedCount === totalCount;
-  const cbRef = React.useRef(null);
+  const [dropOpen, setDropOpen] = React.useState(false);
+  const dropRef = React.useRef(null);
   React.useEffect(() => {
-    if (cbRef.current) cbRef.current.indeterminate = selectedCount > 0 && selectedCount < totalCount;
-  }, [selectedCount, totalCount]);
+    if (!dropOpen) return;
+    const close = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [dropOpen]);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-      {/* Select-all checkbox */}
-      <label style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", userSelect: "none", flexShrink: 0 }}>
-        <input ref={cbRef} type="checkbox" className="checkbox" checked={allSelected} onChange={onSelectAll} style={{ width: 15, height: 15 }} />
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: hasSelection ? "var(--t-2)" : "var(--t-4)", whiteSpace: "nowrap" }}>
-          {hasSelection ? `${selectedCount} selected` : "Select all"}
-        </span>
-      </label>
-      {/* Connected Bulk Actions group */}
-      <div style={{ display: "inline-flex", borderRadius: 6, border: `1px solid ${hasSelection ? "var(--b-3)" : "var(--b-2)"}`, overflow: "hidden", flexShrink: 0 }}>
-        <div style={{ padding: "0 10px", height: 36, display: "flex", alignItems: "center", background: hasSelection ? "var(--bg-cream-soft)" : "var(--bg-cream-soft)", borderRight: "1px solid var(--b-2)" }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.07, textTransform: "uppercase", color: hasSelection ? "var(--t-2)" : "var(--t-4)", whiteSpace: "nowrap" }}>Bulk Actions</span>
-        </div>
-        <button onClick={onBulkApprove} disabled={!hasSelection} style={{ height: 36, padding: "0 12px", background: "var(--bg-white)", color: hasSelection ? "var(--green-700)" : "var(--t-4)", border: "none", borderRight: "1px solid var(--b-2)", fontSize: 12.5, fontWeight: 700, letterSpacing: 0.04, textTransform: "uppercase", cursor: hasSelection ? "pointer" : "not-allowed" }}
-          onMouseEnter={(e) => { if (hasSelection) e.currentTarget.style.background = "var(--green-50)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}
-        >Approve</button>
-        <button onClick={onBulkDecline} disabled={!hasSelection} style={{ height: 36, padding: "0 12px", background: "var(--bg-white)", color: hasSelection ? "var(--red-600)" : "var(--t-4)", border: "none", borderRight: "1px solid var(--b-2)", fontSize: 12.5, fontWeight: 700, letterSpacing: 0.04, textTransform: "uppercase", cursor: hasSelection ? "pointer" : "not-allowed" }}
-          onMouseEnter={(e) => { if (hasSelection) e.currentTarget.style.background = "var(--red-50)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}
-        >Decline</button>
-        <button onClick={onBulkReset} disabled={!hasSelection} style={{ height: 36, padding: "0 12px", background: "var(--bg-white)", color: hasSelection ? "var(--t-2)" : "var(--t-4)", border: "none", fontSize: 12.5, fontWeight: 700, letterSpacing: 0.04, textTransform: "uppercase", cursor: hasSelection ? "pointer" : "not-allowed" }}
+      {/* Add lines to DMS */}
+      <button style={{ height: 34, padding: "0 14px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.03, color: "var(--t-4)", cursor: "not-allowed", flexShrink: 0 }}>
+        Add lines to DMS
+      </button>
+      {/* Bulk Actions dropdown */}
+      <div ref={dropRef} style={{ position: "relative", flexShrink: 0 }}>
+        <button
+          onClick={() => hasSelection && setDropOpen(o => !o)}
+          style={{
+            height: 34, padding: "0 12px", background: hasSelection ? "var(--bg-white)" : "var(--bg-cream-soft)",
+            border: `1px solid ${hasSelection ? "var(--b-3)" : "var(--b-2)"}`, borderRadius: 6,
+            fontSize: 13, fontWeight: 700, letterSpacing: 0.03,
+            color: hasSelection ? "var(--t-2)" : "var(--t-4)",
+            cursor: hasSelection ? "pointer" : "default",
+            display: "inline-flex", alignItems: "center", gap: 7,
+          }}
           onMouseEnter={(e) => { if (hasSelection) e.currentTarget.style.background = "var(--bg-cream)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}
-        >Reset</button>
+          onMouseLeave={(e) => { e.currentTarget.style.background = hasSelection ? "var(--bg-white)" : "var(--bg-cream-soft)"; }}
+        >
+          Bulk Actions
+          {hasSelection && (
+            <span style={{ background: "var(--blue-600)", color: "#fff", fontSize: 10, fontWeight: 800, borderRadius: 999, padding: "1px 6px", lineHeight: "14px" }}>{selectedCount}</span>
+          )}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        {dropOpen && (
+          <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 500, minWidth: 160, overflow: "hidden" }}>
+            <button onClick={() => { onBulkApprove(); setDropOpen(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 14px", background: "transparent", border: "none", fontSize: 13.5, fontWeight: 600, color: "var(--t-2)", cursor: "pointer", textAlign: "left", textTransform: "none" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.color = "var(--blue-700)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-2)"; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Approve Selected
+            </button>
+            <button onClick={() => { onBulkDecline(); setDropOpen(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 14px", background: "transparent", border: "none", borderTop: "1px solid var(--b-1)", fontSize: 13.5, fontWeight: 600, color: "var(--t-2)", cursor: "pointer", textAlign: "left", textTransform: "none" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.color = "var(--blue-700)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-2)"; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Decline Selected
+            </button>
+            <button onClick={() => { onBulkReset(); setDropOpen(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 14px", background: "transparent", border: "none", borderTop: "1px solid var(--b-1)", fontSize: 13.5, fontWeight: 600, color: "var(--t-2)", cursor: "pointer", textAlign: "left", textTransform: "none" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-50)"; e.currentTarget.style.color = "var(--blue-700)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--t-2)"; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.1"/></svg>
+              Reset Selected
+            </button>
+          </div>
+        )}
       </div>
-      <button style={{ height: 36, padding: "0 16px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 14, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", color: "var(--t-4)", cursor: "not-allowed", marginLeft: 6 }}>Add lines to DMS</button>
       <div style={{ flex: 1 }} />
-      <div
-        onClick={onToggleCompact}
-        style={{
-          height: 36, padding: "0 14px",
-          background: "var(--bg-white)",
-          border: "1px solid var(--b-2)",
-          borderRadius: 6, fontSize: 14, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase",
-          color: compact ? "var(--blue-700)" : "var(--t-3)",
-          cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 9,
-          userSelect: "none",
-        }}
-      >
-        Compact
-        <div style={{ width: 34, height: 18, borderRadius: 999, background: compact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
-          <div style={{ position: "absolute", top: 2, left: compact ? 16 : 2, width: 14, height: 14, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
+      {/* Expand toggle */}
+      <div onClick={onToggleCompact} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.03, textTransform: "uppercase", color: !compact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, userSelect: "none" }}>
+        Expand
+        <div style={{ width: 32, height: 17, borderRadius: 999, background: !compact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
+          <div style={{ position: "absolute", top: 1.5, left: !compact ? 15 : 1.5, width: 14, height: 14, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
         </div>
       </div>
-      <button onClick={onAddCustomRec} style={{ height: 36, padding: "0 14px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+      <button onClick={onAddCustomRec} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
         onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
       ><IconPlus size={13} /> Custom</button>
@@ -4975,15 +5135,15 @@ const RecColHeader = ({ compact }) => (
       <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)" }}>Concern / Recommendation</span>
     </div>
     {compact && <div style={{ width: 72, flexShrink: 0 }} />}
-    {compact && <div style={{ width: 72, flexShrink: 0 }} />}
     <div style={{ width: 220, flexShrink: 0, textAlign: "center" }}>
       <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)" }}>Approval</span>
     </div>
   </div>
 );
 
-const RecSectionHeader = ({ title, count, right }) => (
+const RecSectionHeader = ({ title, count, right, left }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 4px", marginBottom: 10 }}>
+    {left && <div style={{ flexShrink: 0 }}>{left}</div>}
     <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-2)" }}>{title}</span>
     <span style={{ background: "var(--b-1)", color: "var(--t-3)", fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "1px 9px" }}>{count}</span>
     <div style={{ flex: 1, height: 1, background: "var(--b-1)", marginLeft: 4 }} />
@@ -5014,7 +5174,7 @@ const RecCalcFooter = ({ selectedTotal = 0, recommendedTotal = 0, declinedTotal 
   ];
   const rows = open ? dynamicRows : dynamicRows.filter(r => r.strong);
   return (
-    <div style={{ flexShrink: 0, background: "var(--bg-white)", borderTop: "1px solid var(--b-2)", boxShadow: "0 -6px 16px -8px rgba(16,24,40,0.18)", overflow: "hidden" }}>
+    <div style={{ position: "fixed", bottom: 52, left: 0, right: 0, zIndex: 41, background: "var(--bg-white)", borderTop: "1px solid var(--b-2)", boxShadow: "0 -6px 16px -8px rgba(16,24,40,0.18)", overflow: "hidden" }}>
       <div style={{ display: "grid", gridTemplateColumns: calcGrid, gap: 12, padding: "6px 18px", background: "var(--b-1)", alignItems: "center" }}>
         <button onClick={() => setOpen(o => !o)} style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", color: "var(--t-3)", fontSize: 11.5, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", display: "inline-flex", alignItems: "center", gap: 6, justifySelf: "start" }}>
           {open ? <IconChevDown size={12} /> : <IconChevUp size={12} />}
@@ -5049,7 +5209,7 @@ const initialRecConcerns = [
   {
     id: "occ2", section: "ocr", type: "occ", preApproved: { labor: 180, parts: 95, misc: 10 }, title: "50K service",
     recs: [
-      { id: "occ2-r1", status: "caution", extraTag: "ACV", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "declined", label: "Declined" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" } },
+      { id: "occ2-r1", status: "caution", extraTag: "ACV", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "declined", label: "Declined" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" }, partsList: [{ partNo: "OIL-5W30-5Q", name: "Synthetic Motor Oil 5W-30 (5qt)", qty: 1, price: 42.00, inStock: true }, { partNo: "FILT-OEM-48254", name: "OEM Oil Filter", qty: 1, price: 18.00, inStock: true }, { partNo: "FILT-AIR-98765", name: "Engine Air Filter", qty: 1, price: 35.00, inStock: false }] },
     ],
   },
   {
@@ -5065,20 +5225,20 @@ const initialRecConcerns = [
   {
     id: "asc2", section: "mpi", type: "asc_m", title: "Windshield wiper and washer operation",
     recs: [
-      { id: "asc2-r1", status: "fail", recommendation: "Replace front wiper motor — intermittent failure confirmed on test.", internal: "Motor sticks intermittently on cold starts — confirmed on 3 test cycles this morning. Customer has declined this twice already; worth mentioning the visibility/safety risk on the next follow-up.", shopchat: "bhai picchle vaale se bhi bada shopchat test karte hainbhai bade shopchat ke saath dekhna kya ho…", shopchatCount: 5, media: { photos: 1, videos: 0 }, labor: 10.00, parts: 20.00, misc: 1.12, taxes: null, total: 31.12, estSummary: "10.00 hrs, TestPrice", shownToCustomer: 0, declineCount: 3, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "done", label: "Done" }, partsTag: { tone: "stock", label: "In Stock" } },
+      { id: "asc2-r1", status: "fail", recommendation: "Replace front wiper motor — intermittent failure confirmed on test.", internal: "Motor sticks intermittently on cold starts — confirmed on 3 test cycles this morning. Customer has declined this twice already; worth mentioning the visibility/safety risk on the next follow-up.", shopchat: "bhai picchle vaale se bhi bada shopchat test karte hainbhai bade shopchat ke saath dekhna kya ho…", shopchatCount: 5, media: { photos: 1, videos: 0 }, labor: 10.00, parts: 20.00, misc: 1.12, taxes: null, total: 31.12, estSummary: "10.00 hrs, TestPrice", shownToCustomer: 0, declineCount: 3, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "done", label: "Done" }, partsTag: { tone: "stock", label: "In Stock" }, partsList: [{ partNo: "WM-19210-SX0", name: "Front Wiper Motor Assembly", qty: 1, price: 20.00, inStock: true }] },
       { id: "asc2-r2", status: "caution", recommendation: "Replace washer pump and refill reservoir — low flow observed.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 35.00, parts: 28.00, misc: 2.00, taxes: null, total: 65.00, estSummary: "0.50 hrs", shownToCustomer: 65.00, estStatus: [{ tone: "approved", label: "Approved" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" } },
     ],
   },
   {
     id: "asc3", section: "mpi", type: "asc_m", title: "Cabin air filter",
     recs: [
-      { id: "asc3-r1", status: "caution", extraTag: "Traxtion", recommendation: null, internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "gray", label: "Need parts pulled" }, partsTag: { tone: "out-of-stock", label: "Out of Stock" } },
+      { id: "asc3-r1", status: "caution", extraTag: "Traxtion", recommendation: "Cabin air filter is heavily clogged with debris — recommend replacement to restore proper airflow and HVAC performance.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "gray", label: "Need parts pulled" }, partsTag: { tone: "out-of-stock", label: "Out of Stock" } },
     ],
   },
   {
     id: "asc4", section: "mpi", type: "asc_m", title: "Battery state of health",
     recs: [
-      { id: "asc4-r1", status: "fail", recommendation: null, internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: null, partsTag: null },
+      { id: "asc4-r1", status: "fail", recommendation: "Battery SOH at 62% — recommend replacement before winter to avoid no-start risk.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: null, partsTag: null },
     ],
   },
 ];
@@ -5089,7 +5249,7 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
   const setItems = setItemsProp || localSetItems;
   const [concernDrag, setConcernDrag] = React.useState(null);
   const [recDrag, setRecDrag] = React.useState(null);
-  const [compact, setCompact] = React.useState(true);
+  const [compact, setCompact] = React.useState(false);
   const [selectedRecs, setSelectedRecs] = React.useState(new Set());
   const [activeFilter, setActiveFilter] = React.useState("all");
 
@@ -5264,31 +5424,59 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
       ];
     });
   };
-  const common = { reorderRec, recDrag, setRecDrag, concerns: items, moveRec, moveRecToNew, onRecClick, selectedRecs, onToggleRec, onTitleChange, recApprovals, onApprovalChange };
+  const onToggleConcernRecs = React.useCallback((concernId) => {
+    const c = items.find(x => x.id === concernId);
+    if (!c) return;
+    const ids = c.recs.map(r => r.id);
+    const allSel = ids.length > 0 && ids.every(id => selectedRecs.has(id));
+    setSelectedRecs(prev => {
+      const next = new Set(prev);
+      if (allSel) { ids.forEach(id => next.delete(id)); } else { ids.forEach(id => next.add(id)); }
+      return next;
+    });
+  }, [items, selectedRecs]);
+  const common = { reorderRec, recDrag, setRecDrag, concerns: items, moveRec, moveRecToNew, onRecClick, selectedRecs, onToggleRec, onToggleConcernRecs, onTitleChange, recApprovals, onApprovalChange };
 
   const ocr = filteredItems.filter((x) => x.section === "ocr");
   const mpi = filteredItems.filter((x) => x.section === "mpi");
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg-cream-soft)" }}>
-      {/* Toolbar: Add lines to DMS · spacer · Compact · + Custom */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "var(--bg-white)", borderBottom: "1px solid var(--b-1)" }}>
-        <button style={{ height: 34, padding: "0 14px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", color: "var(--t-4)", cursor: "not-allowed" }}>Add lines to DMS</button>
-        <div style={{ flex: 1 }} />
-        <div onClick={() => setCompact(c => !c)} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", color: compact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, userSelect: "none" }}>
-          Compact
-          <div style={{ width: 32, height: 17, borderRadius: 999, background: compact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
-            <div style={{ position: "absolute", top: 1.5, left: compact ? 15 : 1.5, width: 14, height: 14, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
-          </div>
-        </div>
-        <button onClick={onAddCustomRec} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.05, textTransform: "uppercase", color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
-          onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
-        ><IconPlus size={13} /> Custom</button>
+    <div style={{ background: "var(--bg-cream-soft)" }}>
+      {/* Toolbar: RecActionBar with bulk actions */}
+      <div style={{ padding: "10px 16px 0", background: "var(--bg-white)", borderBottom: "1px solid var(--b-1)", position: "sticky", top: 0, zIndex: 20 }}>
+        <RecActionBar
+          compact={compact}
+          onToggleCompact={() => setCompact(c => !c)}
+          selectedCount={selectedCount}
+          onBulkApprove={onBulkApprove}
+          onBulkDecline={onBulkDecline}
+          onBulkReset={onBulkReset}
+          onAddCustomRec={onAddCustomRec}
+        />
       </div>
-      <div style={{ flex: 1, overflowY: "scroll", padding: "16px 16px 20px", background: "var(--bg-canvas)" }} className="scrollable">
+      <div style={{ padding: "16px 16px 20px", background: "var(--bg-canvas)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <RecSectionHeader title="Concerns" count={ocr.length + mpi.length} right={<RecFilterBar filter={activeFilter} setFilter={setActiveFilter} counts={filterCounts} />} />
+          <RecSectionHeader
+            title="Concerns"
+            count={ocr.length + mpi.length}
+            right={<RecFilterBar filter={activeFilter} setFilter={setActiveFilter} counts={filterCounts} />}
+            left={(() => {
+              const allSel = totalCount > 0 && selectedCount === totalCount;
+              const someSel = selectedCount > 0 && !allSel;
+              return (
+                <label style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }} title={allSel ? "Deselect all" : "Select all"}>
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={allSel}
+                    ref={el => { if (el) el.indeterminate = someSel; }}
+                    onChange={onSelectAll}
+                    style={{ width: 14, height: 14, cursor: "pointer" }}
+                  />
+                </label>
+              );
+            })()}
+          />
           {(() => {
             const allCards = [
               ...ocr.map((c, i) => ({ c, letter: String.fromCharCode(65 + i), reorderable: false, isOcr: true })),
@@ -5838,6 +6026,7 @@ const Toolbar = ({ onAddRec, onAddCustomRec, onAddConcern }) => (
     padding: "12px 16px",
     background: "var(--bg-white)",
     borderBottom: "1px solid var(--b-1)",
+    position: "sticky", top: 0, zIndex: 20,
   }}>
     <div style={{ position: "relative", flex: 1, maxWidth: 380 }}>
       <input
@@ -5884,7 +6073,7 @@ const Toolbar = ({ onAddRec, onAddCustomRec, onAddConcern }) => (
 // ────────────────────────────────────────────────────────────
 // Customer Preview Modal
 // ────────────────────────────────────────────────────────────
-const CustomerPreviewModal = ({ recConcerns, onClose }) => {
+const CustomerPreviewModal = ({ recConcerns, onClose, onDecisionsApplied }) => {
   const [decisions, setDecisions] = React.useState({});
 
   const decide = (recId, dec) =>
@@ -6290,6 +6479,26 @@ const CustomerPreviewModal = ({ recConcerns, onClose }) => {
             <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)" }}>If you approve everything</span>
             <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)" }}>${(preApprovedTotal + pendingTotal).toFixed(2)}</span>
           </div>
+          {(() => {
+            const decidedCount = Object.values(decisions).filter(v => v != null).length;
+            if (decidedCount === 0) return null;
+            return (
+              <button
+                onClick={() => { onDecisionsApplied && onDecisionsApplied(decisions); onClose(); }}
+                style={{
+                  marginTop: 14, width: "100%", height: 46,
+                  background: "var(--blue-600)", color: "#fff",
+                  border: "none", borderRadius: 10,
+                  fontSize: 15, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--blue-700)"}
+                onMouseLeave={e => e.currentTarget.style.background = "var(--blue-600)"}
+              >
+                Confirm {decidedCount} decision{decidedCount !== 1 ? "s" : ""}
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -6302,7 +6511,8 @@ const BottomBar = ({ onPreview }) => (
     padding: "10px 16px",
     background: "var(--bg-cream-soft)",
     borderTop: "1px solid var(--b-1)",
-    flexShrink: 0,
+    position: "fixed", bottom: 0, left: 0, right: 0,
+    zIndex: 40, minHeight: 52,
   }}>
     {[
       { ic: <span style={{ fontSize: 14 }}>↻</span>, label: "Refresh", onClick: null },
@@ -6362,6 +6572,39 @@ const initialConcerns = [
     preApproved: { labor: 180, parts: 95, misc: 10 },
     points: [],
     recs: [],
+  },
+  {
+    id: "asc-wipers",
+    type: "asc_m",
+    title: "Windshield wiper system",
+    points: [],
+    recs: [
+      {
+        id: "asc-wipers-r1",
+        status: "fail",
+        recommendation: "Replace front wiper motor — intermittent failure confirmed on test.",
+        internal: "Motor sticks intermittently on cold starts. Customer has declined twice; mention safety risk.",
+        labor: 10.00, parts: 20.00, misc: 1.12, total: 31.12,
+        estSummary: "0.50 hrs",
+        shownToCustomer: 0,
+        estStatus: [{ tone: "incomplete", label: "Incomplete Labor" }],
+        workTag: null, partsTag: { tone: "stock", label: "In Stock" },
+        media: { photos: 1, videos: 0 },
+        partsList: [{ partNo: "WM-19210-SX0", name: "Front Wiper Motor Assembly", qty: 1, price: 20.00, inStock: true }],
+      },
+      {
+        id: "asc-wipers-r2",
+        status: "caution",
+        recommendation: "Replace washer pump and refill reservoir — low flow observed.",
+        internal: null,
+        labor: 35.00, parts: 28.00, misc: 2.00, total: 65.00,
+        estSummary: "0.50 hrs",
+        shownToCustomer: 65.00,
+        estStatus: [{ tone: "approved", label: "Approved" }],
+        workTag: null, partsTag: { tone: "stock", label: "In Stock" },
+        media: false, partsList: [],
+      },
+    ],
   },
 ];
 
@@ -7141,16 +7384,16 @@ const MPIPage = () => {
   return (
     <div style={{
       display: "flex", flexDirection: "column",
-      height: "100vh", minHeight: 720,
+      minHeight: "100vh",
       background: "var(--bg-cream-soft)",
       fontFamily: "var(--font-sans)",
       color: "var(--t-1)",
     }}>
       <TopBar />
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex" }}>
         <RailIcons sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(o => !o)} />
         {sidebarOpen && <Sidebar />}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <Tabs tab={tab} setTab={setTab} />
 
           {tab === "media" && (
@@ -7197,7 +7440,7 @@ const MPIPage = () => {
               onAddConcern={() => openModalFor({ inspectionPoint: "", inspectionDetail: "", isNewRec: true })}
             />
           )}
-          <div ref={mpiScrollRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px 0 16px", background: "var(--bg-cream-soft)", display: (tab === "start" || tab === "rec" || tab === "media" || tab === "parts") ? "none" : undefined }} className="scrollable">
+          <div ref={mpiScrollRef} style={{ padding: "14px 16px 0 16px", background: "var(--bg-cream-soft)", display: (tab === "start" || tab === "rec" || tab === "media" || tab === "parts") ? "none" : undefined }} className="scrollable">
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
             {(() => {
               const visible = concerns.filter((c) => c.type === "occ" || c.recs.length > 0 || c.type === "asc_m");
@@ -7306,10 +7549,10 @@ const MPIPage = () => {
               <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-2)" }}>Inspection</span>
               <span style={{ background: "var(--b-1)", color: "var(--t-3)", fontSize: 11, fontWeight: 700, borderRadius: 999, padding: "1px 9px" }}>{sections.length}</span>
               <div style={{ flex: 1, height: 1, background: "var(--b-1)", marginLeft: 4 }} />
-              <div onClick={() => setMpiCompact(c => !c)} style={{ height: 26, padding: "0 10px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 12, fontWeight: 700, color: mpiCompact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, userSelect: "none" }}>
-                Compact
-                <div style={{ width: 26, height: 14, borderRadius: 999, background: mpiCompact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
-                  <div style={{ position: "absolute", top: 1.5, left: mpiCompact ? 12 : 1.5, width: 11, height: 11, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
+              <div onClick={() => setMpiCompact(c => !c)} style={{ height: 26, padding: "0 10px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 12, fontWeight: 700, color: !mpiCompact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, userSelect: "none" }}>
+                Expand
+                <div style={{ width: 26, height: 14, borderRadius: 999, background: !mpiCompact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
+                  <div style={{ position: "absolute", top: 1.5, left: !mpiCompact ? 12 : 1.5, width: 11, height: 11, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
                 </div>
               </div>
             </div>
@@ -7344,7 +7587,7 @@ const MPIPage = () => {
             ))}
             </div>
 
-            <div style={{ height: 80 }} />
+            <div style={{ height: 160 }} />
             </div>{/* /maxWidth centering wrapper */}
           </div>
           <BottomBar onPreview={() => setCustPreview(true)} />
@@ -7452,6 +7695,13 @@ const MPIPage = () => {
         <CustomerPreviewModal
           recConcerns={recConcerns}
           onClose={() => setCustPreview(false)}
+          onDecisionsApplied={(decisions) => {
+            setRecApprovals(prev => {
+              const next = new Map(prev);
+              Object.entries(decisions).forEach(([id, val]) => { if (val != null) next.set(id, val); });
+              return next;
+            });
+          }}
         />
       )}
 
