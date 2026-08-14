@@ -2988,7 +2988,7 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
       onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick(concernId, { id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }); }}
       onMouseEnter={() => { if (ref.current) { const r = ref.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
       onMouseLeave={() => setHover(false)}
-      style={{ fontSize: 11, fontWeight: 700, color: "var(--t-3)", background: hover ? "var(--bg-cream)" : "var(--bg-white)", border: `1px solid ${hover ? "var(--b-2)" : "var(--b-2)"}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, lineHeight: "16px", transition: "background 120ms, border-color 120ms", position: "relative" }}
+      style={{ fontSize: 13, fontWeight: 600, color: "var(--t-3)", background: hover ? "var(--bg-cream)" : "var(--bg-white)", border: `1px solid ${hover ? "var(--b-2)" : "var(--b-2)"}`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, lineHeight: "18px", transition: "background 120ms, border-color 120ms", position: "relative" }}
     >
       Pre-Approved · ${paTotal.toFixed(0)}
       {hover && (
@@ -3064,6 +3064,68 @@ const ConcernTypePill = ({ label, bg, color, border, combined = false }) => {
 };
 
 
+const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown }) => {
+  const [tip, setTip] = React.useState(false);
+  const [hov, setHov] = React.useState(false);
+  const [pos, setPos] = React.useState({ top: 0, left: 0 });
+  const ref = React.useRef(null);
+  const hideT = React.useRef(null);
+  const showTip = () => { clearTimeout(hideT.current); if (ref.current) { const r = ref.current.getBoundingClientRect(); setPos({ top: r.bottom + 6, left: r.left }); } setTip(true); };
+  const hideTip = () => { hideT.current = setTimeout(() => setTip(false), 150); };
+  const lines = breakdown ? [
+    breakdown.hrs ? breakdown.hrs + " hrs" : null,
+    Number(breakdown.labor) > 0 ? "Labor $" + Number(breakdown.labor).toFixed(0) : null,
+    Number(breakdown.parts) > 0 ? "Parts $" + Number(breakdown.parts).toFixed(0) : null,
+    Number(breakdown.misc)  > 0 ? "Misc $"  + Number(breakdown.misc).toFixed(0)  : null,
+  ].filter(Boolean) : [];
+  const isZero = hasZeroShown && shownTotal === 0;
+  const displayAmt = isZero ? total : (hasZeroShown ? shownTotal : total);
+  return (
+    <span ref={ref} style={{ position: "relative" }}
+      onMouseEnter={() => { setHov(true); if (lines.length) showTip(); }}
+      onMouseLeave={() => { setHov(false); hideTip(); }}
+      onClick={e => e.stopPropagation()}>
+      <span style={{
+        fontSize: 13, fontWeight: 600, color: "var(--t-3)",
+        background: hov ? "var(--bg-cream)" : "var(--bg-white)",
+        border: "1px solid var(--b-2)", borderRadius: 5,
+        padding: "3px 9px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5,
+        cursor: lines.length ? "pointer" : "default",
+        transition: "background 120ms",
+        lineHeight: "18px",
+      }}>
+        <span style={{ color: "var(--t-4)", fontWeight: 600 }}>Total</span>
+        {" · "}
+        {isZero
+          ? <><span style={{ textDecoration: "line-through", color: "var(--t-4)", fontWeight: 500 }}>${Number(total).toFixed(0)}</span>{" "}<span style={{ color: "var(--red-600)" }}>$0</span></>
+          : <span style={{ color: "var(--t-2)" }}>${Number(displayAmt).toFixed(0)}</span>
+        }
+      </span>
+      {tip && breakdown && (
+        <div onMouseEnter={() => { clearTimeout(hideT.current); setHov(true); }} onMouseLeave={() => { setHov(false); hideTip(); }}
+          style={{ position: "fixed", top: pos.top, left: pos.left, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 9999, minWidth: 180, padding: "8px 0" }}>
+          <div style={{ padding: "2px 12px 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t-4)" }}>Estimate breakdown</div>
+          {[
+            breakdown.hrs ? ["Hours", breakdown.hrs + " hrs"] : null,
+            Number(breakdown.labor) > 0 ? ["Labor", "$" + Number(breakdown.labor).toFixed(0)] : null,
+            Number(breakdown.parts) > 0 ? ["Parts", "$" + Number(breakdown.parts).toFixed(0)] : null,
+            Number(breakdown.misc)  > 0 ? ["Misc",  "$" + Number(breakdown.misc).toFixed(0)]  : null,
+          ].filter(Boolean).map(([label, val]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 12px", borderTop: "1px solid var(--b-1)", gap: 24 }}>
+              <span style={{ fontSize: 13, color: "var(--t-3)" }}>{label}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>{val}</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 12px", borderTop: "1px solid var(--b-2)", background: "var(--bg-cream-soft)", gap: 24 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)" }}>Total</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${Number(total).toFixed(0)}</span>
+          </div>
+        </div>
+      )}
+    </span>
+  );
+};
+
 // ── Shared header row used by ConcernCard (Edit MPI), RecConcernCard, and RecCompactConcernCard.
 const ConcernCardHeader = ({ recTabLayout = false,
   concern, palette, letter,
@@ -3077,6 +3139,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
   preApprovedEl = null,
   noLeftBorder = false,
   style = {},
+  breakdown = null,
 }) => {
   const approvedCount = recApprovals ? concern.recs.filter(r => recApprovals.get(r.id) === "approved").length : 0;
   const recsCount = concern.recs.length;
@@ -3138,13 +3201,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
           {showTotal && (
             <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 6, gap: 6 }}>
               {preApprovedEl}
-              {(hasZeroShown && shownTotal === 0)
-                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)" }}>$0</span>
-                  </span>
-                : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", ...REC_FONT }}>${(hasZeroShown ? shownTotal : total).toFixed(0)}</span>
-              }
+              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} />
             </div>
           )}
         </>
@@ -3154,13 +3211,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
           {showTotal && (
             <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: onAddRec ? 8 : 14, gap: 6 }}>
               {preApprovedEl}
-              {(hasZeroShown && shownTotal === 0)
-                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "var(--t-4)", textDecoration: "line-through" }}>${total.toFixed(0)}</span>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--red-600)" }}>$0</span>
-                  </span>
-                : <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", ...REC_FONT }}>${(hasZeroShown ? shownTotal : total).toFixed(0)}</span>
-              }
+              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} />
             </div>
           )}
           {/* Action column — only shown when +REC button exists */}
@@ -4668,13 +4719,17 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
     }}>{rec.extraTag}</span>
   );
 
-  // Icons: MediaTag, PartsTag, WorkTag — inline to right of rec text
+  // Icons
   const openSection = (section) => { onRecClick && onRecClick(rec); };
   const rightTags = [
     <MediaTag key="media-icon" media={rec.media} onAdd={openSection} />,
     <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} estStatus={rec.estStatus} onAdd={openSection} />,
     <WorkTag key="work-icon" workTag={rec.workTag} estStatus={rec.estStatus} />,
     <InternalNoteTag key="internal-icon" note={rec.internal} onAdd={openSection} />,
+  ];
+  const expandedTags = [
+    <MediaTag key="media-icon" media={rec.media} onAdd={openSection} />,
+    <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} estStatus={rec.estStatus} onAdd={openSection} />,
   ];
 
   const moreBtn = (
@@ -4755,17 +4810,14 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
           <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>
             {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, display: "inline-block", verticalAlign: "middle", marginRight: 5 } }))}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", verticalAlign: "middle" }}>{rec.recommendation || "No recommendation added"}</span>
           </div>
-          {(() => {
-            const hrs = (() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return m ? m[1] : "0"; })();
-            const parts = [hrs + " hrs", "Labor $" + Number(rec.labor || 0).toFixed(0), "Parts $" + Number(rec.parts || 0).toFixed(0), Number(rec.misc || 0) > 0 ? "Misc $" + Number(rec.misc).toFixed(0) : null].filter(Boolean).join(" · ");
-            return <div style={{ marginTop: 7, marginBottom: 6, fontSize: 12, color: "var(--t-4)", lineHeight: 1.3 }}>{parts}</div>;
-          })()}
+
           {rec.internal && (
             <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 6, background: "#FFFBEB", border: "1px solid #F3DDA1" }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal</div>
               <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.4 }}>{rec.internal}</div>
             </div>
           )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }} onClick={e => e.stopPropagation()}>{expandedTags}</div>
 
         </div>
 
@@ -4807,22 +4859,17 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         {/* Right column */}
         <div style={{ width: 260, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", paddingTop: 12, paddingBottom: 10, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 10 }}>
           {/* APPROVAL + collapse */}
-          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", width: 172 }}>
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6, gap: 8 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", flex: 1 }}>
               {mkBtn("✓", "approved")}
               {mkBtn("✗", "declined")}
             </div>
-            <div style={{ flex: 1 }} />
             <button onClick={e => { e.stopPropagation(); setExpanded(false); }}
               style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, border: "1px solid var(--b-2)", background: "var(--bg-white)", color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
               onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
             </button>
-          </div>
-          {/* Icons row */}
-          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{rightTags}</div>
           </div>
           {/* Divider */}
           <div style={{ height: 1, background: "var(--b-1)", marginLeft: 10, marginRight: 6 }} />
@@ -4897,35 +4944,23 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         onClick={e => e.stopPropagation()}>
         <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
       </div>
-      {/* Rec text + icons inline to the right */}
-      <div style={{ flex: 1, minWidth: 0, padding: "10px 16px 10px 0", display: "flex", alignItems: "flex-start", gap: 8 }}>
+      {/* Rec text + icons inline */}
+      <div style={{ flex: 1, minWidth: 0, padding: "10px 12px 10px 0", display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>
             {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, display: "inline-block", verticalAlign: "middle", marginRight: 5 } }))}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", verticalAlign: "middle" }}>{rec.recommendation || "No recommendation added"}</span>
           </div>
-          {(() => {
-            const hrs = (() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return m ? m[1] : "0"; })();
-            const parts = [hrs + " hrs", "Labor $" + Number(rec.labor || 0).toFixed(0), "Parts $" + Number(rec.parts || 0).toFixed(0), Number(rec.misc || 0) > 0 ? "Misc $" + Number(rec.misc).toFixed(0) : null].filter(Boolean).join(" · ");
-            return <div style={{ marginTop: 7, fontSize: 12, color: "var(--t-4)", lineHeight: 1.3 }}>{parts}</div>;
-          })()}
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>{rightTags}</div>
       </div>
-      {/* Right column — mirrors expanded layout: approve+decline+chevron top, icons+price below */}
-      <div style={{ width: 260, flexShrink: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", alignItems: "stretch", paddingTop: 12, paddingBottom: 10, gap: 10, borderLeft: "1px solid var(--b-2)" }}
+      {/* Right column: approve+decline | chevron */}
+      <div style={{ width: 260, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6, gap: 8, borderLeft: "1px solid var(--b-2)" }}
         onClick={e => e.stopPropagation()}>
-        {/* Row 1: approve + decline + chevron */}
-        <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }}>
-          <div style={{ display: "flex", width: 172 }}>
-            {mkBtn("✓", "approved")}
-            {mkBtn("✗", "declined")}
-          </div>
-          <div style={{ flex: 1 }} />
-          {moreBtn}
+        <div style={{ display: "flex", flex: 1 }}>
+          {mkBtn("✓", "approved")}
+          {mkBtn("✗", "declined")}
         </div>
-        {/* Row 2: icons */}
-        <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{rightTags}</div>
-        </div>
+        {moreBtn}
       </div>
     </div>
   );
@@ -4967,6 +5002,13 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
         autoRename={autoRename}
         noLeftBorder={true}
         style={{ borderBottom: hasRecs ? "1px solid var(--b-2)" : "none" }}
+        breakdown={(() => {
+          const labor = concern.recs.reduce((s, r) => s + Number(r.labor || 0), 0);
+          const parts = concern.recs.reduce((s, r) => s + Number(r.parts || 0), 0);
+          const misc  = concern.recs.reduce((s, r) => s + Number(r.misc  || 0), 0);
+          const hrs   = concern.recs.reduce((s, r) => { const m = r.estSummary && r.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return s + (m ? Number(m[1]) : 0); }, 0);
+          return { labor, parts, misc, hrs: hrs > 0 ? String(hrs) : null };
+        })()}
       />
       {concern.recs.map((rec, i) => {
         const isLast = i === concern.recs.length - 1;
@@ -5014,11 +5056,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
             <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 0 9px 10px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>{recStatus && <span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, padding: "1px 7px", background: "var(--bg-white)", color: (typeof recStatus === "string" ? recStatus : recStatus?.kind) === "fail" ? "var(--red-600)" : "var(--yellow-700)", border: "1px solid " + ((typeof recStatus === "string" ? recStatus : recStatus?.kind) === "fail" ? "#F0B6B6" : "#D4A900"), borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", whiteSpace: "nowrap" }}>{(typeof recStatus === "string" ? recStatus : recStatus?.kind) === "fail" ? "Fail" : "Caution"}</span>}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)" }}>{rec.recommendation || "No recommendation added"}</span></div>
-                {(() => {
-                  const hrs = (() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return m ? m[1] : "0"; })();
-                  const line = [hrs + " hrs", "Labor $" + Number(rec.labor || 0).toFixed(0), "Parts $" + Number(rec.parts || 0).toFixed(0), Number(rec.misc || 0) > 0 ? "Misc $" + Number(rec.misc).toFixed(0) : null].filter(Boolean).join(" · ");
-                  return <div style={{ marginTop: 3, fontSize: 12, color: "var(--t-4)", lineHeight: 1.3 }}>{line}</div>;
-                })()}
+
               </div>
               {(() => {
                 const iconTags = [
@@ -5036,6 +5074,35 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
             <div style={{ width: 76, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums" }}>
               {priceEl}
             </div>
+            {/* Summary column — hrs / labor / parts / misc */}
+            {(() => {
+              const hrs = (() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return m ? m[1] : null; })();
+              const labor = Number(rec.labor || 0);
+              const parts = Number(rec.parts || 0);
+              const misc  = Number(rec.misc  || 0);
+              const hasAny = hrs || labor > 0 || parts > 0 || misc > 0;
+              if (!hasAny) return <div style={{ width: 148, flexShrink: 0 }} />;
+              return (
+                <div style={{ width: 148, flexShrink: 0, display: "flex", alignItems: "center", paddingLeft: 12, gap: 12, fontVariantNumeric: "tabular-nums" }}>
+                  {hrs && <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--t-4)", fontWeight: 500 }}>hrs</span>
+                    <span style={{ fontSize: 12.5, color: "var(--t-2)", fontWeight: 600 }}>{hrs}</span>
+                  </div>}
+                  {labor > 0 && <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--t-4)", fontWeight: 500 }}>Labor</span>
+                    <span style={{ fontSize: 12.5, color: "var(--t-2)", fontWeight: 600 }}>${labor.toFixed(0)}</span>
+                  </div>}
+                  {parts > 0 && <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--t-4)", fontWeight: 500 }}>Parts</span>
+                    <span style={{ fontSize: 12.5, color: "var(--t-2)", fontWeight: 600 }}>${parts.toFixed(0)}</span>
+                  </div>}
+                  {misc > 0 && <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--t-4)", fontWeight: 500 }}>Misc</span>
+                    <span style={{ fontSize: 12.5, color: "var(--t-2)", fontWeight: 600 }}>${misc.toFixed(0)}</span>
+                  </div>}
+                </div>
+              );
+            })()}
             {/* 84px spacer matches header action column width — use positioned divider, not borderLeft, to avoid box-model width shift */}
             <div style={{ width: 84, flexShrink: 0, position: "relative" }}>
               <span style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 1, height: "60%", background: "var(--b-2)" }} />
@@ -5092,6 +5159,13 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         recTabLayout={true}
         preApprovedEl={preApprovedEl}
         style={{ borderBottom: "1px solid var(--b-2)", borderRadius: compact ? 0 : "7px 7px 0 0" }}
+        breakdown={(() => {
+          const labor = concern.recs.reduce((s, r) => s + Number(r.labor || 0), 0);
+          const parts = concern.recs.reduce((s, r) => s + Number(r.parts || 0), 0);
+          const misc  = concern.recs.reduce((s, r) => s + Number(r.misc  || 0), 0);
+          const hrs   = concern.recs.reduce((s, r) => { const m = r.estSummary && r.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return s + (m ? Number(m[1]) : 0); }, 0);
+          return { labor, parts, misc, hrs: hrs > 0 ? String(hrs) : null };
+        })()}
       />
 
 
