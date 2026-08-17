@@ -1536,6 +1536,7 @@ const EnhancedPartsTable = ({ parts = [], onChange }) => {
 };
 
 const RecEditorModal = ({
+  initialSection = null,
   inspectionPoint = "Inspect brakes",
   inspectionDetail = "1mm front",
   inspectionResult = "failed",
@@ -1561,6 +1562,7 @@ const RecEditorModal = ({
   onDelete,
   onPreviewChange,
   externalConcernId = null,
+  isPreApproved = false,
 }) => {
   const isPanel = variant === "panel";
   const [dirty, setDirty] = React.useState(false);
@@ -1772,7 +1774,7 @@ const RecEditorModal = ({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01 }}>{lockedConcern ? inspectionPoint : "Recommendation"}</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01 }}>{isPreApproved ? "Pre-Approved" : (lockedConcern ? inspectionPoint : "Recommendation")}</span>
             {headStatus.label && (
               <span className="pill" style={{ background: headStatus.bg, color: headStatus.t, textTransform: "none", letterSpacing: 0.02, fontWeight: 600 }}>
                 {headStatus.label}
@@ -1806,13 +1808,13 @@ const RecEditorModal = ({
 
         {/* Unified: INSPECTION RESULT + CONCERN NAME */}
         <div style={{ display: "flex", alignItems: "stretch", border: "1px solid var(--b-1)", borderRadius: 8, background: "var(--bg-cream-soft)" }}>
-          <div style={{ padding: "12px 16px", flexShrink: 0, borderRight: "1px solid var(--b-1)" }}>
+          {!isPreApproved && <div style={{ padding: "12px 16px", flexShrink: 0, borderRight: "1px solid var(--b-1)" }}>
             <label className="field-label">Inspection result</label>
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
               <GradeStatusBtn kind="fail"    label="Fail"    active={status === "fail"}    onClick={() => { setStatus("fail");    setDirty(true); }} />
               <GradeStatusBtn kind="caution" label="Caution" active={status === "caution"} onClick={() => { setStatus("caution"); setDirty(true); }} />
             </div>
-          </div>
+          </div>}
           <div style={{ flex: 1, padding: "12px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
               <label className="field-label" style={{ margin: 0 }}>Concern name</label>
@@ -1858,8 +1860,8 @@ const RecEditorModal = ({
           <TireTreadSection readings={tireReadings} onChange={handleTire} unit={(linkedPoint && linkedPoint.unit) || (tire && tire.unit) || "mm"} />
         )}
 
-        {/* What needs done + Op code — hidden until concern step is complete */}
-        {recFieldsVisible && <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
+        {/* What needs done + Op code — hidden until concern step is complete, and hidden for pre-approved */}
+        {recFieldsVisible && !isPreApproved && <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
           <div>
             <label className="field-label">Recommendation</label>
             <AutoGrowTextarea id="rec-whatneedsdone" value={whatNeedsDone} onChange={(e) => { setWhatNeedsDone(e.target.value); setDirty(true); }} />
@@ -1913,7 +1915,7 @@ const RecEditorModal = ({
 
         {/* Accordions — hidden until concern step is complete */}
         {recFieldsVisible && <div style={{ display: "flex", flexDirection: "column", marginTop: 6 }}>
-          <RecAccordion icon={IconDoc}     title="Internal parts notes"  subtitle={notes.trim() ? null : "0 notes"} dot={!!notes.trim()} defaultOpen={true}>
+          <RecAccordion icon={IconDoc}     title="Internal note"  subtitle={notes.trim() ? null : "0 notes"} dot={!!notes.trim()} defaultOpen={initialSection ? initialSection === "internal" : true}>
             <textarea
               value={notes}
               onChange={(e) => { setNotes(e.target.value); setDirty(true); }}
@@ -1928,10 +1930,10 @@ const RecEditorModal = ({
               }}
             />
           </RecAccordion>
-          <RecAccordion icon={IconTarget}  title="Itemized parts"        subtitle={itemized.length ? `${itemized.length} part${itemized.length !== 1 ? "s" : ""} · $${partsSubtotal.toFixed(2)} subtotal` : "No parts added"} defaultOpen={true}>
+          <RecAccordion icon={IconTarget}  title="Itemized parts"        subtitle={itemized.length ? `${itemized.length} part${itemized.length !== 1 ? "s" : ""} · $${partsSubtotal.toFixed(2)} subtotal` : "No parts added"} defaultOpen={initialSection ? initialSection === "parts" : true}>
             <EnhancedPartsTable parts={itemized} onChange={(p) => { setItemized(p); setDirty(true); }} />
           </RecAccordion>
-          <RecAccordion icon={IconImage}   title="Photos & video"        badge="2 photos · 1 video" defaultOpen={true}>
+          <RecAccordion icon={IconImage}   title="Photos & video"        badge="2 photos · 1 video" defaultOpen={initialSection ? initialSection === "media" : true}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <div style={{ border: "1.5px dashed var(--b-2)", borderRadius: 8, padding: "16px 12px", textAlign: "center", background: "var(--bg-cream-soft)", marginBottom: 8 }}>
@@ -1969,7 +1971,7 @@ const RecEditorModal = ({
               </div>
             </div>
           </RecAccordion>
-          <RecAccordion icon={IconDollar}  title="Tax & fee overrides"   badge="1 override active" defaultOpen={false}>
+          <RecAccordion icon={IconDollar}  title="Tax & fee overrides"   badge="1 override active" defaultOpen={initialSection ? initialSection === "tax" : false}>
             <TaxFeeTable baseLabor={Number(labor)} baseParts={Number(parts)} baseMisc={Number(misc)} onHidePriceChange={setHidePrice} />
           </RecAccordion>
         </div>}
@@ -2763,13 +2765,13 @@ const MediaTag = ({ media, onAdd }) => {
       onMouseLeave={hidePop}
       onClick={(e) => e.stopPropagation()}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--b-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
         <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
       </svg>
       {active && (
         <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{photos + videos}</span>
       )}
-      {hover && (
+      {hover && ReactDOM.createPortal(
         <div
           onMouseEnter={() => clearTimeout(hideTimer.current)}
           onMouseLeave={hidePop}
@@ -2791,10 +2793,11 @@ const MediaTag = ({ media, onAdd }) => {
               <div style={{ marginTop: 7, fontSize: 14, color: "var(--t-3)", whiteSpace: "nowrap" }}>{label}</div>
             </>
           ) : (
-            <div style={{ fontSize: 13, color: "var(--t-3)", whiteSpace: "nowrap", fontStyle: "italic" }}>No media attached</div>
+            <div style={{ fontSize: 13, color: "var(--t-3)", whiteSpace: "nowrap", fontStyle: "italic" }}>No media</div>
           )}
-          {onAdd && <button onClick={e => { e.stopPropagation(); clearTimeout(hideTimer.current); setHover(false); onAdd("media"); }} style={{ marginTop: 8, width: "100%", padding: "5px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add media</button>}
-        </div>
+          {onAdd && <button onClick={e => { e.stopPropagation(); clearTimeout(hideTimer.current); setHover(false); onAdd("media"); }} style={{ marginTop: 8, width: "100%", padding: "8px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add media</button>}
+        </div>,
+        document.body
       )}
     </span>
   );
@@ -2821,20 +2824,13 @@ const PartsTag = ({ parts, amount, estStatus, onAdd }) => {
       onMouseLeave={() => { hideTimerP.current = setTimeout(() => setHover(false), 150); }}
       onClick={(e) => e.stopPropagation()}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--b-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={incompleteParts && active ? "#D97706" : active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
       </svg>
-      {incompleteParts ? (
-        <span style={{ position: "absolute", top: -6, right: -6, pointerEvents: "none", lineHeight: 0 }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="#D97706" stroke="var(--bg-white)" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-        </span>
-      ) : active ? (
-        <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{list.length}</span>
+      {active ? (
+        <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, background: incompleteParts ? "#D97706" : "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{list.length}</span>
       ) : null}
-      {hover && (
+      {hover && ReactDOM.createPortal(
         <div
           onMouseEnter={() => clearTimeout(hideTimerP.current)}
           onMouseLeave={() => { hideTimerP.current = setTimeout(() => setHover(false), 150); }}
@@ -2848,7 +2844,7 @@ const PartsTag = ({ parts, amount, estStatus, onAdd }) => {
               <div style={{ padding: "2px 12px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-4)" }}>Parts</div>
               {list.map((p, i) => {
                 const lineTotal = (Number(p.price) || 0) * (Number(p.qty) || 1);
-                const inStock = p.inStock !== false; // default true if not specified
+                const inStock = p.inStock !== false;
                 return (
                   <div key={i} style={{ padding: "5px 12px", borderBottom: i < list.length - 1 ? "1px solid var(--b-1)" : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -2871,12 +2867,16 @@ const PartsTag = ({ parts, amount, estStatus, onAdd }) => {
               <div style={{ padding: "6px 12px", display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "var(--t-1)", background: "var(--bg-cream-soft)" }}>
                 <span>Total parts</span><span style={{ fontVariantNumeric: "tabular-nums" }}>${total.toFixed(2)}</span>
               </div>
+              {onAdd && <div style={{ padding: "10px 12px 8px", borderTop: "1px solid var(--b-1)" }}><button onClick={e => { e.stopPropagation(); clearTimeout(hideTimerP.current); setHover(false); onAdd("parts"); }} style={{ width: "100%", padding: "8px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add parts</button></div>}
             </>
           ) : (
-            <div style={{ fontSize: 13, color: "var(--t-3)", whiteSpace: "nowrap", fontStyle: "italic" }}>{incompleteParts ? "Incomplete parts" : "No parts added"}</div>
+            <>
+              <div style={{ fontSize: 13, color: "var(--t-3)", whiteSpace: "nowrap", fontStyle: "italic" }}>No parts</div>
+              {onAdd && <button onClick={e => { e.stopPropagation(); clearTimeout(hideTimerP.current); setHover(false); onAdd("parts"); }} style={{ marginTop: 8, width: "100%", padding: "10px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add parts</button>}
+            </>
           )}
-          {onAdd && <button onClick={e => { e.stopPropagation(); clearTimeout(hideTimerP.current); setHover(false); onAdd("parts"); }} style={{ marginTop: 8, width: "100%", padding: "5px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add parts</button>}
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );
@@ -2896,7 +2896,7 @@ const InternalNoteTag = ({ note, onAdd }) => {
       onMouseLeave={hidePop}
       onClick={e => e.stopPropagation()}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-        stroke="var(--b-3)"
+        stroke={note ? "#B45309" : "var(--b-3)"}
         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
@@ -2904,7 +2904,7 @@ const InternalNoteTag = ({ note, onAdd }) => {
         <line x1="16" y1="17" x2="8" y2="17"/>
       </svg>
       {note && <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, background: "#D97706", color: "#fff", borderRadius: 999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>1</span>}
-      {hover && (
+      {hover && ReactDOM.createPortal(
         <div
           onMouseEnter={() => clearTimeout(hideTimerI.current)}
           onMouseLeave={hidePop}
@@ -2918,7 +2918,8 @@ const InternalNoteTag = ({ note, onAdd }) => {
             : <div style={{ fontSize: 13, color: "var(--t-3)", fontStyle: "italic" }}>No internal note</div>
           }
           {onAdd && <button onClick={e => { e.stopPropagation(); clearTimeout(hideTimerI.current); setHover(false); onAdd("internal"); }} style={{ marginTop: 8, width: "100%", padding: "5px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add internal note</button>}
-        </div>
+        </div>,
+        document.body
       )}
     </span>
   );
@@ -2985,7 +2986,7 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
   return (
     <span
       ref={ref}
-      onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick(concernId, { id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }); }}
+      onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
       onMouseEnter={() => { if (ref.current) { const r = ref.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
       onMouseLeave={() => setHover(false)}
       style={{ fontSize: 13, fontWeight: 600, color: "var(--t-3)", background: hover ? "var(--bg-cream)" : "var(--bg-white)", border: `1px solid ${hover ? "var(--b-2)" : "var(--b-2)"}`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, lineHeight: "18px", transition: "background 120ms, border-color 120ms", position: "relative" }}
@@ -3008,7 +3009,7 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
           </div>
           <div style={{ padding: "4px 12px 8px" }}>
             <button
-              onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick(concernId, { id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }); }}
+              onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
               style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 10px", background: "var(--blue-50)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-700)", cursor: "pointer" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-100, #DBEAFE)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue-50)"; }}
@@ -3064,25 +3065,29 @@ const ConcernTypePill = ({ label, bg, color, border, combined = false }) => {
 };
 
 
-const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown }) => {
+const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown, needsPricing }) => {
   const [tip, setTip] = React.useState(false);
   const [hov, setHov] = React.useState(false);
   const [pos, setPos] = React.useState({ top: 0, left: 0 });
   const ref = React.useRef(null);
   const hideT = React.useRef(null);
-  const showTip = () => { clearTimeout(hideT.current); if (ref.current) { const r = ref.current.getBoundingClientRect(); setPos({ top: r.bottom + 6, left: r.left }); } setTip(true); };
+  const missingLabor = needsPricing && needsPricing.includes("Labor");
+  const missingParts = needsPricing && needsPricing.includes("Parts");
+  const hasTooltip = !!(breakdown || needsPricing);
+  const showTip = () => { clearTimeout(hideT.current); if (hasTooltip && ref.current) { const r = ref.current.getBoundingClientRect(); setPos({ top: r.bottom + 6, left: r.left }); setTip(true); } };
   const hideTip = () => { hideT.current = setTimeout(() => setTip(false), 150); };
-  const lines = breakdown ? [
-    breakdown.hrs ? breakdown.hrs + " hrs" : null,
-    Number(breakdown.labor) > 0 ? "Labor $" + Number(breakdown.labor).toFixed(0) : null,
-    Number(breakdown.parts) > 0 ? "Parts $" + Number(breakdown.parts).toFixed(0) : null,
-    Number(breakdown.misc)  > 0 ? "Misc $"  + Number(breakdown.misc).toFixed(0)  : null,
-  ].filter(Boolean) : [];
   const isZero = hasZeroShown && shownTotal === 0;
   const displayAmt = isZero ? total : (hasZeroShown ? shownTotal : total);
+  // Build tooltip rows: normal lines, plus "Incomplete" for missing items
+  const tooltipRows = [
+    breakdown?.hrs ? ["Hours", breakdown.hrs + " hrs", false] : null,
+    missingLabor ? ["Labor", "Incomplete", true] : (Number(breakdown?.labor) > 0 ? ["Labor", "$" + Number(breakdown.labor).toFixed(0), false] : null),
+    missingParts ? ["Parts", "Incomplete", true] : (Number(breakdown?.parts) > 0 ? ["Parts", "$" + Number(breakdown.parts).toFixed(0), false] : null),
+    Number(breakdown?.misc) > 0 ? ["Misc", "$" + Number(breakdown.misc).toFixed(0), false] : null,
+  ].filter(Boolean);
   return (
     <span ref={ref} style={{ position: "relative" }}
-      onMouseEnter={() => { setHov(true); if (lines.length) showTip(); }}
+      onMouseEnter={() => { setHov(true); showTip(); }}
       onMouseLeave={() => { setHov(false); hideTip(); }}
       onClick={e => e.stopPropagation()}>
       <span style={{
@@ -3090,7 +3095,7 @@ const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown }) => {
         background: hov ? "var(--bg-cream)" : "var(--bg-white)",
         border: "1px solid var(--b-2)", borderRadius: 5,
         padding: "3px 9px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5,
-        cursor: lines.length ? "pointer" : "default",
+        cursor: hasTooltip ? "pointer" : "default",
         transition: "background 120ms",
         lineHeight: "18px",
       }}>
@@ -3100,26 +3105,27 @@ const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown }) => {
           ? <><span style={{ textDecoration: "line-through", color: "var(--t-4)", fontWeight: 500 }}>${Number(total).toFixed(0)}</span>{" "}<span style={{ color: "var(--red-600)" }}>$0</span></>
           : <span style={{ color: "var(--t-2)" }}>${Number(displayAmt).toFixed(0)}</span>
         }
+        {needsPricing && (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#D97706" stroke="white" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        )}
       </span>
-      {tip && breakdown && (
+      {tip && hasTooltip && (
         <div onMouseEnter={() => { clearTimeout(hideT.current); setHov(true); }} onMouseLeave={() => { setHov(false); hideTip(); }}
-          style={{ position: "fixed", top: pos.top, left: pos.left, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 9999, minWidth: 180, padding: "8px 0" }}>
+          style={{ position: "fixed", top: pos.top, left: pos.left, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 9999, minWidth: 190, padding: "8px 0" }}>
           <div style={{ padding: "2px 12px 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t-4)" }}>Estimate breakdown</div>
-          {[
-            breakdown.hrs ? ["Hours", breakdown.hrs + " hrs"] : null,
-            Number(breakdown.labor) > 0 ? ["Labor", "$" + Number(breakdown.labor).toFixed(0)] : null,
-            Number(breakdown.parts) > 0 ? ["Parts", "$" + Number(breakdown.parts).toFixed(0)] : null,
-            Number(breakdown.misc)  > 0 ? ["Misc",  "$" + Number(breakdown.misc).toFixed(0)]  : null,
-          ].filter(Boolean).map(([label, val]) => (
+          {tooltipRows.map(([label, val, isIncomplete]) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 12px", borderTop: "1px solid var(--b-1)", gap: 24 }}>
-              <span style={{ fontSize: 13, color: "var(--t-3)" }}>{label}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>{val}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13, color: "var(--t-3)" }}>
+                {isIncomplete && <svg width="11" height="11" viewBox="0 0 24 24" fill="#D97706" stroke="white" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+                {label}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: isIncomplete ? "#D97706" : "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>{val}</span>
             </div>
           ))}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 12px", borderTop: "1px solid var(--b-2)", background: "var(--bg-cream-soft)", gap: 24 }}>
+          {breakdown && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 12px", borderTop: "1px solid var(--b-2)", background: "var(--bg-cream-soft)", gap: 24 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)" }}>Total</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${Number(total).toFixed(0)}</span>
-          </div>
+          </div>}
         </div>
       )}
     </span>
@@ -3140,6 +3146,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
   noLeftBorder = false,
   style = {},
   breakdown = null,
+  needsPricing = null,
 }) => {
   const approvedCount = recApprovals ? concern.recs.filter(r => recApprovals.get(r.id) === "approved").length : 0;
   const recsCount = concern.recs.length;
@@ -3201,7 +3208,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
           {showTotal && (
             <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 6, gap: 6 }}>
               {preApprovedEl}
-              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} />
+              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} needsPricing={needsPricing} />
             </div>
           )}
         </>
@@ -3211,7 +3218,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
           {showTotal && (
             <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: onAddRec ? 8 : 14, gap: 6 }}>
               {preApprovedEl}
-              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} />
+              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} needsPricing={needsPricing} />
             </div>
           )}
           {/* Action column — only shown when +REC button exists */}
@@ -3614,8 +3621,8 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
   canReorder, onReorderConcern, letter, autoRename = false }) => {
   const p = concernPalette[concern.type];
   const concernTotal = concern.recs.reduce((s, r) => s + (Number(r.total) || 0), 0);
-  // For OCC cards, use preApproved amounts if set, otherwise fall back to rec totals
-  const displayTotal = concern.preApproved ? (concern.preApproved.labor + concern.preApproved.parts + concern.preApproved.misc) : concernTotal;
+  const preApprovedAmt = concern.preApproved ? ((concern.preApproved.labor || 0) + (concern.preApproved.parts || 0) + (concern.preApproved.misc || 0)) : 0;
+  const displayTotal = concernTotal + preApprovedAmt;
   const hasRecs = concern.recs.length > 0;
   const showDropBanner = dragActive && !isDragSource;
 
@@ -4706,9 +4713,8 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
       display: "inline-flex", alignItems: "center",
       fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4,
       letterSpacing: "0.04em", textTransform: "uppercase",
-      background: "var(--bg-white)",
-      color: stat.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)",
-      border: `1px solid ${stat.label === "Fail" ? "#F0B6B6" : "#D4A900"}`,
+      background: stat.pillBg,
+      color: stat.pillC,
     }}>{stat.label}</span>
   );
   if (rec.extraTag) leftTags.push(
@@ -4719,17 +4725,31 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
     }}>{rec.extraTag}</span>
   );
 
-  // Icons
-  const openSection = (section) => { onRecClick && onRecClick(rec); };
+  // Work status label for compact row — driven by workTag only
+  const recWorkStatus = (() => {
+    if (!rec.workTag) return null;
+    const { tone, label } = rec.workTag;
+    if (tone === "done" || tone === "complete") return { label: label || "Done", mt: 2, icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> };
+    if (tone === "gray" || !label) return null;
+    const dot = <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--blue-500)", display: "inline-block", flexShrink: 0 }} />;
+    return { label, icon: dot };
+  })();
+
+  // Icons (compact: media, parts, internal note; no work icon — work status shown per-rec in its own column)
+  const openSection = (section) => { onRecClick && onRecClick(rec, null, section); };
+  const hasParts = (rec.partsList?.length > 0) || Number(rec.parts) > 0;
+  const hasNote = !!rec.internal;
+  const iconWrap = (key, active, el) => (
+    <span key={key} style={{ display: "inline-flex", opacity: active ? 1 : 0.4 }}>{el}</span>
+  );
   const rightTags = [
-    <MediaTag key="media-icon" media={rec.media} onAdd={openSection} />,
-    <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} estStatus={rec.estStatus} onAdd={openSection} />,
-    <WorkTag key="work-icon" workTag={rec.workTag} estStatus={rec.estStatus} />,
-    <InternalNoteTag key="internal-icon" note={rec.internal} onAdd={openSection} />,
+    iconWrap("media-icon",    hasMedia, <MediaTag media={rec.media} onAdd={openSection} />),
+    iconWrap("parts-icon",    hasParts, <PartsTag parts={rec.partsList} amount={rec.parts} estStatus={rec.estStatus} onAdd={openSection} />),
+    iconWrap("internal-icon", hasNote,  <InternalNoteTag note={rec.internal} onAdd={openSection} />),
   ];
   const expandedTags = [
-    <MediaTag key="media-icon" media={rec.media} onAdd={openSection} />,
-    <PartsTag key="parts-icon" parts={rec.partsList} amount={rec.parts} estStatus={rec.estStatus} onAdd={openSection} />,
+    iconWrap("media-icon", hasMedia, <MediaTag media={rec.media} onAdd={openSection} />),
+    iconWrap("parts-icon", hasParts, <PartsTag parts={rec.partsList} amount={rec.parts} estStatus={rec.estStatus} onAdd={openSection} />),
   ];
 
   const moreBtn = (
@@ -4813,11 +4833,11 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
 
           {rec.internal && (
             <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 6, background: "#FFFBEB", border: "1px solid #F3DDA1" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal</div>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal note</div>
               <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.4 }}>{rec.internal}</div>
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }} onClick={e => e.stopPropagation()}>{expandedTags}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "18px 18px", gap: 8, flexShrink: 0, width: 44, marginTop: 8 }} onClick={e => e.stopPropagation()}>{expandedTags}</div>
 
         </div>
 
@@ -4859,8 +4879,8 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         {/* Right column */}
         <div style={{ width: 260, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", paddingTop: 12, paddingBottom: 10, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 10 }}>
           {/* APPROVAL + collapse */}
-          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6, gap: 8 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 10, paddingRight: 10 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", width: 172, flexShrink: 0 }}>
               {mkBtn("✓", "approved")}
               {mkBtn("✗", "declined")}
             </div>
@@ -4934,7 +4954,7 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
 
   // ── Compact row ──
   return (
-    <div key="compact" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", minHeight: 44, background: "var(--bg-white)", paddingRight: 8, userSelect: "none" }}
+    <div key="compact" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", minHeight: 52, background: "var(--bg-white)", paddingRight: 8, userSelect: "none" }}
       onClick={() => onRecClick && onRecClick(rec)}
       onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
       onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; }}
@@ -4945,18 +4965,27 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
       </div>
       {/* Rec text + icons inline */}
-      <div style={{ flex: 1, minWidth: 0, padding: "10px 12px 10px 0", display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ flex: 1, minWidth: 0, padding: "10px 12px 14px 0", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>
             {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, display: "inline-block", verticalAlign: "middle", marginRight: 5 } }))}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", verticalAlign: "middle" }}>{rec.recommendation || "No recommendation added"}</span>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>{rightTags}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "18px 18px 18px", gap: 8, flexShrink: 0, width: 70, paddingTop: 2 }} onClick={e => e.stopPropagation()}>{rightTags}</div>
+      </div>
+      {/* Work status label column */}
+      <div style={{ width: 130, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "flex-start", justifyContent: "flex-start", paddingLeft: 12, paddingRight: 4, paddingTop: 12 }}>
+        {recWorkStatus && (
+          <div title={recWorkStatus.label} style={{ display: "flex", alignItems: "flex-start", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--t-4)", cursor: "default", minWidth: 0, width: "100%" }}>
+            <span style={{ flexShrink: 0, lineHeight: 0, marginTop: recWorkStatus.mt ?? 5 }}>{recWorkStatus.icon}</span>
+            <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.5 }}>{recWorkStatus.label}</span>
+          </div>
+        )}
       </div>
       {/* Right column: approve+decline | chevron */}
-      <div style={{ width: 260, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "center", paddingLeft: 10, paddingRight: 6, gap: 8, borderLeft: "1px solid var(--b-2)" }}
+      <div style={{ width: 260, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingLeft: 10, paddingRight: 10, paddingTop: 12, borderLeft: "1px solid var(--b-2)" }}
         onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", flex: 1 }}>
+        <div style={{ display: "flex", width: 172, flexShrink: 0 }}>
           {mkBtn("✓", "approved")}
           {mkBtn("✗", "declined")}
         </div>
@@ -4971,6 +5000,9 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
   const hasZeroShown = concern.recs.some((r) => r.shownToCustomer === 0 && r.total > 0);
+  const _npLabor = concern.recs.some(r => r.estStatus?.some(s => s.tone === "incomplete" && s.label?.toLowerCase().includes("labor")));
+  const _npParts = concern.recs.some(r => r.estStatus?.some(s => s.tone === "incomplete" && s.label?.toLowerCase().includes("parts")));
+  const needsPricing = _npLabor && _npParts ? "Labor, Parts" : _npLabor ? "Labor" : _npParts ? "Parts" : null;
   const hasRecs = concern.recs.length > 0;
   return (
     <div
@@ -5009,6 +5041,7 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
           const hrs   = concern.recs.reduce((s, r) => { const m = r.estSummary && r.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return s + (m ? Number(m[1]) : 0); }, 0);
           return { labor, parts, misc, hrs: hrs > 0 ? String(hrs) : null };
         })()}
+        needsPricing={needsPricing}
       />
       {concern.recs.map((rec, i) => {
         const isLast = i === concern.recs.length - 1;
@@ -5118,8 +5151,13 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
 const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onToggleConcernRecs, onTitleChange, onAddRec, autoRename, recApprovals, onApprovalChange, compact = true, isFirst = false }) => {
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
-  const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0);
+  const paAmt = concern.preApproved ? ((concern.preApproved.labor || 0) + (concern.preApproved.parts || 0) + (concern.preApproved.misc || 0)) : 0;
+  const displayTotal = concernTotal + paAmt;
+  const shownTotal = concern.recs.reduce((s, r) => s + (r.shownToCustomer != null ? r.shownToCustomer : (r.total || 0)), 0) + paAmt;
   const hasZeroShown = concern.recs.some((r) => r.shownToCustomer === 0 && r.total > 0);
+  const _npLabor = concern.recs.some(r => r.estStatus?.some(s => s.tone === "incomplete" && s.label?.toLowerCase().includes("labor")));
+  const _npParts = concern.recs.some(r => r.estStatus?.some(s => s.tone === "incomplete" && s.label?.toLowerCase().includes("parts")));
+  const needsPricing = _npLabor && _npParts ? "Labor, Parts" : _npLabor ? "Labor" : _npParts ? "Parts" : null;
   // (per-concern checkbox removed — select-all is in section header)
   const preApprovedEl = (concern.type === "occ" && concern.preApproved)
     ? <PreApprovedPill pa={concern.preApproved} concernId={concern.id} concernTitle={concern.title} onRecClick={onRecClick} />
@@ -5148,8 +5186,6 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         onDragEnd={onConcernDragEnd}
         onTitleChange={onTitleChange}
         onAddRec={onAddRec}
-        total={concernTotal}
-        shownTotal={shownTotal}
         hasZeroShown={hasZeroShown}
         showTotal={true}
         autoRename={autoRename}
@@ -5158,14 +5194,17 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         recApprovals={recApprovals}
         recTabLayout={true}
         preApprovedEl={preApprovedEl}
+        total={displayTotal}
+        shownTotal={shownTotal}
         style={{ borderBottom: "1px solid var(--b-2)", borderRadius: compact ? 0 : "7px 7px 0 0" }}
         breakdown={(() => {
-          const labor = concern.recs.reduce((s, r) => s + Number(r.labor || 0), 0);
-          const parts = concern.recs.reduce((s, r) => s + Number(r.parts || 0), 0);
-          const misc  = concern.recs.reduce((s, r) => s + Number(r.misc  || 0), 0);
+          const labor = concern.recs.reduce((s, r) => s + Number(r.labor || 0), 0) + (concern.preApproved?.labor || 0);
+          const parts = concern.recs.reduce((s, r) => s + Number(r.parts || 0), 0) + (concern.preApproved?.parts || 0);
+          const misc  = concern.recs.reduce((s, r) => s + Number(r.misc  || 0), 0) + (concern.preApproved?.misc  || 0);
           const hrs   = concern.recs.reduce((s, r) => { const m = r.estSummary && r.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return s + (m ? Number(m[1]) : 0); }, 0);
           return { labor, parts, misc, hrs: hrs > 0 ? String(hrs) : null };
         })()}
+        needsPricing={needsPricing}
       />
 
 
@@ -5380,13 +5419,13 @@ const initialRecConcerns = [
   {
     id: "occ1", section: "ocr", type: "occ", preApproved: { labor: 380, parts: 0, misc: 10 }, title: "My car is shaking while I drive.",
     recs: [
-      { id: "occ1-r1", status: "fail", recommendation: "Road test confirmed a vibration at highway speed. Recommend a four-wheel balance and inspection of suspension and steering components.", internal: null, shopchat: null, shopchatCount: 0, media: { photos: 2, videos: 1 }, labor: 380.00, parts: 0.00, misc: 10.00, taxes: null, total: 390.00, estSummary: "2.50 hrs, Diagnostics", shownToCustomer: 0, estStatus: [{ tone: "approved", label: "Approved" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "done", label: "Done" }, partsTag: null },
+      { id: "occ1-r1", status: "fail", recommendation: "Road test confirmed a vibration at highway speed. Recommend a four-wheel balance and inspection of suspension and steering components.", internal: null, shopchat: null, shopchatCount: 0, media: { photos: 2, videos: 1 }, labor: 380.00, parts: 0.00, misc: 10.00, taxes: null, total: 390.00, estSummary: "2.50 hrs, Diagnostics", shownToCustomer: null, estStatus: [{ tone: "approved", label: "Approved" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "done", label: "Done" }, partsTag: null },
     ],
   },
   {
     id: "occ2", section: "ocr", type: "occ", preApproved: { labor: 180, parts: 95, misc: 10 }, title: "50K service",
     recs: [
-      { id: "occ2-r1", status: "caution", extraTag: "ACV", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "declined", label: "Declined" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: { tone: "stock", label: "In Stock" }, partsList: [{ partNo: "OIL-5W30-5Q", name: "Synthetic Motor Oil 5W-30 (5qt)", qty: 1, price: 42.00, inStock: true }, { partNo: "FILT-OEM-48254", name: "OEM Oil Filter", qty: 1, price: 18.00, inStock: true }, { partNo: "FILT-AIR-98765", name: "Engine Air Filter", qty: 1, price: 35.00, inStock: false }] },
+      { id: "occ2-r1", status: "caution", extraTag: "ACV", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "approved", label: "Approved" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "working", label: "Working" }, partsTag: { tone: "stock", label: "In Stock" }, partsList: [{ partNo: "OIL-5W30-5Q", name: "Synthetic Motor Oil 5W-30 (5qt)", qty: 1, price: 42.00, inStock: true }, { partNo: "FILT-OEM-48254", name: "OEM Oil Filter", qty: 1, price: 18.00, inStock: true }, { partNo: "FILT-AIR-98765", name: "Engine Air Filter", qty: 1, price: 35.00, inStock: false }] },
     ],
   },
   {
@@ -5396,26 +5435,26 @@ const initialRecConcerns = [
   {
     id: "asc1", section: "mpi", type: "asc_m", title: "Head lights / tail lights / turn signals / brake lights / hazard warning lights / exterior lamps",
     recs: [
-      { id: "asc1-r1", status: "fail", extraTag: "Previously Declined", recommendation: "Alternate Value Option - Please ask your advisor about the alternate value options available for this service.", internal: "Checked with parts supplier — OEM headlight assembly is on backorder 2 weeks. Aftermarket equivalent is available same-day if the customer wants to avoid the delay.", shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: 0, estSummary: null, shownToCustomer: 0, declineCount: 2, estStatus: [{ tone: "incomplete", label: "Incomplete Labor" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: null, partsTag: null },
+      { id: "asc1-r1", status: "fail", extraTag: "Previously Declined", recommendation: "Alternate Value Option - Please ask your advisor about the alternate value options available for this service.", internal: "Checked with parts supplier — OEM headlight assembly is on backorder 2 weeks. Aftermarket equivalent is available same-day if the customer wants to avoid the delay.", shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: 0, estSummary: null, shownToCustomer: 0, declineCount: 2, estStatus: [{ tone: "incomplete", label: "Incomplete Labor" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "awaiting-auth", label: "Awaiting Authorization" }, partsTag: null },
     ],
   },
   {
     id: "asc2", section: "mpi", type: "asc_m", title: "Windshield wiper and washer operation",
     recs: [
-      { id: "asc2-r1", status: "fail", recommendation: "Replace front wiper motor — intermittent failure confirmed on test.", internal: "Motor sticks intermittently on cold starts — confirmed on 3 test cycles this morning. Customer has declined this twice already; worth mentioning the visibility/safety risk on the next follow-up.", shopchat: "bhai picchle vaale se bhi bada shopchat test karte hainbhai bade shopchat ke saath dekhna kya ho…", shopchatCount: 5, media: { photos: 1, videos: 0 }, labor: 10.00, parts: 20.00, misc: 1.12, taxes: null, total: 31.12, estSummary: "10.00 hrs, TestPrice", shownToCustomer: 31.12, declineCount: 3, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "done", label: "Done" }, partsTag: { tone: "stock", label: "In Stock" }, partsList: [{ partNo: "WM-19210-SX0", name: "Front Wiper Motor Assembly", qty: 1, price: 20.00, inStock: true }] },
+      { id: "asc2-r1", status: "fail", recommendation: "Replace front wiper motor — intermittent failure confirmed on test.", internal: "Motor sticks intermittently on cold starts — confirmed on 3 test cycles this morning. Customer has declined this twice already; worth mentioning the visibility/safety risk on the next follow-up.", shopchat: "bhai picchle vaale se bhi bada shopchat test karte hainbhai bade shopchat ke saath dekhna kya ho…", shopchatCount: 5, media: { photos: 1, videos: 0 }, labor: 10.00, parts: 20.00, misc: 1.12, taxes: null, total: 31.12, estSummary: "10.00 hrs, TestPrice", shownToCustomer: 31.12, declineCount: 3, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "parts-pulled", label: "Parts Pulled" }, partsTag: { tone: "stock", label: "In Stock" }, partsList: [{ partNo: "WM-19210-SX0", name: "Front Wiper Motor Assembly", qty: 1, price: 20.00, inStock: true }] },
 
     ],
   },
   {
     id: "asc3", section: "mpi", type: "asc_m", title: "Cabin air filter",
     recs: [
-      { id: "asc3-r1", status: "caution", extraTag: "Traxtion", recommendation: "Cabin air filter is heavily clogged with debris — recommend replacement to restore proper airflow and HVAC performance.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "gray", label: "Need parts pulled" }, partsTag: { tone: "out-of-stock", label: "Out of Stock" } },
+      { id: "asc3-r1", status: "caution", extraTag: "Traxtion", recommendation: "Cabin air filter is heavily clogged with debris — recommend replacement to restore proper airflow and HVAC performance.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "need-parts", label: "Need Parts Pulled" }, partsTag: { tone: "out-of-stock", label: "Out of Stock" } },
     ],
   },
   {
     id: "asc4", section: "mpi", type: "asc_m", title: "Battery state of health",
     recs: [
-      { id: "asc4-r1", status: "fail", recommendation: "Battery SOH at 62% — recommend replacement before winter to avoid no-start risk.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: null, partsTag: null },
+      { id: "asc4-r1", status: "fail", recommendation: "Battery SOH at 62% — recommend replacement before winter to avoid no-start risk.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "not-started", label: "Not Started (Tech Assigned)" }, partsTag: null },
     ],
   },
 ];
@@ -5626,7 +5665,7 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
   const mpi = filteredItems.filter((x) => x.section === "mpi");
 
   return (
-    <div style={{ background: "var(--bg-cream-soft)" }}>
+    <div style={{ background: "var(--bg-canvas)", flex: 1, display: "flex", flexDirection: "column" }}>
       {/* Toolbar: RecActionBar with bulk actions */}
       <div style={{ padding: "10px 16px 0", background: "var(--bg-white)", borderBottom: "1px solid var(--b-1)", position: "sticky", top: 0, zIndex: 20 }}>
         <RecActionBar
@@ -5640,7 +5679,7 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
           onAddCustomRec={onAddCustomRec}
         />
       </div>
-      <div style={{ padding: "16px 16px 20px", background: "var(--bg-canvas)" }}>
+      <div style={{ padding: "16px 16px 20px", background: "var(--bg-canvas)", flex: 1 }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <RecSectionHeader
             title="Concerns"
@@ -5664,31 +5703,42 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
             })()}
           />
           {(() => {
-            const allCards = [
-              ...ocr.map((c, i) => ({ c, letter: String.fromCharCode(65 + i), reorderable: false, isOcr: true })),
-              ...mpi.map((c) => ({ c, reorderable: mpi.length > 1, isOcr: false })),
-            ];
-            if (allCards.length === 0) return <RecEmptyDrop label="No concerns match the active filter." />;
-            const cards = allCards.map(({ c, letter, reorderable }, idx) => {
-              const p = concernPalette[c.type] || concernPalette.asc_m;
-              return (
-                <RecConcernCard
-                  key={c.id + String(compact)}
-                  concern={c}
-                  letter={letter}
-                  compact={compact}
-                  isFirst={idx === 0}
-                  reorderable={reorderable}
-                  onReorderConcern={reorderable ? (targetId, before) => reorderConcern(c.id, targetId, before) : undefined}
-                  onConcernDragStart={() => setConcernDrag(c.id)}
-                  onConcernDragEnd={() => setConcernDrag(null)}
-                  dragging={concernDrag === c.id}
-                  autoRename={c.id === newConcernId}
-                  {...common}
-                />
-              );
-            });
-            return cards;
+            if (ocr.length === 0 && mpi.length === 0) return <RecEmptyDrop label="No concerns match the active filter." />;
+            const sectionLabel = (text) => (
+              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-3)", paddingLeft: 2, paddingBottom: 8 }}>{text}</div>
+            );
+            const makeCard = (c, { letter, reorderable, isFirst }) => (
+              <RecConcernCard
+                key={c.id + String(compact)}
+                concern={c}
+                letter={letter}
+                compact={compact}
+                isFirst={isFirst}
+                reorderable={reorderable}
+                onReorderConcern={reorderable ? (targetId, before) => reorderConcern(c.id, targetId, before) : undefined}
+                onConcernDragStart={() => setConcernDrag(c.id)}
+                onConcernDragEnd={() => setConcernDrag(null)}
+                dragging={concernDrag === c.id}
+                autoRename={c.id === newConcernId}
+                {...common}
+              />
+            );
+            return (
+              <>
+                {ocr.length > 0 && (
+                  <>
+                    {sectionLabel("Original Customer Concerns")}
+                    {ocr.map((c, i) => makeCard(c, { letter: String.fromCharCode(65 + i), reorderable: false, isFirst: i === 0 }))}
+                  </>
+                )}
+                {mpi.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-3)", paddingLeft: 2, paddingBottom: 8, marginTop: ocr.length > 0 ? 20 : 0 }}>Additional Service Concerns</div>
+                    {mpi.map((c, i) => makeCard(c, { letter: undefined, reorderable: mpi.length > 1, isFirst: i === 0 }))}
+                  </>
+                )}
+              </>
+            );
           })()}
         </div>
       </div>
@@ -5885,8 +5935,8 @@ const PartsRecCard = ({ rec, concern, letter, initialOpen = true }) => {
   ];
 
   const p = concernPalette[concern.type] || concernPalette.asc_m;
-  const statusBg = rec.status === "fail" ? "var(--red-50)" : rec.status === "caution" ? "var(--yellow-25)" : "var(--green-50)";
-  const statusColor = rec.status === "fail" ? "var(--red-600)" : rec.status === "caution" ? "var(--yellow-700)" : "var(--green-700)";
+  const statusBg = rec.status === "fail" ? "#B82828" : rec.status === "caution" ? "#F2B91A" : "#2A8736";
+  const statusColor = rec.status === "fail" ? "#fff" : rec.status === "caution" ? "#3D2A00" : "#fff";
   const statusLabel = rec.status === "fail" ? "FAIL" : rec.status === "caution" ? "CAUTION" : "PASS";
 
   const totalAmt = parts.reduce((s, r) => selectedRows.has(r.id) ? s + (parseFloat(r.sellPrice) || 0) * Math.max(1, parseInt(r.qty) || 1) : s, 0);
@@ -7370,10 +7420,12 @@ const MPIPage = () => {
       preLinked: !!ctx.preLinked,
       isNewRec,
       editingRecId: ctx.editingRecId || null,
+      initialSection: ctx.initialSection || null,
       sourceType,
       sourceConcernTitle,
       inspectionMedia: lockedConcern ? { photos: 2, videos: 1 } : null,
       defaults: { ...inferredDefaults, ...(ctx.defaults || {}) },
+      isPreApproved: !!ctx._isPreApproved,
       _openTime: Date.now(),
       groups: ctx.targetConcernId
         ? buildConcernGroups(ctx.targetConcernId)
@@ -7595,7 +7647,7 @@ const MPIPage = () => {
               onTireReading={setSectionTireReading}
               onAddRec={addRecToConcern}
               onAddCustomRec={() => openModalFor({ inspectionPoint: "Custom recommendation", inspectionDetail: "", inspectionResult: "failed", isNewRec: true })}
-              onRecClick={(rec, concernId) => {
+              onRecClick={(rec, concernId, section) => {
                 const statusKind = typeof rec.status === "string" ? rec.status : rec.status?.kind;
                 openModalFor({
                   inspectionPoint: rec.sourceFormItemName || rec.recommendation || rec.text || "",
@@ -7604,6 +7656,8 @@ const MPIPage = () => {
                   targetConcernId: concernId,
                   preLinked: true,
                   editingRecId: rec.id,
+                  initialSection: section || null,
+                  _isPreApproved: !!rec._isPreApproved,
                   defaults: {
                     whatNeedsDone: rec.recommendation || rec.text || "",
                     labor: rec.labor != null ? String(rec.labor) : "0",
@@ -7809,6 +7863,7 @@ const MPIPage = () => {
 
             <RecEditorModal
               key={modal._openTime}
+              initialSection={modal.initialSection}
               inspectionPoint={modal.inspectionPoint}
               inspectionDetail={modal.inspectionDetail}
               inspectionResult={modal.inspectionResult}
@@ -7817,6 +7872,7 @@ const MPIPage = () => {
               preLinked={modal.preLinked}
               lockedConcern={modal.lockedConcern}
               lockedConcernLabel={modal.lockedConcernLabel}
+              isPreApproved={modal.isPreApproved}
               defaults={modal.defaults}
               variant={editorVariant}
               tire={modal.tire}
