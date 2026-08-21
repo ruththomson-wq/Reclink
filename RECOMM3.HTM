@@ -52,8 +52,8 @@
   --form-text: #1F6F4B;
   --form-bg:   #DCEEDD;
 
-  --asc-cos-text: #1E5BBE;
-  --asc-cos-bg:   #DDE9F8;
+  --asc-cos-text: #535862;
+  --asc-cos-bg:   #F0F1F3;
 
   /* status */
   --red-700: #9C2222;
@@ -94,10 +94,10 @@ input, select, textarea { font-family: inherit; color: inherit; }
   font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
   padding: 2px 7px; border-radius: 4px; line-height: 1.45;
 }
-.pill.occ    { background: var(--occ-strong); color: #fff; border: none; }
+.pill.occ    { background: var(--occ-bg); color: var(--occ-text); border: none; }
 .pill.custom { background: var(--custom-bg); color: var(--custom-text); }
 .pill.form   { background: var(--form-bg);   color: var(--form-text); }
-.pill.asc-cos{ display: none; }
+.pill.asc-cos{ background: var(--asc-cos-bg); color: var(--asc-cos-text); }
 .pill.ungrouped { background: #F0F1F3; color: #535862; }
 .pill.preapproved { background: var(--blue-100); color: var(--blue-700); text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
 .pill.urgent { background: var(--red-100); color: var(--red-700); text-transform: none; letter-spacing: 0.01em; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
@@ -1435,7 +1435,7 @@ const FormItemSearchField = ({ value = "", onChange, formItems = [], placeholder
             onMouseLeave={e => e.currentTarget.style.background = "var(--blue-25)"}
           >
             <IconX size={13} style={{ color: "var(--blue-500)", flexShrink: 0 }} />
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--blue-600)" }}>Keep custom — not an inspection question</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--blue-600)" }}>{query.trim() ? `Keep "${query.trim()}" — not an inspection question` : "Keep custom — not an inspection question"}</span>
           </div>
         </div>
       )}
@@ -1562,6 +1562,7 @@ const RecEditorModal = ({
   onDelete,
   onPreviewChange,
   externalConcernId = null,
+  phase = 1,
   isPreApproved = false,
 }) => {
   const isPanel = variant === "panel";
@@ -1597,7 +1598,16 @@ const RecEditorModal = ({
   const [placementSearch, setPlacementSearch] = React.useState("");
   const placementDropdownRef = React.useRef(null);
   const placementSearchRef = React.useRef(null);
-  const [currentPlacementId, setCurrentPlacementId] = React.useState(defaultConcern);
+  // For a locked-concern (fail/caution) rec, defaultConcern is the point's own synthetic
+  // "mpi:<id>" concern — but the toggle should default to "Keep rec by itself", same as a
+  // brand-new +Custom rec, rather than pre-selecting "Link to a concern". Saving with
+  // "__unlinked__" already resolves to a standalone concern named after the inspection point
+  // (see the onSave handler), so this doesn't lose the point-name binding.
+  const [currentPlacementId, setCurrentPlacementId] = React.useState(lockedConcern ? "__unlinked__" : defaultConcern);
+  // Shared with the isNewRec/lockedConcern placement toggle further below, and with the
+  // "concern name" section of the unified inspection-result box: true once the "Link to a
+  // concern" segment is active (a concern is chosen, or its dropdown is open).
+  const underMode = currentPlacementId !== "__unlinked__" || placementDropdownOpen;
   // Sync external concern changes (e.g. dragging "Current rec" or clicking "New concern" in preview)
   React.useEffect(() => {
     if (externalConcernId) {
@@ -1609,18 +1619,38 @@ const RecEditorModal = ({
   }, [externalConcernId]);
   const [customConcernName, setCustomConcernName] = React.useState("");
   const [formItemQuery, setFormItemQuery] = React.useState(lockedConcern ? (inspectionPoint || "") : "");
-  // When editing from an ASC / lockedConcern flow, start in committed (locked) mode
+  // Derive display info for the PLACEMENT dropdown — computed here (rather than further below)
+  // because formItemCommitted's initial value depends on placementTitle; referencing it before
+  // this declaration silently evaluated to undefined (no start-committed state for preLinked recs).
+  const placementConcernObj = allConcerns.find(c => c.id === currentPlacementId);
+  const placementTypeStr = placementConcernObj ? (placementConcernObj.type === "occ" ? "occ" : "asc") : (sourceType || "asc");
+  const placementTypeLabel = placementTypeStr === "occ" ? "OCC" : "ASC";
+  const placementTitle = placementConcernObj ? placementConcernObj.title : (sourceConcernTitle || inspectionPoint || "");
+  // Pull-inspection-question only starts pre-committed for the true lockedConcern flow (the rec
+  // IS a specific MPI point). preLinked (already grouped under a concern) does NOT imply a
+  // question was ever pulled — that field should start blank/interactive so the user can
+  // optionally search, same as the reference behavior.
   const [formItemCommitted, setFormItemCommitted] = React.useState(
-    (preLinked && placementTitle) ? placementTitle
-    : (lockedConcern && inspectionPoint) ? inspectionPoint
-    : null
+    (lockedConcern && inspectionPoint) ? inspectionPoint : null
   );
   const [formItemCommittedId, setFormItemCommittedId] = React.useState(null);
   const [formSearchKey, setFormSearchKey] = React.useState(0);
   const [keepCustom, setKeepCustom] = React.useState(false);
 
-  const linkTourActive = false;
-  const dismissLinkTour = () => {};
+  const [linkTourDismissed, setLinkTourDismissed] = React.useState(() => {
+    try { return localStorage.getItem("reclink_link_tour_seen") === "1"; } catch (e) { return false; }
+  });
+  // The coach-mark tour targets the older "Link to existing concern" panel used when editing a
+  // freely-linked rec — it doesn't apply to the simpler Keep-rec-by-itself/Link-to-a-concern
+  // toggle (used for both the brand-new +Custom flow and locked-concern fail/caution recs), and
+  // (since that toggle doesn't render the tour's zIndex-102 spotlight/backdrop callout) leaving it
+  // active there would let the full-body dim backdrop silently swallow the toggle's first click
+  // instead of dismissing.
+  const linkTourActive = phase === 2 && !linkTourDismissed && !isNewRec && !lockedConcern && !isPreApproved;
+  const dismissLinkTour = () => {
+    setLinkTourDismissed(true);
+    try { localStorage.setItem("reclink_link_tour_seen", "1"); } catch (e) {}
+  };
 
   // Close placement dropdown on outside click
   React.useEffect(() => {
@@ -1633,12 +1663,6 @@ const RecEditorModal = ({
     if (placementDropdownOpen) setTimeout(() => placementSearchRef.current?.focus(), 30);
     else setPlacementSearch("");
   }, [placementDropdownOpen]);
-
-  // Derive display info for the PLACEMENT dropdown
-  const placementConcernObj = allConcerns.find(c => c.id === currentPlacementId);
-  const placementTypeStr = placementConcernObj ? (placementConcernObj.type === "occ" ? "occ" : "asc") : (sourceType || "asc");
-  const placementTypeLabel = placementTypeStr === "occ" ? "OCC" : "ASC";
-  const placementTitle = placementConcernObj ? placementConcernObj.title : (sourceConcernTitle || inspectionPoint || "");
 
   // When preLinked: show search bar (inputMode) + AddedToTag below with UNLINK
   const [concern, setConcern] = React.useState(preLinked ? "new-form-concern" : defaultConcern);
@@ -1761,7 +1785,7 @@ const RecEditorModal = ({
       <div style={{
         flexShrink: 0,
         display: "flex", alignItems: "center", gap: 12,
-        padding: "16px 24px",
+        padding: "18px 28px",
         borderBottom: "1px solid var(--b-1)",
       }}>
         <div style={{
@@ -1774,8 +1798,8 @@ const RecEditorModal = ({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01 }}>{isPreApproved ? "Pre-Approved" : (lockedConcern ? inspectionPoint : "Recommendation")}</span>
-            {headStatus.label && (
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01 }}>{isPreApproved ? (sourceConcernTitle || "Pre-Approved") : (lockedConcern ? inspectionPoint : "Recommendation")}</span>
+            {!isPreApproved && headStatus.label && (
               <span className="pill" style={{ background: headStatus.bg, color: headStatus.t, textTransform: "none", letterSpacing: 0.02, fontWeight: 600 }}>
                 {headStatus.label}
               </span>
@@ -1799,34 +1823,344 @@ const RecEditorModal = ({
       </div>
 
       {/* Body */}
-      <div className="scrollable" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 24px 12px 24px", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
+      <div className="scrollable" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "22px 28px 22px 28px", display: "flex", flexDirection: "column", gap: 16, position: "relative" }}>
+
+        {/* Details — static (non-collapsible, always visible) icon+label for the core rec-editing
+            fields below (placement, inspection result / pull question, recommendation, labor).
+            Matches the accordion sections' header styling (uppercase — those get it for free from
+            the global `button { text-transform: uppercase }` rule since their titles render inside
+            a <button>; this one is a plain <div>, so it's set explicitly here) and relies on the
+            body's own flex gap (16px) for spacing instead of a one-off margin, so the placement
+            question row below sits with the same breathing room as every other section. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ color: "var(--t-3)", display: "grid", placeItems: "center" }}>
+            <IconPencil size={13} />
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)", textTransform: "uppercase" }}>Recommendation details</span>
+        </div>
 
         {/* Coach mark backdrop — dims the modal body so the link section spotlights */}
         {linkTourActive && (
           <div onClick={dismissLinkTour} style={{ position: "absolute", inset: 0, background: "rgba(16,24,40,0.72)", zIndex: 101, cursor: "pointer", borderRadius: "0 0 16px 16px" }} />
         )}
 
-        {/* Unified: INSPECTION RESULT + CONCERN NAME */}
-        <div style={{ display: "flex", alignItems: "stretch", border: "1px solid var(--b-1)", borderRadius: 8, background: "var(--bg-cream-soft)" }}>
-          {!isPreApproved && <div style={{ padding: "12px 16px", flexShrink: 0, borderRight: "1px solid var(--b-1)" }}>
+        {/* Phase 2: LINK TO EXISTING CONCERN section — for a brand-new +Custom rec (isNewRec)
+            this renders as a simpler "Where should this show on the RO?" By-itself/Under-a-concern
+            toggle instead of the fuller existing-rec panel; both share the same dropdown-list and
+            collapsed "Linked to X + Change" markup so the underlying state machine stays unified. */}
+        {phase === 2 && (() => {
+          const placementDropdownPanel = placementDropdownOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
+              background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.14)", maxHeight: 260, overflowY: "auto",
+            }} className="scrollable">
+              <div style={{ padding: "8px 10px 4px" }}>
+                <input
+                  ref={placementSearchRef}
+                  value={placementSearch}
+                  onChange={e => setPlacementSearch(e.target.value)}
+                  placeholder="Search concerns..."
+                  style={{ width: "100%", height: 32, padding: "0 10px", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 14, outline: "none", background: "var(--bg-cream-soft)" }}
+                />
+              </div>
+              {(() => {
+                const q = placementSearch.trim().toLowerCase();
+                const matchesQ = (title) => !q || title.toLowerCase().includes(q);
+                const occItems = allConcerns.filter(c => c.type === "occ" && matchesQ(c.title));
+                const ascItems = allConcerns.filter(c => c.type !== "occ" && c.id !== "__unlinked__" && matchesQ(c.title));
+                // The "keep by itself" row always shows this rec's own concern name (not a
+                // generic placeholder) — picking it detaches the rec into its own standalone ASC.
+                const standaloneEntry = allConcerns.find(c => c.id === "__unlinked__");
+                const genericStandaloneLabels = ["Keep rec by itself", "Keep by itself", "Keep standalone", "Keep standalone (no concern)", "Add a custom concern"];
+                const standaloneTitle = (standaloneEntry && standaloneEntry.title && !genericStandaloneLabels.includes(standaloneEntry.title))
+                  ? standaloneEntry.title
+                  : (placementTitle || "New concern");
+                const standaloneMatches = matchesQ(standaloneTitle);
+
+                const sectionHeader = (label) => (
+                  <div key={`h-${label}`} style={{ padding: "10px 12px 4px", fontSize: 11, fontWeight: 600, letterSpacing: 0.08, textTransform: "uppercase", color: "var(--t-4)" }}>{label}</div>
+                );
+                const row = ({ id, pillType, pillLabel, title, onPick }) => {
+                  const isSelected = currentPlacementId === id;
+                  return (
+                    <div
+                      key={id}
+                      onClick={onPick}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", background: isSelected ? "var(--blue-50)" : "transparent", borderLeft: isSelected ? "3px solid var(--blue-500)" : "3px solid transparent" }}
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "var(--bg-cream)"; }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <span className={`pill ${pillType}`}>{pillLabel}</span>
+                      <span style={{ fontSize: 14, color: "var(--t-1)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
+                      {isSelected && (
+                        <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--blue-700)", background: "var(--blue-50)", border: "1px solid var(--blue-200)", borderRadius: 4, padding: "2px 6px" }}>Current</span>
+                      )}
+                    </div>
+                  );
+                };
+                const pick = (id) => {
+                  setCurrentPlacementId(id); setDirty(true); setPlacementDropdownOpen(false); dismissLinkTour();
+                  setChangingPlacement(false); setUserPickedConcern(id !== "__unlinked__"); setAutoConcernLocked(false);
+                };
+
+                if (!occItems.length && !ascItems.length && !standaloneMatches) {
+                  return <div style={{ padding: "14px", fontSize: 14, color: "var(--t-3)" }}>No matching concerns</div>;
+                }
+
+                return (
+                  <React.Fragment>
+                    {occItems.length > 0 && (
+                      <React.Fragment>
+                        {sectionHeader("Link to an original customer concern")}
+                        {occItems.map(c => row({ id: c.id, pillType: "occ", pillLabel: "OCC", title: c.title, onPick: () => pick(c.id) }))}
+                      </React.Fragment>
+                    )}
+                    {ascItems.length > 0 && (
+                      <React.Fragment>
+                        {sectionHeader("Link to an additional service concern")}
+                        {ascItems.map(c => row({ id: c.id, pillType: "asc-cos", pillLabel: "ASC", title: c.title, onPick: () => pick(c.id) }))}
+                      </React.Fragment>
+                    )}
+                    {standaloneMatches && (
+                      <React.Fragment>
+                        {sectionHeader("Keep rec by itself")}
+                        {row({ id: "__unlinked__", pillType: "asc-cos", pillLabel: "ASC", title: standaloneTitle, onPick: () => pick("__unlinked__") })}
+                      </React.Fragment>
+                    )}
+                  </React.Fragment>
+                );
+              })()}
+            </div>
+          );
+
+          // Shared "Linked to [pill] Title + Change" collapsed row — reused by both the isNewRec
+          // toggle and the standard existing-rec panel below.
+          const collapsedLinkedRow = (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", height: 36, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-white)", gap: 8, minWidth: 0 }}>
+                <IconLink size={12} style={{ color: "var(--blue-500)", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, color: "var(--t-3)", flexShrink: 0 }}>Linked to</span>
+                <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{placementTypeLabel}</span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{placementTitle}</span>
+              </div>
+              <button
+                onClick={() => { setChangingPlacement(true); setPlacementDropdownOpen(true); }}
+                style={{ flexShrink: 0, height: 36, padding: "0 12px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "var(--t-2)", cursor: "pointer", whiteSpace: "nowrap" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-2)"; }}
+              >Change</button>
+            </div>
+          );
+
+          // Committed row shows only once the user has actively picked a concern (not just
+          // auto-derived from pulling an inspection question).
+          const isCollapsedLinked = userPickedConcern && !autoConcernLocked && currentPlacementId !== "__unlinked__" && !changingPlacement;
+
+          if (isPreApproved) {
+            // Pre-approved recs are permanently tied to their OCC concern — no Keep-rec-by-itself/
+            // Link-to-a-concern toggle (there's nothing to choose) and no Change button (nothing
+            // to change to). Just show which concern it's linked to, as a plain read-only row.
+            return (
+              <div style={{ display: "flex", alignItems: "center", height: 36, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-white)", gap: 8 }}>
+                <IconLink size={12} style={{ color: "var(--blue-500)", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, color: "var(--t-3)", flexShrink: 0 }}>Linked to</span>
+                <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{placementTypeLabel}</span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{placementTitle}</span>
+              </div>
+            );
+          }
+
+          if (isNewRec || lockedConcern) {
+            return (
+              <div ref={placementDropdownRef} style={{ position: "relative" }}>
+                {/* No standalone question label here — the two options are self-explanatory, and
+                    this sits directly under the DETAILS header, so a second header would be
+                    redundant. The toggle spans the full section width with two equal segments. */}
+                <div style={{ display: "flex", width: "100%", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 8, padding: 3, gap: 2 }}>
+                    <button
+                      onClick={() => {
+                        setCurrentPlacementId("__unlinked__"); setUserPickedConcern(false); setAutoConcernLocked(false);
+                        setChangingPlacement(false); setPlacementDropdownOpen(false); setDirty(true);
+                      }}
+                      style={{
+                        flex: 1, height: 32, padding: "0 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 600,
+                        background: !underMode ? "var(--bg-white)" : "transparent",
+                        color: !underMode ? "var(--t-1)" : "var(--t-4)",
+                        boxShadow: !underMode ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                      }}
+                    >Keep rec by itself</button>
+                    <button
+                      onClick={() => { setPlacementDropdownOpen(true); setChangingPlacement(currentPlacementId !== "__unlinked__"); }}
+                      style={{
+                        flex: 1, height: 32, padding: "0 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 13.5, fontWeight: 600,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                        background: underMode ? "var(--bg-white)" : "transparent",
+                        color: underMode ? "var(--t-1)" : "var(--t-4)",
+                        boxShadow: underMode ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                      }}
+                    >Link to a concern <IconChevDown size={12} style={{ transition: "transform 180ms", transform: placementDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} /></button>
+                </div>
+                {isCollapsedLinked && !placementDropdownOpen && (
+                  <div style={{ marginTop: 8 }}>{collapsedLinkedRow}</div>
+                )}
+                {changingPlacement && placementTitle && placementDropdownOpen && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, marginBottom: 5 }}>
+                    <span style={{ fontSize: 12, color: "var(--t-4)", fontWeight: 600, flexShrink: 0 }}>Currently linked:</span>
+                    <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{placementTypeLabel}</span>
+                    <span style={{ fontSize: 12.5, color: "var(--t-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{placementTitle}</span>
+                  </div>
+                )}
+                {placementDropdownPanel}
+              </div>
+            );
+          }
+
+          return (
+          <div ref={placementDropdownRef} style={{
+            border: linkTourActive ? "1px solid var(--blue-500)" : "none",
+            borderRadius: 8,
+            background: linkTourActive ? "var(--blue-50,#eff6ff)" : "var(--bg-white)",
+            position: "relative",
+            zIndex: linkTourActive ? 102 : undefined,
+            animation: linkTourActive ? "placementGlow 1.4s ease infinite" : undefined,
+          }}>
+            {/* Header + dropdown row share a single padding scope — matches the "Pull inspection
+                question" box below (12px 16px) so both sections' content lines up at the same
+                left inset instead of stacking their own separate, mismatched paddings. */}
+            <div style={{ padding: "12px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--t-3)", textTransform: "uppercase", letterSpacing: "0.07em", flex: 1 }}>
+                Link to existing concern <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+              </span>
+              <InfoTooltip tip="Group this recommendation under a concern so the customer sees them together." />
+              {phase === 2 && (
+                <span style={{ background: "var(--blue-600)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 3, letterSpacing: "0.04em" }}>NEW</span>
+              )}
+            </div>
+            {isCollapsedLinked ? collapsedLinkedRow : (
+            <div style={{ position: "relative" }}>
+              {changingPlacement && placementTitle && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                  <span style={{ fontSize: 12, color: "var(--t-4)", fontWeight: 600, flexShrink: 0 }}>Currently linked:</span>
+                  <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{placementTypeLabel}</span>
+                  <span style={{ fontSize: 12.5, color: "var(--t-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{placementTitle}</span>
+                </div>
+              )}
+              <div
+                onClick={() => setPlacementDropdownOpen(p => !p)}
+                style={{ height: 36, border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-white)", display: "flex", alignItems: "center", gap: 8, padding: "0 10px", cursor: "pointer", overflow: "hidden" }}
+              >
+                {currentPlacementId && currentPlacementId !== "__unlinked__" ? (
+                  <>
+                    <span className={`pill ${placementTypeStr === "occ" ? "occ" : "asc-cos"}`} style={{ flexShrink: 0 }}>{placementTypeLabel}</span>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{placementTitle}</span>
+                    {(lockedConcern || autoConcernLocked) && !userPickedConcern && (
+                      <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-4)", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 4, padding: "1px 6px" }}>current concern</span>
+                    )}
+                  </>
+                ) : (
+                  <span style={{ fontSize: 14, color: "var(--t-4)", flex: 1 }}>Keep rec by itself</span>
+                )}
+                <IconChevDown size={14} style={{ flexShrink: 0, color: "var(--t-3)", transition: "transform 180ms", transform: placementDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+              </div>
+              {placementDropdownPanel}
+            </div>
+            )}
+            </div>
+            {/* Tour callout */}
+            {linkTourActive && (
+              <div style={{ padding: "10px 16px 12px", borderTop: "1px solid var(--blue-200)", display: "flex", alignItems: "center", gap: 10 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue-600)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                <span style={{ flex: 1, fontSize: 13, color: "var(--blue-700)", lineHeight: 1.4 }}>Select the dropdown to group this recommendation under an existing concern.</span>
+                <button onClick={dismissLinkTour} style={{ background: "none", border: "none", fontSize: 13, fontWeight: 700, color: "var(--blue-600)", cursor: "pointer", padding: "0 4px", flexShrink: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                  onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}
+                >Acknowledged</button>
+              </div>
+            )}
+          </div>
+          );
+        })()}
+
+        {/* Unified: INSPECTION RESULT + CONCERN NAME — hidden entirely for a pre-approved rec: it's
+            already tied to its OCC concern (shown via the placement toggle above) and has no
+            fail/caution result of its own, so there's nothing left for this box to show. */}
+        {!isPreApproved && (
+        <div style={{ display: "flex", flexDirection: "column", border: "1px solid var(--b-1)", borderRadius: 8, background: "var(--bg-cream-soft)" }}>
+        {/* For a locked-concern (fail/caution) rec, the point name is already shown in the modal's
+            own header ("<point> — Linked to <section>"), so the "Pull inspection question" label +
+            read-only box here would just repeat it. Skip straight to the status buttons below. */}
+        {!lockedConcern && (
+        <div style={{ display: "flex", alignItems: "stretch" }}>
+          {/* Left: Inspection result — hidden once a question is pulled in, since the bottom expansion
+              below takes over showing the effective status/tire grid. Clicking "Change" clears the
+              commitment and should fully revert to this default state, so this no longer also
+              depends on formSearchKey (which only controls whether the search dropdown auto-opens). */}
+          {!isPreApproved && !formItemCommitted && <div style={{ padding: "12px 16px", flexShrink: 0, borderRight: (isNewRec && underMode) ? "none" : "1px solid var(--b-1)" }}>
             <label className="field-label">Inspection result</label>
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
               <GradeStatusBtn kind="fail"    label="Fail"    active={status === "fail"}    onClick={() => { setStatus("fail");    setDirty(true); }} />
               <GradeStatusBtn kind="caution" label="Caution" active={status === "caution"} onClick={() => { setStatus("caution"); setDirty(true); }} />
             </div>
           </div>}
-          <div style={{ flex: 1, padding: "12px 16px" }}>
+          {/* Concern name / pull-inspection-question column — for +Custom (isNewRec), this only makes
+              sense while "Keep rec by itself" is selected (naming the new standalone concern); once
+              "Link to a concern" is active the rec joins an existing concern's name, so this column
+              disappears and Inspection result stands alone. */}
+          {!(isNewRec && underMode) && <div style={{ flex: 1, padding: "12px 16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
-              <label className="field-label" style={{ margin: 0 }}>Concern name</label>
-              <InfoTooltip tip="Link to an existing inspection question to pre-fill data and group results." />
+              {isNewRec ? (
+                <label className="field-label" style={{ margin: 0 }}>Concern name</label>
+              ) : phase === 2 ? (
+                <label className="field-label" style={{ margin: 0 }}>Pull inspection question <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+              ) : (
+                <label className="field-label" style={{ margin: 0 }}>Concern name</label>
+              )}
+              <InfoTooltip tip={isNewRec ? "Link to an existing inspection question to pre-fill data and group results." : phase === 2 ? "Search for an inspection question to pre-fill inspection fields and pull in additional data." : "Link to an existing inspection question to pre-fill data and group results."} />
             </div>
-            {(preLinked || lockedConcern) ? (
+            {lockedConcern ? (
               <div style={{ height: 36, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-cream-soft)", display: "flex", alignItems: "center", fontSize: 14, color: "var(--t-2)", fontWeight: 500, overflow: "hidden" }}>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inspectionPoint || lockedConcernLabel || "—"}</span>
+              </div>
+            ) : formItemCommitted ? (
+              /* An inspection question has been pulled in — show it as committed with a way to change it. */
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", height: 36, padding: "0 12px", border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-white)", minWidth: 0 }}>
+                  <span style={{ fontSize: 14, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formItemCommitted}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setFormItemCommitted(null); setFormItemQuery(""); setFormItemCommittedId(null); setFormSearchKey(k => k + 1);
+                    setCurrentPlacementId("__unlinked__"); setUserPickedConcern(false); setAutoConcernLocked(false);
+                    setCustomConcernName(""); setKeepCustom(false); setDirty(true);
+                  }}
+                  style={{ flexShrink: 0, height: 36, padding: "0 12px", background: "transparent", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 600, color: "var(--blue-600)", cursor: "pointer", whiteSpace: "nowrap" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--blue-25)"; e.currentTarget.style.borderColor = "var(--blue-200)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--b-2)"; }}
+                >Change</button>
+              </div>
+            ) : keepCustom ? (
+              /* User explicitly kept a custom concern name instead of linking an inspection question. */
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 12px", border: "1px solid var(--blue-200)", borderRadius: 6, background: "var(--blue-25)" }}>
+                <button
+                  onClick={() => { setKeepCustom(false); setFormItemQuery(""); setFormSearchKey(k => k + 1); }}
+                  style={{ display: "flex", alignItems: "center", background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--blue-500)" }}
+                  title="Clear"
+                ><IconX size={13} /></button>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--blue-600)", whiteSpace: "nowrap" }}>Keep custom</span>
+                <button
+                  onClick={() => { setKeepCustom(false); setFormItemQuery(""); setFormSearchKey(k => k + 1); }}
+                  style={{ marginLeft: 4, flexShrink: 0, height: 22, padding: "0 8px", background: "transparent", border: "1px solid var(--blue-200)", borderRadius: 4, fontSize: 12, fontWeight: 600, color: "var(--blue-600)", cursor: "pointer" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--blue-50)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                >Search instead</button>
               </div>
             ) : (
               <FormItemSearchField
                 key={formSearchKey}
+                autoOpen={formSearchKey > 0}
                 value={isNewRec ? customConcernName : formItemQuery}
                 keepQueryOnCustom={true}
                 onChange={(v, item) => {
@@ -1851,17 +2185,32 @@ const RecEditorModal = ({
                   }
                 }}
                 formItems={formItems}
-                placeholder="Search for an inspection question or add custom concern"
+                placeholder={isNewRec ? "Search for an inspection question or add custom concern" : phase === 2 ? "Search for an inspection question" : "Search for an inspection question or add custom concern"}
               />
             )}
-          </div>
+          </div>}
         </div>
+        )}
+        {/* Bottom expansion — once a question is pulled in, show its effective inspection result:
+            the tire tread grid if the pulled question is a tire point, otherwise Fail/Caution. This
+            is what actually reflects the pulled-in data (readings/status) back to the user. */}
+        {formItemCommitted && (
+          <div style={{ borderTop: lockedConcern ? "none" : "1px solid var(--b-1)", padding: "10px 16px" }}>
+            {copyFieldsIsTire ? (
+              <TireTreadSection readings={tireReadings} onChange={handleTire} unit={formLinkedPoint?.unit || "mm"} naked />
+            ) : (
+              <InspectionResultSection status={status} onStatus={(s) => { setStatus(s); setDirty(true); }} naked />
+            )}
+          </div>
+        )}
+        </div>
+        )}
         {isTire && (
           <TireTreadSection readings={tireReadings} onChange={handleTire} unit={(linkedPoint && linkedPoint.unit) || (tire && tire.unit) || "mm"} />
         )}
 
         {/* What needs done + Op code — hidden until concern step is complete, and hidden for pre-approved */}
-        {recFieldsVisible && !isPreApproved && <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
+        {recFieldsVisible && <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
           <div>
             <label className="field-label">Recommendation</label>
             <AutoGrowTextarea id="rec-whatneedsdone" value={whatNeedsDone} onChange={(e) => { setWhatNeedsDone(e.target.value); setDirty(true); }} />
@@ -1915,7 +2264,7 @@ const RecEditorModal = ({
 
         {/* Accordions — hidden until concern step is complete */}
         {recFieldsVisible && <div style={{ display: "flex", flexDirection: "column", marginTop: 6 }}>
-          <RecAccordion icon={IconDoc}     title="Internal note"  subtitle={notes.trim() ? null : "0 notes"} dot={!!notes.trim()} defaultOpen={initialSection ? initialSection === "internal" : true}>
+          <RecAccordion icon={IconDoc}     title="Internal parts notes"  subtitle={notes.trim() ? null : "0 notes"} dot={!!notes.trim()} defaultOpen={true}>
             <textarea
               value={notes}
               onChange={(e) => { setNotes(e.target.value); setDirty(true); }}
@@ -1930,10 +2279,10 @@ const RecEditorModal = ({
               }}
             />
           </RecAccordion>
-          <RecAccordion icon={IconTarget}  title="Itemized parts"        subtitle={itemized.length ? `${itemized.length} part${itemized.length !== 1 ? "s" : ""} · $${partsSubtotal.toFixed(2)} subtotal` : "No parts added"} defaultOpen={initialSection ? initialSection === "parts" : true}>
+          <RecAccordion icon={IconTarget}  title="Itemized parts"        subtitle={itemized.length ? `${itemized.length} part${itemized.length !== 1 ? "s" : ""} · $${partsSubtotal.toFixed(2)} subtotal` : "No parts added"} defaultOpen={initialSection === "parts"}>
             <EnhancedPartsTable parts={itemized} onChange={(p) => { setItemized(p); setDirty(true); }} />
           </RecAccordion>
-          <RecAccordion icon={IconImage}   title="Photos & video"        badge="2 photos · 1 video" defaultOpen={initialSection ? initialSection === "media" : true}>
+          <RecAccordion icon={IconImage}   title="Photos & video"        badge="2 photos · 1 video" defaultOpen={initialSection === "media"}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <div style={{ border: "1.5px dashed var(--b-2)", borderRadius: 8, padding: "16px 12px", textAlign: "center", background: "var(--bg-cream-soft)", marginBottom: 8 }}>
@@ -1981,7 +2330,7 @@ const RecEditorModal = ({
       <div style={{
         flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "18px 24px",
+        padding: "18px 28px",
         background: "var(--bg-cream-soft)",
         borderTop: "1px solid var(--b-1)",
       }}>
@@ -2372,7 +2721,7 @@ const PointStatusBadge = ({ status }) => {
 
 // Click-to-open "move" menu — replaces the old drag handle. Lists every other
 // concern as a destination, plus an option to spin up a new concern.
-const MoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDragStart, onDragEnd, onDropAtRec, arrow, standaloneName }) => {
+const MoveMenu = ({ concerns, currentConcernId, linkedConcernId, onSelect, onCreateNew, onDragStart, onDragEnd, onDropAtRec, arrow, standaloneName }) => {
   const [open, setOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState({ top: 0, left: 0 });
   const ref = React.useRef(null);
@@ -2650,7 +2999,7 @@ const CardDragHandle = ({ selfConcernId, onReorder, onDragStart, onDragEnd }) =>
       onClick={(e) => e.stopPropagation()}
       title="Drag to reorder this concern"
       style={{
-        width: 20, height: 22, borderRadius: 5, flexShrink: 0, marginRight: -6,
+        width: 20, height: 22, borderRadius: 5, flexShrink: 0,
         background: "transparent", border: "none",
         color: "var(--t-3)", cursor: "grab",
         display: "grid", placeItems: "center", touchAction: "none",
@@ -2744,7 +3093,7 @@ const MediaThumbnails = ({ media }) => {
 
 // Small media-count tag shown on a rec when photos/videos are attached.
 // Hovering reveals thumbnail placeholders for the attached media.
-const MediaTag = ({ media, onAdd }) => {
+const MediaTag = ({ media, onAdd, size = 18, showBadge = true }) => {
   const [hover, setHover] = React.useState(false);
   const [popPos, setPopPos] = React.useState({ top: 0, left: 0 });
   const tagRef = React.useRef(null);
@@ -2759,16 +3108,16 @@ const MediaTag = ({ media, onAdd }) => {
   const hidePop = () => { hideTimer.current = setTimeout(() => setHover(false), 150); };
   return (
     <span
-      style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}
+      style={{ position: "relative", display: "inline-flex", alignItems: "center", flexShrink: 0 }}
       ref={tagRef}
       onMouseEnter={showPop}
       onMouseLeave={hidePop}
       onClick={(e) => e.stopPropagation()}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={active ? "var(--blue-600)" : "var(--b-3)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
         <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
       </svg>
-      {active && (
+      {active && showBadge && (
         <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, background: "var(--blue-600)", color: "#fff", borderRadius: 999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>{photos + videos}</span>
       )}
       {hover && ReactDOM.createPortal(
@@ -2883,7 +3232,7 @@ const PartsTag = ({ parts, amount, estStatus, onAdd }) => {
 };
 
 
-const InternalNoteTag = ({ note, onAdd }) => {
+const InternalNoteTag = ({ note, onAdd, size = 18, showBadge = true }) => {
   const [hover, setHover] = React.useState(false);
   const [popPos, setPopPos] = React.useState({ top: 0, left: 0 });
   const ref = React.useRef(null);
@@ -2895,7 +3244,7 @@ const InternalNoteTag = ({ note, onAdd }) => {
       onMouseEnter={showPop}
       onMouseLeave={hidePop}
       onClick={e => e.stopPropagation()}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
         stroke={note ? "#B45309" : "var(--b-3)"}
         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -2903,7 +3252,7 @@ const InternalNoteTag = ({ note, onAdd }) => {
         <line x1="16" y1="13" x2="8" y2="13"/>
         <line x1="16" y1="17" x2="8" y2="17"/>
       </svg>
-      {note && <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, background: "#D97706", color: "#fff", borderRadius: 999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>1</span>}
+      {note && showBadge && <span style={{ position: "absolute", top: -5, right: -5, minWidth: 16, height: 16, background: "#D97706", color: "#fff", borderRadius: 999, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", lineHeight: 1, pointerEvents: "none", border: "1.5px solid var(--bg-white)" }}>1</span>}
       {hover && ReactDOM.createPortal(
         <div
           onMouseEnter={() => clearTimeout(hideTimerI.current)}
@@ -2912,12 +3261,12 @@ const InternalNoteTag = ({ note, onAdd }) => {
             background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8,
             boxShadow: "var(--shadow-modal)", zIndex: 9999,
             padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 4 }}>Internal Note</div>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)", marginBottom: 4 }}>Internal Parts Notes</div>
           {note
             ? <div style={{ fontSize: 13, color: "var(--t-1)", lineHeight: 1.5, whiteSpace: "normal" }}>{note}</div>
-            : <div style={{ fontSize: 13, color: "var(--t-3)", fontStyle: "italic" }}>No internal note</div>
+            : <div style={{ fontSize: 13, color: "var(--t-3)", fontStyle: "italic" }}>No internal parts notes</div>
           }
-          {onAdd && <button onClick={e => { e.stopPropagation(); clearTimeout(hideTimerI.current); setHover(false); onAdd("internal"); }} style={{ marginTop: 8, width: "100%", padding: "5px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add internal note</button>}
+          {onAdd && <button onClick={e => { e.stopPropagation(); clearTimeout(hideTimerI.current); setHover(false); onAdd("internal"); }} style={{ marginTop: 8, width: "100%", padding: "5px 0", background: "var(--bg-cream)", border: "1px solid var(--b-2)", borderRadius: 5, color: "var(--t-2)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "center" }}>+ Add internal parts notes</button>}
         </div>,
         document.body
       )}
@@ -2989,12 +3338,35 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
       onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
       onMouseEnter={() => { if (ref.current) { const r = ref.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
       onMouseLeave={() => setHover(false)}
-      style={{ fontSize: 13, fontWeight: 600, color: "var(--t-3)", background: hover ? "var(--bg-cream)" : "var(--bg-white)", border: `1px solid ${hover ? "var(--b-2)" : "var(--b-2)"}`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, lineHeight: "18px", transition: "background 120ms, border-color 120ms", position: "relative" }}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--t-3)", background: hover ? "var(--bg-cream)" : "var(--bg-white)", border: `1px solid ${hover ? "var(--b-2)" : "var(--b-2)"}`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, lineHeight: "18px", transition: "background 120ms, border-color 120ms", position: "relative" }}
     >
-      Pre-Approved · ${paTotal.toFixed(0)}
+      <span>Pre-Approved · ${paTotal.toFixed(0)}</span>
+      {pa.media && (pa.media.photos || pa.media.videos) ? (
+        // Static indicator only — no separate hover popover; the media details show
+        // inside the main Pre-Approved hover popover below instead.
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue-600)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: "block" }}>
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+        </svg>
+      ) : null}
+      {pa.internal ? (
+        <span onMouseEnter={(e) => e.stopPropagation()} onMouseLeave={(e) => e.stopPropagation()}>
+          <InternalNoteTag note={pa.internal} size={13} showBadge={false} />
+        </span>
+      ) : null}
       {hover && (
         <div style={{ position: "fixed", top: popPos.top, left: popPos.left, width: 200, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 9999, padding: "8px 0", fontWeight: 400 }}>
           <div style={{ padding: "2px 12px 6px", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.06, textTransform: "uppercase", color: "var(--t-4)" }}>Pre-Approved</div>
+          {pa.media && (pa.media.photos || pa.media.videos) && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "4px 12px", fontSize: 13.5, color: "var(--t-1)", borderBottom: "1px solid var(--b-1)", marginBottom: 2, paddingBottom: 7 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "var(--t-3)" }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--blue-600)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Media
+              </span>
+              <span style={{ fontWeight: 600 }}>
+                {[pa.media.photos ? `${pa.media.photos} photo${pa.media.photos !== 1 ? "s" : ""}` : null, pa.media.videos ? `${pa.media.videos} video${pa.media.videos !== 1 ? "s" : ""}` : null].filter(Boolean).join(", ")}
+              </span>
+            </div>
+          )}
           {rows.map((r, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "4px 12px", fontSize: 13.5, color: "var(--t-1)" }}>
               <span style={{ color: "var(--t-3)" }}>{r.label}</span>
@@ -3010,7 +3382,7 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
           <div style={{ padding: "4px 12px 8px" }}>
             <button
               onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 10px", background: "var(--blue-50)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-700)", cursor: "pointer" }}
+              style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "center", gap: 6, height: 28, padding: "0 10px", background: "var(--blue-50)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-700)", cursor: "pointer" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-100, #DBEAFE)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue-50)"; }}
             >
@@ -3065,7 +3437,7 @@ const ConcernTypePill = ({ label, bg, color, border, combined = false }) => {
 };
 
 
-const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown, needsPricing }) => {
+const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown, needsPricing, preApprovedTotal = 0 }) => {
   const [tip, setTip] = React.useState(false);
   const [hov, setHov] = React.useState(false);
   const [pos, setPos] = React.useState({ top: 0, left: 0 });
@@ -3112,6 +3484,16 @@ const TotalPill = ({ total, shownTotal, hasZeroShown, breakdown, needsPricing })
       {tip && hasTooltip && (
         <div onMouseEnter={() => { clearTimeout(hideT.current); setHov(true); }} onMouseLeave={() => { setHov(false); hideTip(); }}
           style={{ position: "fixed", top: pos.top, left: pos.left, background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 9999, minWidth: 190, padding: "8px 0" }}>
+          {Number(preApprovedTotal) > 0 && (
+            <>
+              <div style={{ padding: "2px 12px 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t-4)" }}>Pre-approved breakdown</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 12px", borderTop: "1px solid var(--b-1)", gap: 24 }}>
+                <span style={{ fontSize: 13, color: "var(--t-3)" }}>Pre-Approved</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>${Number(preApprovedTotal).toFixed(0)}</span>
+              </div>
+              <div style={{ height: 1, background: "var(--b-2)", margin: "6px 0" }} />
+            </>
+          )}
           <div style={{ padding: "2px 12px 6px", fontSize: 10, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t-4)" }}>Estimate breakdown</div>
           {tooltipRows.map(([label, val, isIncomplete]) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 12px", borderTop: "1px solid var(--b-1)", gap: 24 }}>
@@ -3143,6 +3525,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
   recApprovals = null,
   checkboxEl = null,
   preApprovedEl = null,
+  preApprovedTotal = 0,
   noLeftBorder = false,
   style = {},
   breakdown = null,
@@ -3159,10 +3542,16 @@ const ConcernCardHeader = ({ recTabLayout = false,
   const commitEdit = () => { setEditingTitle(false); onTitleChange && onTitleChange(concern.id, titleDraft || concern.title); };
   const cancelEdit = () => { setEditingTitle(false); setTitleDraft(concern.title); };
   return (
-    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, borderLeft: (noLeftBorder || concern.type !== "occ") ? "3px solid transparent" : "3px solid var(--blue-600)", padding: "7px 0", ...(recTabLayout ? { paddingRight: 8 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
+    <div style={{ display: "flex", alignItems: "center", background: palette.headBg, borderLeft: noLeftBorder ? "none" : (concern.type !== "occ" ? "3px solid transparent" : "3px solid var(--blue-600)"), padding: "7px 0", ...(recTabLayout ? { paddingRight: 8 } : {}), ...style }} onMouseEnter={() => setHeaderHover(true)} onMouseLeave={() => setHeaderHover(false)}>
       {checkboxEl && <div style={{ paddingLeft: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>{checkboxEl}</div>}
+      {/* Drag handle — only for reorderable (non-OCC) concern cards; wired to the pointer-drag CardDragHandle */}
+      {reorderable && (
+        <div style={{ width: 24, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CardDragHandle selfConcernId={concern.id} onReorder={onReorder} onDragStart={onDragStart} onDragEnd={onDragEnd} />
+        </div>
+      )}
       {/* Left group — title area, gapped — owns the 8px left inset so the outer flex has no padding, keeping right columns pixel-aligned with rec rows */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: checkboxEl ? 6 : 8 }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, paddingLeft: (checkboxEl || reorderable) ? 6 : 8 }}>
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4 }}>
         {concern.type === "occ" && letter != null
@@ -3208,7 +3597,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
           {showTotal && (
             <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: 6, gap: 6 }}>
               {preApprovedEl}
-              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} needsPricing={needsPricing} />
+              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} needsPricing={needsPricing} preApprovedTotal={preApprovedTotal} />
             </div>
           )}
         </>
@@ -3218,7 +3607,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
           {showTotal && (
             <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", fontVariantNumeric: "tabular-nums", paddingRight: onAddRec ? 8 : 14, gap: 6 }}>
               {preApprovedEl}
-              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} needsPricing={needsPricing} />
+              <TotalPill total={total} shownTotal={shownTotal} hasZeroShown={hasZeroShown} breakdown={breakdown} needsPricing={needsPricing} preApprovedTotal={preApprovedTotal} />
             </div>
           )}
           {/* Action column — only shown when +REC button exists */}
@@ -3241,7 +3630,7 @@ const ConcernCardHeader = ({ recTabLayout = false,
 };
 
 // ── Preview panel shown to the left of the rec-editor modal.
-const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, liveState, panel, onReorderRec, onExtractRec, editingRecId, onChangeLiveTarget, pvwCollapsed = false }) => {
+const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, liveState, panel, onReorderRec, onExtractRec, editingRecId, onChangeLiveTarget, pvwCollapsed = false, showOnboarding = false, onDismissOnboarding }) => {
   const [pvwDragging, setPvwDragging] = React.useState(false);
 
   // Pointer-based drag handler for preview rec rows.
@@ -3460,7 +3849,7 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
     : null;
 
   const all = [...occs, ...ascs, ...(syntheticConcern ? [syntheticConcern] : [])];
-  if (all.length === 0) return null;
+  if (all.length === 0 && !showOnboarding) return null;
 
   // Collapsed — parent renders the toggle button; we just return nothing
   if (pvwCollapsed) return null;
@@ -3479,9 +3868,58 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
       overflowY: "auto",
       alignSelf: panel ? "stretch" : "flex-start",
       animation: "modalIn 220ms cubic-bezier(.2,.8,.2,1)",
+      position: "relative",
     }} className="scrollable">
+      {/* Onboarding overlay — phase 2 first open */}
+      {showOnboarding && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 10,
+          background: "rgba(15,23,42,0.72)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "24px 20px",
+          backdropFilter: "blur(2px)",
+          animation: "fadeIn 200ms",
+        }}>
+          <div style={{
+            background: "var(--bg-white)", borderRadius: 12, padding: "20px 20px 18px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.22)", width: "100%", maxWidth: 280,
+            display: "flex", flexDirection: "column", gap: 12,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--blue-50)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue-600)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)" }}>Reorder recommendations</div>
+                <div style={{ fontSize: 12, color: "var(--t-3)", marginTop: 2 }}>Phase 2 grouping is active</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.55 }}>
+              Drag rows in this panel to reorder recommendations or move them between concerns. Changes apply live.
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <div style={{ flex: 1, borderRadius: 7, border: "1px dashed var(--b-2)", padding: "8px 10px", display: "flex", gap: 8, alignItems: "center" }}>
+                <svg width="10" height="14" viewBox="0 0 10 14" fill="var(--t-4)">
+                  <circle cx="3" cy="3" r="1.4"/><circle cx="7" cy="3" r="1.4"/>
+                  <circle cx="3" cy="7" r="1.4"/><circle cx="7" cy="7" r="1.4"/>
+                  <circle cx="3" cy="11" r="1.4"/><circle cx="7" cy="11" r="1.4"/>
+                </svg>
+                <span style={{ fontSize: 12, color: "var(--t-3)" }}>Drag handle on each row</span>
+              </div>
+            </div>
+            <button
+              onClick={onDismissOnboarding}
+              style={{ alignSelf: "flex-end", height: 32, padding: "0 18px", background: "var(--blue-600)", color: "#fff", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "var(--blue-700)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "var(--blue-600)"; }}
+            >Got it</button>
+          </div>
+        </div>
+      )}
       <div style={{ padding: "10px 13px 10px", borderBottom: "1px solid var(--b-1)", background: "var(--bg-white)" }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--t-3)", textTransform: "uppercase", letterSpacing: 0.07 }}>Recommendations preview</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t-1)", textTransform: "uppercase", letterSpacing: 0.07 }}>Recommendations preview</span>
         <div style={{ fontSize: 13, color: "var(--t-2)", marginTop: 4, lineHeight: 1.5 }}>
           A live view of how this recommendation fits with the rest of the job. Drag rows to reorder or move between concerns.
         </div>
@@ -3500,14 +3938,18 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
         const occIdx = isOcc ? occs.indexOf(c) : -1;
         const letter = occIdx >= 0 ? String.fromCharCode(65 + occIdx) : null;
         return (
-          <div key={c.id} data-pvw-concern-drop={c.id} style={{ borderRadius: 7, overflow: "hidden", border: "1px solid var(--b-2)", borderLeft: `3px solid ${p.divBd}`, background: "var(--bg-white)" }}>
+          <div key={c.id} data-pvw-concern-drop={c.id} style={{ borderRadius: 7, overflow: "hidden", border: "1px solid var(--b-2)", background: isOcc ? "var(--blue-100)" : "var(--bg-cream)" }}>
             {/* Concern header */}
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 7, padding: "7px 12px", background: "var(--bg-white)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 12px", background: "transparent", borderBottom: "1px solid var(--b-1)" }}>
               {c.type === "occ" && letter ? (
-                <ConcernTypePill label={"OCC · " + String(letter).toUpperCase()} color={p.pillT} combined />
+                <span style={{ background: "var(--bg-white)", borderRadius: 4, padding: "2px 6px", display: "inline-flex", flexShrink: 0 }}>
+                  <ConcernTypePill label={"OCC · " + String(letter).toUpperCase()} color={p.pillT} combined />
+                </span>
               ) : (
                 <>
-                  <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} border={p.pillBorder} />
+                  <span style={{ background: "var(--bg-white)", borderRadius: 4, padding: "2px 6px", display: "inline-flex", flexShrink: 0 }}>
+                    <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} border={p.pillBorder} />
+                  </span>
                   {letter && <span style={{ background: "var(--occ-strong)", color: "#fff", fontSize: 10, fontWeight: 700, width: 16, height: 16, borderRadius: 999, flexShrink: 0, display: "inline-grid", placeItems: "center" }}>{letter}</span>}
                 </>
               )}
@@ -3520,10 +3962,11 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
                 <div style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "6px 12px",
+                  background: "var(--bg-white)",
                   borderBottom: c.recs.length > 0 || isTarget ? "1px solid var(--b-1)" : "none",
                 }}>
                   <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t-3)", letterSpacing: 0.02, whiteSpace: "nowrap" }}>Pre-Approved</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--blue-600)", letterSpacing: 0.02, whiteSpace: "nowrap" }}>Pre-Approved</span>
                     {c.preApproved && (
                       <span style={{ fontSize: 11.5, color: "var(--t-4)" }}>
                         {"Labor $" + (Number(c.preApproved.labor)||0).toFixed(0)}
@@ -3547,11 +3990,18 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
                   style={{
                     display: "flex", alignItems: "center", gap: 7,
                     padding: "7px 12px 7px 10px",
-                    background: "transparent",
+                    background: "var(--bg-white)",
                     borderBottom: ri < arr.length - 1 || isTarget ? "1px solid var(--b-1)" : "none",
                     cursor: (onReorderRec || onExtractRec) ? "grab" : "default",
                     touchAction: "none", userSelect: "none",
                   }}>
+                  {(onReorderRec || onExtractRec) && (
+                    <svg width="10" height="14" viewBox="0 0 10 14" fill="var(--t-4)" style={{ flexShrink: 0, pointerEvents: "none" }}>
+                      <circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/>
+                      <circle cx="3" cy="7" r="1.3"/><circle cx="7" cy="7" r="1.3"/>
+                      <circle cx="3" cy="11" r="1.3"/><circle cx="7" cy="11" r="1.3"/>
+                    </svg>
+                  )}
                   {(() => { const sk = typeof r.status === "string" ? r.status : r.status?.kind; return sk === "fail" || sk === "caution" ? <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "1px 5px", borderRadius: 3, background: sk === "fail" ? "var(--red-100)" : "var(--yellow-100)", color: sk === "fail" ? "var(--red-700)" : "var(--yellow-700)", pointerEvents: "none" }}>{sk}</span> : null; })()}
                   <span style={{ fontSize: 13, color: "var(--t-1)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", pointerEvents: "none" }}>{r.text || r.recommendation}</span>
                 </div>
@@ -3563,11 +4013,17 @@ const ModalContextPreview = ({ concerns, recConcerns = [], targetConcernId, live
                   style={{
                     display: "flex", alignItems: "center", gap: 7,
                     padding: "7px 12px 7px 10px",
-                    background: "transparent",
+                    background: "var(--bg-white)",
                     cursor: onChangeLiveTarget ? "grab" : "default",
                     touchAction: "none", userSelect: "none",
                   }}>
-
+                  {onChangeLiveTarget && (
+                    <svg width="10" height="14" viewBox="0 0 10 14" fill="var(--t-4)" style={{ flexShrink: 0, pointerEvents: "none" }}>
+                      <circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/>
+                      <circle cx="3" cy="7" r="1.3"/><circle cx="7" cy="7" r="1.3"/>
+                      <circle cx="3" cy="11" r="1.3"/><circle cx="7" cy="11" r="1.3"/>
+                    </svg>
+                  )}
                   {liveStatus && (
                     <span style={{
                       flexShrink: 0,
@@ -3618,13 +4074,19 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
   dragActive, isDragSource, isDragOver, draggingRecId, draggingPointId,
   onRecDragStart, onRecDragEnd, onPointDragStart, onPointDragEnd, onCardDragOver, onCardDragLeave, onCardDrop,
   isFirst, isLast, concerns, onMoveRecTo, onMoveRecRelative, onMovePointTo, onMoveRecToNew, onMovePointToNew,
-  canReorder, onReorderConcern, letter, autoRename = false }) => {
+  canReorder, onReorderConcern, letter, autoRename = false, phase = 1 }) => {
   const p = concernPalette[concern.type];
   const concernTotal = concern.recs.reduce((s, r) => s + (Number(r.total) || 0), 0);
   const preApprovedAmt = concern.preApproved ? ((concern.preApproved.labor || 0) + (concern.preApproved.parts || 0) + (concern.preApproved.misc || 0)) : 0;
   const displayTotal = concernTotal + preApprovedAmt;
   const hasRecs = concern.recs.length > 0;
-  const showDropBanner = dragActive && !isDragSource;
+  // Rec drags are pointer-based now (RecMoveMenu draws its own outline/ghost feedback
+  // imperatively), so this banner should only appear for the still-native-DnD point
+  // drags. Showing it during a rec drag inserted/removed a block on every other card
+  // the instant a drag started, shifting the whole page's layout underneath the
+  // cursor mid-drag — which made precise drops (especially reordering next to a
+  // nearby row) land in the wrong place.
+  const showDropBanner = dragActive && !isDragSource && draggingRecId == null;
 
   return (
     <div
@@ -3636,7 +4098,9 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
       style={{
         marginBottom: 8,
         border: `1px solid ${isDragOver ? "var(--blue-500)" : "var(--b-2)"}`,
+        borderLeft: concern.type === "occ" ? "3px solid var(--blue-600)" : `1px solid ${isDragOver ? "var(--blue-500)" : "var(--b-2)"}`,
         borderRadius: 8,
+        overflow: "hidden",
         background: isDragOver ? "var(--blue-50)" : "transparent",
         boxShadow: isDragOver ? "0 0 0 3px rgba(2,103,155,0.16)" : "none",
         transition: "box-shadow 140ms, background 140ms, border-color 140ms",
@@ -3665,9 +4129,11 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         showTotal={hasRecs || !!concern.preApproved}
         hasZeroShown={false}
         autoRename={autoRename}
+        noLeftBorder={true}
         preApprovedEl={concern.type === "occ" && concern.preApproved
           ? <PreApprovedPill pa={concern.preApproved} concernId={concern.id} concernTitle={concern.title} onRecClick={onRecClick} />
           : null}
+        preApprovedTotal={preApprovedAmt}
         style={{
           borderRadius: showDropBanner ? 0 : (hasRecs ? "8px 8px 0 0" : 8),
           borderBottom: hasRecs && !showDropBanner ? "1px solid var(--b-2)" : "none",
@@ -3683,8 +4149,8 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         const badgeItems = [
           <MediaTag key="m" media={rec.media} />,
           <PartsTag key="p" parts={rec.partsList} amount={rec.parts} />,
-          rec.internal ? <InternalNoteTag key="int" note={rec.internal} /> : null,
-        ].filter(Boolean);
+          <span key="int" style={{ display: "inline-flex", opacity: rec.internal ? 1 : 0.4 }}><InternalNoteTag note={rec.internal} /></span>,
+        ];
         const _recTotal = rec.total ?? 0;
         const priceEl = (rec.shownToCustomer === 0 && _recTotal > 0)
           ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
@@ -3695,6 +4161,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         return (
         <div key={rec.id}
           data-rec-id={rec.id}
+          data-rec-drop={rec.id}
           data-rec-concern={concern.id}
           style={{
           display: "flex", alignItems: "stretch",
@@ -3705,21 +4172,51 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
           opacity: draggingRecId === rec.id ? 0.4 : 1,
           transition: "opacity 140ms, background 100ms",
         }}
-          onClick={() => onRecClick && onRecClick(concern.id, rec)}
+          onClick={(e) => { if (e.defaultPrevented) return; onRecClick && onRecClick(concern.id, rec); }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}
         >
 
+          {/* Drag handle — phase 2 only. Pointer-based (not native HTML5 DnD, which
+              proved unreliable) — same mechanism as the Recommendation tab's rows. */}
+          {phase === 2 && (
+            <div
+              style={{
+                width: 24, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 8,
+                background: "var(--bg-white)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <RecMoveMenu
+                concerns={concerns || []}
+                currentConcernId={concern.id}
+                selfRecId={rec.id}
+                onSelect={(toId) => onMoveRecTo && onMoveRecTo(rec.id, toId)}
+                onCreateNew={onMoveRecToNew ? () => onMoveRecToNew(rec.id) : undefined}
+                onDropAtRec={(toConcernId, targetRecId, before) => {
+                  onMoveRecRelative && onMoveRecRelative(rec.id, toConcernId, targetRecId, before);
+                }}
+                onDragStart={() => onRecDragStart && onRecDragStart(rec.id)}
+                onDragEnd={() => onRecDragEnd && onRecDragEnd()}
+              />
+            </div>
+          )}
           {/* Text column — flex:1 */}
           <div style={{ flex: 1, minWidth: 0, padding: "8px 0 8px 10px" }}>
             <div style={{ fontSize: 14, lineHeight: 1.5, wordBreak: "break-word" }}>
-              {rec.status && (() => { const st = REC_STATUS[rec.status]; return st ? (<span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", background: "var(--bg-white)", color: st.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)", border: `1px solid ${st.label === "Fail" ? "#F0B6B6" : "var(--yellow-100)"}` }}>{st.label}</span>) : null; })()}{rec.extraTag && (<span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, fontSize: 11, fontWeight: 500, padding: "1px 7px", borderRadius: 4, background: "var(--bg-white)", color: "var(--t-3)", border: "1px solid var(--b-2)" }}>{rec.extraTag}</span>)}{rec.fresh && <JustAddedTag key={rec.id} />}<span style={{ color: rec.text || rec.recommendation ? "var(--t-1)" : "var(--t-4)", verticalAlign: "middle" }}>{rec.text || rec.recommendation || "No recommendation added"}</span>
+              {rec.status && (() => { const st = REC_STATUS[rec.status]; return st ? (<span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4, letterSpacing: "0.04em", textTransform: "uppercase", background: st.label === "Fail" ? "var(--red-100,#fee2e2)" : "var(--yellow-100,#fef9c3)", color: st.label === "Fail" ? "var(--red-600)" : "var(--yellow-700)" }}>{st.label}</span>) : null; })()}{rec.extraTag && (<span style={{ display: "inline-block", verticalAlign: "middle", marginRight: 5, fontSize: 11, fontWeight: 500, padding: "1px 7px", borderRadius: 4, background: "var(--bg-white)", color: "var(--t-3)", border: "1px solid var(--b-2)" }}>{rec.extraTag}</span>)}{rec.fresh && <JustAddedTag key={rec.id} />}<span style={{ color: rec.text || rec.recommendation ? "var(--t-1)" : "var(--t-4)", verticalAlign: "middle" }}>{rec.text || rec.recommendation || "No recommendation added"}</span>
             </div>
             {rec.total != null && (
               <div style={{ marginTop: 3, fontSize: 13, color: "var(--t-3)", lineHeight: 1.3 }}>
                 {(() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return (m ? m[1] : "0") + " hrs · "; })()}Labor ${Number(rec.labor || 0).toFixed(0)} · Parts ${Number(rec.parts || 0).toFixed(0)}
                 {Number(rec.misc || 0) > 0 && ` · Misc $${Number(rec.misc).toFixed(0)}`}
               </div>
+            )}
+          </div>
+          {/* Price column — sits before the badge icons */}
+          <div style={{ width: 70, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {rec.total != null && (
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--t-1)" }}>${Number(rec.total).toFixed(0)}</span>
             )}
           </div>
           {/* 84px zone — badges sit here, aligned with +REC button above */}
@@ -3984,7 +4481,17 @@ const InspectionSection = ({ section, onPointStatusChange, onTireReading, onPoin
                 transition: "opacity 140ms",
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-  
+                  {pt.status === "fail" && (
+                    <MoveMenu
+                      arrow
+                      concerns={concerns}
+                      currentConcernId={concerns.find(c => c.type === "asc_m" && c.title === pt.name)?.id || null}
+                      linkedConcernId={pt.linkedManually && pt.addedTo ? (concerns.find(c => c.title === pt.addedTo.title)?.id || null) : null}
+                      standaloneName={pt.name}
+                      onSelect={(toId) => onMoveMpiPointTo(pt.id, toId)}
+                      onCreateNew={() => onMoveMpiPointToNew && onMoveMpiPointToNew(pt.id)}
+                    />
+                  )}
                   <span style={{ fontSize: 14, fontWeight: 600, color: "var(--t-1)" }}>{pt.name}</span>
                   <span style={{ fontSize: 13, color: "var(--t-3)" }}>0–3 replace · 4 monitor · 5+ ok</span>
                   {(pt.status === "fail" || pt.status === "caution") && pt.addedTo && pt.linkedManually && <AddedToTag addedTo={pt.addedTo} />}
@@ -4011,9 +4518,21 @@ const InspectionSection = ({ section, onPointStatusChange, onTireReading, onPoin
             onMouseEnter={onPointClick ? (e) => { e.currentTarget.style.background = "var(--bg-cream)"; } : undefined}
             onMouseLeave={onPointClick ? (e) => { e.currentTarget.style.background = ""; } : undefined}
             >
-
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, color: "var(--t-1)" }}>{pt.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {pt.status === "fail" && (
+                    <MoveMenu
+                      arrow
+                      concerns={concerns}
+                      currentConcernId={concerns.find(c => c.type === "asc_m" && c.title === pt.name)?.id || null}
+                      linkedConcernId={pt.linkedManually && pt.addedTo ? (concerns.find(c => c.title === pt.addedTo.title)?.id || null) : null}
+                      standaloneName={pt.name}
+                      onSelect={(toId) => onMoveMpiPointTo(pt.id, toId)}
+                      onCreateNew={() => onMoveMpiPointToNew && onMoveMpiPointToNew(pt.id)}
+                    />
+                  )}
+                  <div style={{ fontSize: 14, color: "var(--t-1)" }}>{pt.name}</div>
+                </div>
                 {(pt.status === "fail" || pt.status === "caution") && pt.addedTo && pt.linkedManually && <AddedToTag addedTo={pt.addedTo} />}
                 {pt.comments && (
                   <div style={{
@@ -4154,8 +4673,8 @@ const RailIcons = ({ sidebarOpen, onToggleSidebar }) => (
 const REC_FONT = { fontVariantNumeric: "tabular-nums" };
 
 const REC_STATUS = {
-  fail:    { pillBg: "#B82828", pillC: "#fff",    label: "Fail" },
-  caution: { pillBg: "#F2B91A", pillC: "#3D2A00", label: "Caution" },
+  fail:    { pillBg: "var(--red-100)",    pillC: "var(--red-600)",    pillBorder: "1px solid #F0B6B6", label: "Fail" },
+  caution: { pillBg: "var(--yellow-100)", pillC: "var(--yellow-700)", pillBorder: "1px solid #F3DDA1", label: "Caution" },
 };
 
 const RecLabel = ({ children, style }) => (
@@ -4164,7 +4683,7 @@ const RecLabel = ({ children, style }) => (
 
 // Click-to-open "move" menu for rec rows — mirrors V3's MoveMenu.
 // Click opens a concern picker; press-and-drag moves across concerns or reorders within one.
-const RecMoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDragStart, onDragEnd, onDropAtRec }) => {
+const RecMoveMenu = ({ concerns, currentConcernId, selfRecId, onSelect, onCreateNew, onDragStart, onDragEnd, onDropAtRec }) => {
   const [open, setOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState({ top: 0, left: 0 });
   const ref = React.useRef(null);
@@ -4220,7 +4739,12 @@ const RecMoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDrag
       const under = document.elementFromPoint(ev.clientX, ev.clientY);
       st.ghost.style.display = "block";
       const closest = (sel) => (under && under.closest ? under.closest(sel) : null);
-      const recRow = onDropAtRec ? closest("[data-rec-drop]") : null;
+      let recRow = onDropAtRec ? closest("[data-rec-drop]") : null;
+      // Ignore hits on the row being dragged itself — it never leaves the DOM during
+      // a manual pointer drag (only fades to 40% opacity in place), so hovering back
+      // over your own row is extremely easy to do by accident. Treating that as a
+      // valid drop target used to silently reorder a rec relative to itself.
+      if (recRow && selfRecId && recRow.getAttribute("data-rec-drop") === selfRecId) recRow = null;
       const card = !recRow ? closest("[data-concern-drop]") : null;
       clearHot(st);
       if (recRow) {
@@ -4274,32 +4798,36 @@ const RecMoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDrag
       <div
         role="button"
         tabIndex={0}
+        ref={btnRef}
         onPointerDown={isDraggable ? onPointerDown : undefined}
-        onClick={(e) => { e.stopPropagation(); if (justDraggedRef.current) { justDraggedRef.current = false; return; } setOpen((o) => !o); }}
+        onClick={(e) => { e.stopPropagation(); if (justDraggedRef.current) { justDraggedRef.current = false; return; } if (!open && btnRef.current) { const r = btnRef.current.getBoundingClientRect(); setMenuPos({ top: r.bottom + 6, left: r.left }); } setOpen((o) => !o); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((o) => !o); } }}
         title={isDraggable ? "Click to pick a concern, or drag to another concern" : "Move to another concern"}
         style={{
           width: 24, height: 24, borderRadius: 5,
           background: open ? "var(--bg-cream)" : "transparent",
-          border: `1px solid ${open ? "var(--b-3)" : "var(--b-2)"}`,
+          border: "none",
           color: "var(--t-3)", cursor: isDraggable ? "grab" : "pointer",
           display: "grid", placeItems: "center", touchAction: "none",
         }}
-        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.borderColor = "var(--b-3)"; } }}
-        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--b-2)"; } }}
+        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.background = "var(--bg-cream)"; } }}
+        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.background = "transparent"; } }}
       >
         <IconMove size={15} />
       </div>
 
+      {/* Fixed (not absolute) positioning, computed from the button's own bounding rect —
+          this menu lives inside a concern card that clips overflow, so an absolutely-
+          positioned dropdown anchored to that ancestor got cut off at the card's edge. */}
       {open && (
         <div style={{
-          position: "absolute", left: 0, top: "calc(100% + 6px)",
+          position: "fixed", left: menuPos.left, top: menuPos.top,
           width: 300,
           background: "var(--bg-white)",
           border: "1px solid var(--b-2)",
           borderRadius: 8,
           boxShadow: "var(--shadow-modal)",
-          zIndex: 60,
+          zIndex: 9999,
           padding: "6px 0", maxHeight: 340, overflowY: "auto",
           animation: "menuIn 140ms cubic-bezier(.2,.8,.2,1)",
         }} className="scrollable">
@@ -4322,7 +4850,7 @@ const RecMoveMenu = ({ concerns, currentConcernId, onSelect, onCreateNew, onDrag
                 onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               >
                 {cp.label === "OCC" && (
-                  <span className="pill" style={{ background: "var(--occ-strong)", color: "#fff", border: "none", marginTop: 2 }}>{cp.label}</span>
+                  <span className="pill occ" style={{ marginTop: 2 }}>{cp.label}</span>
                 )}
                 <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 10 }}>
                   <span style={{ fontSize: 14, color: "var(--t-1)", fontWeight: 500 }}>{c.title}</span>
@@ -4693,8 +5221,13 @@ const RecFilterBar = ({ filter, setFilter, counts }) => {
 };
 
 // ── A single recommendation line within a concern.
-const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange, onRecClick, selected = false, onToggleSelect, defaultExpanded = false, compact = true }) => {
+const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange, onRecClick, selected = false, onToggleSelect, defaultExpanded = false, compact = true, phase = 1 }) => {
   const [expanded, setExpanded] = React.useState(defaultExpanded);
+  // Phase 1: always show the full expanded (3-column) layout, permanently — no per-row
+  // chevron and no way to collapse back to the compact summary row. Phase 2 keeps the
+  // normal expand/collapse toggle (master "Expand" switch + per-row chevron).
+  const canExpand = phase !== 1;
+  const isExpanded = phase === 1 ? true : expanded;
   const [workStatus, setWorkStatus] = React.useState(() => {
     if (!rec.workTag) return "—";
     return rec.workTag.tone === "done" ? "Done" : rec.workTag.label;
@@ -4715,6 +5248,7 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
       letterSpacing: "0.04em", textTransform: "uppercase",
       background: stat.pillBg,
       color: stat.pillC,
+      border: stat.pillBorder,
     }}>{stat.label}</span>
   );
   if (rec.extraTag) leftTags.push(
@@ -4771,10 +5305,18 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
 
   const isDiscounted = shownToCustomer === 0 && total > 0;
   const priceEl = total != null ? (
-    <span style={{ fontSize: 14, fontWeight: 400, color: isDiscounted ? "var(--red-600)" : "var(--t-1)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+    <span style={{ fontSize: 14, fontWeight: 700, color: isDiscounted ? "var(--red-600)" : "var(--t-1)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
       ${Number(isDiscounted ? 0 : (shownToCustomer != null ? shownToCustomer : total)).toFixed(0)}
     </span>
   ) : null;
+  // "Total" row — label + price on its own line below the approve/decline + chevron row,
+  // instead of stacking the bare price under the chevron button.
+  const totalRow = total != null && (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--t-3)" }}>Total</span>
+      {priceEl}
+    </div>
+  );
 
   const mkBtn = (label, val) => {
     const active = approval === val;
@@ -4815,25 +5357,19 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
 
 
   // ── Expanded: full 3-column layout ──
-  if (expanded) {
+  if (isExpanded) {
     return (
       <div key="expanded" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "stretch", minHeight: 72, background: "var(--bg-white)", paddingRight: 8 }}>
-        {/* Checkbox — top-left */}
-        <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 12 }}
-          onClick={e => e.stopPropagation()}>
-          <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
-        </div>
-
         {/* Rec text — status badge inline with the recommendation, wraps underneath if it doesn't fit */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "10px 14px 10px 0", cursor: onRecClick ? "pointer" : "default" }}
-          onClick={() => onRecClick && onRecClick(rec)}>
+          onClick={() => onRecClick && onRecClick(rec, concernId)}>
           <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>
             {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, display: "inline-block", verticalAlign: "middle", marginRight: 5 } }))}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", verticalAlign: "middle" }}>{rec.recommendation || "No recommendation added"}</span>
           </div>
 
           {rec.internal && (
             <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 6, background: "#FFFBEB", border: "1px solid #F3DDA1" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal note</div>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#B45309", marginBottom: 3 }}>Internal parts notes</div>
               <div style={{ fontSize: 13, color: "var(--t-2)", lineHeight: 1.4 }}>{rec.internal}</div>
             </div>
           )}
@@ -4843,26 +5379,44 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
 
         {/* REC ESTIMATE */}
         <div style={{ width: 240, flexShrink: 0, borderLeft: "1px solid var(--b-2)", padding: "10px 14px 12px" }}>
-          {[
-            rec.estSummary ? ["Hours", rec.estSummary, true, "No input", false] : null,
-            ["Labor",      rec.labor  != null ? `$${Number(rec.labor).toFixed(2)}`  : null, false, "Incomplete Labor", true],
-            ["Parts",      rec.parts  != null ? `$${Number(rec.parts).toFixed(2)}`  : null, false, "Incomplete Parts", true],
-            ["Misc Fees",  rec.misc   != null ? `$${Number(rec.misc).toFixed(2)}`   : null, false, "No input", false],
-            ["Taxes on P + L + Misc", null, false, "No input", false],
-          ].filter(Boolean).map(([label, val, bold, emptyLabel, isAlert]) => (
+          {(() => {
+            // "requested" tone (labor/parts already sent out for pricing, e.g. to a vendor) is
+            // distinct from "incomplete" (nothing done yet): calmer blue clock icon instead of
+            // the amber warning triangle, and its own "Requested" text instead of "Incomplete ...".
+            const laborStatus = rec.estStatus?.find(s => s.label?.toLowerCase().includes("labor"));
+            const partsStatus = rec.estStatus?.find(s => s.label?.toLowerCase().includes("parts"));
+            const laborRequested = laborStatus?.tone === "requested";
+            const partsRequested = partsStatus?.tone === "requested";
+            return [
+              rec.estSummary ? ["Hours", rec.estSummary, true, "No input", null] : null,
+              ["Labor",      rec.labor  != null ? `$${Number(rec.labor).toFixed(2)}`  : null, false, laborRequested ? "Requested" : "Incomplete Labor", laborRequested ? "requested" : "incomplete"],
+              ["Parts",      rec.parts  != null ? `$${Number(rec.parts).toFixed(2)}`  : null, false, partsRequested ? "Requested" : "Incomplete Parts", partsRequested ? "requested" : "incomplete"],
+              ["Misc Fees",  rec.misc   != null ? `$${Number(rec.misc).toFixed(2)}`   : null, false, "No input", null],
+              ["Taxes on P + L + Misc", null, false, "No input", null],
+            ];
+          })().filter(Boolean).map(([label, val, bold, emptyLabel, alertTone]) => {
+            const alertColor = alertTone === "requested" ? "var(--blue-600)" : "#B45309";
+            return (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
               <span style={{ fontSize: 12, color: "var(--t-3)" }}>{label}</span>
-              <span style={{ fontSize: 12, fontWeight: bold ? 700 : 400, color: val ? "var(--t-2)" : (isAlert ? "#B45309" : "var(--t-5)"), fontVariantNumeric: "tabular-nums", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                {!val && isAlert && (
+              <span style={{ fontSize: 12, fontWeight: bold ? 700 : 400, color: val ? "var(--t-2)" : (alertTone ? alertColor : "var(--t-5)"), fontVariantNumeric: "tabular-nums", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                {!val && alertTone === "incomplete" && (
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                     <path d="M12 9v4"/><path d="M12 17h.01"/>
                   </svg>
                 )}
+                {!val && alertTone === "requested" && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--blue-600)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <polyline points="12 7 12 12 16 14" />
+                  </svg>
+                )}
                 {val || emptyLabel}
               </span>
             </div>
-          ))}
+            );
+          })}
           <div style={{ height: 1, background: "var(--b-1)", margin: "6px 0" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t-2)" }}>Total (w/ tax + misc)</span>
@@ -4878,19 +5432,26 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
 
         {/* Right column */}
         <div style={{ width: 260, flexShrink: 0, borderLeft: "1px solid var(--b-2)", alignSelf: "stretch", paddingTop: 12, paddingBottom: 10, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 10 }}>
-          {/* APPROVAL + collapse */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 10, paddingRight: 10 }} onClick={e => e.stopPropagation()}>
+          {/* APPROVAL + collapse — top-aligned (not center) so the Approve/Decline buttons sit
+              level with the chevron button, not centered against a taller sibling. Total now sits
+              on its own row below (label + price), rather than stacked directly under the chevron.
+              Phase 1 has no collapse control (this view is permanent) and no separate total row here —
+              the REC ESTIMATE column to the left already shows "Total (w/ tax + misc)". */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingLeft: 10, paddingRight: 10 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", width: 172, flexShrink: 0 }}>
               {mkBtn("✓", "approved")}
               {mkBtn("✗", "declined")}
             </div>
-            <button onClick={e => { e.stopPropagation(); setExpanded(false); }}
-              style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, border: "1px solid var(--b-2)", background: "var(--bg-white)", color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-              onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
-            </button>
+            {phase !== 1 && (
+              <button onClick={e => { e.stopPropagation(); setExpanded(false); }}
+                style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, border: "1px solid var(--b-2)", background: "var(--bg-white)", color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+              </button>
+            )}
           </div>
+          {phase !== 1 && totalRow && <div style={{ paddingLeft: 10, paddingRight: 10 }}>{totalRow}</div>}
           {/* Divider */}
           <div style={{ height: 1, background: "var(--b-1)", marginLeft: 10, marginRight: 6 }} />
           {/* WORK row */}
@@ -4955,21 +5516,23 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
   // ── Compact row ──
   return (
     <div key="compact" style={{ borderTop: isFirst ? "none" : "1px solid var(--b-2)", display: "flex", alignItems: "flex-start", minHeight: 52, background: "var(--bg-white)", paddingRight: 8, userSelect: "none" }}
-      onClick={() => onRecClick && onRecClick(rec)}
+      onClick={() => onRecClick && onRecClick(rec, concernId)}
       onMouseEnter={e => { e.currentTarget.style.background = "var(--bg-cream)"; }}
       onMouseLeave={e => { e.currentTarget.style.background = "var(--bg-white)"; }}
     >
-      {/* Checkbox */}
-      <div style={{ width: 36, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 12 }}
-        onClick={e => e.stopPropagation()}>
-        <input type="checkbox" className="checkbox" checked={selected} onChange={onToggleSelect || (() => {})} style={{ width: 15, height: 15 }} />
-      </div>
       {/* Rec text + icons inline */}
       <div style={{ flex: 1, minWidth: 0, padding: "10px 12px 14px 0", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, lineHeight: 1.5, wordBreak: "break-word" }}>
             {leftTags.map((tag, i) => React.cloneElement(tag, { key: tag.key || i, style: { ...tag.props.style, display: "inline-block", verticalAlign: "middle", marginRight: 5 } }))}<span style={{ color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", verticalAlign: "middle" }}>{rec.recommendation || "No recommendation added"}</span>
           </div>
+          {/* Hours/Labor/Parts/Misc summary line — same format as the Edit MPI tab's compact rec row */}
+          {rec.total != null && (
+            <div style={{ marginTop: 3, fontSize: 13, color: "var(--t-3)", lineHeight: 1.3 }}>
+              {(() => { const m = rec.estSummary && rec.estSummary.match(/^(\d+\.?\d*)\s*hrs?/i); return (m ? m[1] : "0") + " hrs · "; })()}Labor ${Number(rec.labor || 0).toFixed(0)} · Parts ${Number(rec.parts || 0).toFixed(0)}
+              {Number(rec.misc || 0) > 0 && ` · Misc $${Number(rec.misc).toFixed(0)}`}
+            </div>
+          )}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "18px 18px 18px", gap: 8, flexShrink: 0, width: 70, paddingTop: 2 }} onClick={e => e.stopPropagation()}>{rightTags}</div>
       </div>
@@ -4982,14 +5545,18 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
           </div>
         )}
       </div>
-      {/* Right column: approve+decline | chevron */}
-      <div style={{ width: 260, flexShrink: 0, alignSelf: "stretch", display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingLeft: 10, paddingRight: 10, paddingTop: 12, borderLeft: "1px solid var(--b-2)" }}
+      {/* Right column: approve+decline row (top-aligned with chevron), Total row below.
+          Only reachable in phase 2 now — phase 1 always renders the expanded branch above. */}
+      <div style={{ width: 260, flexShrink: 0, alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 8, paddingLeft: 10, paddingRight: 10, paddingTop: 12, paddingBottom: 12, borderLeft: "1px solid var(--b-2)" }}
         onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", width: 172, flexShrink: 0 }}>
-          {mkBtn("✓", "approved")}
-          {mkBtn("✗", "declined")}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", width: 172, flexShrink: 0 }}>
+            {mkBtn("✓", "approved")}
+            {mkBtn("✗", "declined")}
+          </div>
+          {moreBtn}
         </div>
-        {moreBtn}
+        {totalRow}
       </div>
     </div>
   );
@@ -5148,7 +5715,8 @@ const RecCompactConcernCard = ({ concern, letter, reorderable, onReorderConcern,
 };
 
 // ── A concern card — MPI-style colored header + a list of recommendation rows.
-const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onToggleConcernRecs, onTitleChange, onAddRec, autoRename, recApprovals, onApprovalChange, compact = true, isFirst = false }) => {
+const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConcernDragStart, onConcernDragEnd, dragging, reorderRec, recDrag, setRecDrag, concerns, moveRec, moveRecToNew, onRecClick, selectedRecs = new Set(), onToggleRec, onToggleConcernRecs, onTitleChange, onAddRec, autoRename, recApprovals, onApprovalChange, compact = true, isFirst = false, phase = 1 }) => {
+  // Tracks which rec row (if any) the currently-dragged rec is hovering over, and
   const p = concernPalette[concern.type] || concernPalette.asc_m;
   const concernTotal = concern.recs.reduce((s, r) => s + (r.total || 0), 0);
   const paAmt = concern.preApproved ? ((concern.preApproved.labor || 0) + (concern.preApproved.parts || 0) + (concern.preApproved.misc || 0)) : 0;
@@ -5170,7 +5738,8 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         border: "1px solid var(--b-2)",
         borderLeft: concern.type === "occ" ? "3px solid var(--blue-600)" : "1px solid var(--b-2)",
         borderRadius: 8,
-        background: "var(--bg-white)", overflow: "hidden",
+        background: "var(--bg-white)",
+        overflow: "hidden",
         boxShadow: "var(--shadow-card)", marginBottom: 8, marginLeft: 0,
         opacity: dragging ? 0.4 : 1, transition: "opacity 140ms, box-shadow 140ms",
         position: "relative",
@@ -5194,6 +5763,7 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
         recApprovals={recApprovals}
         recTabLayout={true}
         preApprovedEl={preApprovedEl}
+        preApprovedTotal={paAmt}
         total={displayTotal}
         shownTotal={shownTotal}
         style={{ borderBottom: "1px solid var(--b-2)", borderRadius: compact ? 0 : "7px 7px 0 0" }}
@@ -5209,33 +5779,72 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
 
 
 
-      {concern.recs.map((rec, i) => (
-        <RecRecRow
-          key={rec.id}
-          rec={rec}
-          concernId={concern.id}
-          isFirst={i === 0}
-          isLast={i === concern.recs.length - 1}
-          recDraggable={true}
-          concerns={concerns}
-          onMoveRecTo={(recId, toId) => moveRec && moveRec(recId, concern.id, toId)}
-          onMoveRecRelative={(recId, toConcernId, targetRecId, before) => moveRec && moveRec(recId, concern.id, toConcernId, targetRecId, before)}
-          onMoveRecToNew={moveRecToNew ? (recId) => moveRecToNew(recId, concern.id) : undefined}
-          onReorderRec={(dragRecId, targetRecId, before) => reorderRec(concern.id, dragRecId, targetRecId, before)}
-          onDragStartRec={() => setRecDrag(rec.id)}
-          onDragEndRec={() => setRecDrag(null)}
-          dragging={recDrag === rec.id}
-          onRecClick={onRecClick}
-          selected={selectedRecs.has(rec.id)}
-          onToggleSelect={(e) => { e.stopPropagation(); onToggleRec && onToggleRec(rec.id); }}
-          onMoveUp={i > 0 ? () => reorderRec(concern.id, rec.id, concern.recs[i - 1].id, true) : null}
-          onMoveDown={i < concern.recs.length - 1 ? () => reorderRec(concern.id, rec.id, concern.recs[i + 1].id, false) : null}
-          approval={recApprovals ? recApprovals.get(rec.id) ?? null : null}
-          onApprovalChange={onApprovalChange ? (val) => onApprovalChange(rec.id, val) : undefined}
-          defaultExpanded={!compact}
-          compact={compact}
-        />
-      ))}
+      {concern.recs.map((rec, i) => {
+        return (
+        <div key={rec.id}
+          data-rec-drop={rec.id}
+          data-rec-concern={concern.id}
+          style={{
+            display: "flex", alignItems: "stretch",
+            opacity: recDrag === rec.id ? 0.4 : 1,
+            transition: "opacity 140ms",
+          }}
+        >
+          {/* Checkbox + drag handle — left edge, top-aligned, small gap between them */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 4, paddingLeft: 8, paddingRight: phase === 2 ? 4 : 14, paddingTop: 12, flexShrink: 0, borderTop: i === 0 ? "none" : "1px solid var(--b-2)", background: "var(--bg-white)" }}>
+            <div style={{ width: 15, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center" }}
+              onClick={(e) => e.stopPropagation()}>
+              <input type="checkbox" className="checkbox" checked={selectedRecs.has(rec.id)} onChange={() => onToggleRec && onToggleRec(rec.id)} style={{ width: 15, height: 15 }} />
+            </div>
+            {phase === 2 && (
+              <div
+                style={{ width: 24, flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "center" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <RecMoveMenu
+                  concerns={concerns || []}
+                  currentConcernId={concern.id}
+                  selfRecId={rec.id}
+                  onSelect={(toId) => moveRec && moveRec(rec.id, concern.id, toId)}
+                  onCreateNew={moveRecToNew ? () => moveRecToNew(rec.id, concern.id) : undefined}
+                  onDropAtRec={(toConcernId, targetRecId, before) => {
+                    if (toConcernId === concern.id) reorderRec(concern.id, rec.id, targetRecId, before);
+                    else moveRec && moveRec(rec.id, concern.id, toConcernId, targetRecId, before);
+                  }}
+                  onDragStart={() => setRecDrag(rec.id)}
+                  onDragEnd={() => setRecDrag(null)}
+                />
+              </div>
+            )}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <RecRecRow
+              rec={rec}
+              concernId={concern.id}
+              isFirst={i === 0}
+              isLast={i === concern.recs.length - 1}
+              recDraggable={true}
+              concerns={concerns}
+              onMoveRecTo={(recId, toId) => moveRec && moveRec(recId, concern.id, toId)}
+              onMoveRecRelative={(recId, toConcernId, targetRecId, before) => moveRec && moveRec(recId, concern.id, toConcernId, targetRecId, before)}
+              onMoveRecToNew={moveRecToNew ? (recId) => moveRecToNew(recId, concern.id) : undefined}
+              onReorderRec={(dragRecId, targetRecId, before) => reorderRec(concern.id, dragRecId, targetRecId, before)}
+              onDragStartRec={() => setRecDrag(rec.id)}
+              onDragEndRec={() => setRecDrag(null)}
+              dragging={recDrag === rec.id}
+              onRecClick={onRecClick}
+              onMoveUp={i > 0 ? () => reorderRec(concern.id, rec.id, concern.recs[i - 1].id, true) : null}
+              onMoveDown={i < concern.recs.length - 1 ? () => reorderRec(concern.id, rec.id, concern.recs[i + 1].id, false) : null}
+              approval={recApprovals ? recApprovals.get(rec.id) ?? null : null}
+              onApprovalChange={onApprovalChange ? (val) => onApprovalChange(rec.id, val) : undefined}
+              defaultExpanded={!compact}
+              compact={compact}
+              phase={phase}
+            />
+          </div>
+        </div>
+        );
+      })}
       {/* Concern subtotal when some (not all) recs are selected */}
       {(() => {
         if (!selectedRecs || selectedRecs.size === 0) return null;
@@ -5254,7 +5863,7 @@ const RecConcernCard = ({ concern, letter, reorderable, onReorderConcern, onConc
   );
 };
 
-const RecActionBar = ({ onAddCustomRec, compact, onToggleCompact, selectedCount = 0, onBulkApprove, onBulkDecline, onBulkReset, onBulkDelete }) => {
+const RecActionBar = ({ onAddCustomRec, compact, onToggleCompact, selectedCount = 0, onBulkApprove, onBulkDecline, onBulkReset, onBulkDelete, phase = 1 }) => {
   const hasSelection = selectedCount > 0;
   const [dropOpen, setDropOpen] = React.useState(false);
   const dropRef = React.useRef(null);
@@ -5329,13 +5938,15 @@ const RecActionBar = ({ onAddCustomRec, compact, onToggleCompact, selectedCount 
         )}
       </div>
       <div style={{ flex: 1 }} />
-      {/* Expand toggle */}
-      <div onClick={onToggleCompact} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.03, textTransform: "uppercase", color: !compact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, userSelect: "none" }}>
-        Expand
-        <div style={{ width: 32, height: 17, borderRadius: 999, background: !compact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
-          <div style={{ position: "absolute", top: 1.5, left: !compact ? 15 : 1.5, width: 14, height: 14, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
+      {/* Expand toggle — phase 2 only; phase 1 rows always render the compact summary layout */}
+      {phase !== 1 && (
+        <div onClick={onToggleCompact} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, letterSpacing: 0.03, textTransform: "uppercase", color: !compact ? "var(--blue-700)" : "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, userSelect: "none" }}>
+          Expand
+          <div style={{ width: 32, height: 17, borderRadius: 999, background: !compact ? "var(--blue-600)" : "var(--b-2)", position: "relative", transition: "background 180ms", flexShrink: 0 }}>
+            <div style={{ position: "absolute", top: 1.5, left: !compact ? 15 : 1.5, width: 14, height: 14, borderRadius: 999, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 180ms" }} />
+          </div>
         </div>
-      </div>
+      )}
       <button onClick={onAddCustomRec} style={{ height: 34, padding: "0 13px", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 6, fontSize: 13, fontWeight: 700, color: "var(--t-3)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
         onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; e.currentTarget.style.color = "var(--t-2)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; e.currentTarget.style.color = "var(--t-3)"; }}
@@ -5417,13 +6028,13 @@ const RecCalcFooter = ({ selectedTotal = 0, recommendedTotal = 0, declinedTotal 
 // ── Data: concerns grouped by section; each concern holds one or more recs.
 const initialRecConcerns = [
   {
-    id: "occ1", section: "ocr", type: "occ", preApproved: { labor: 380, parts: 0, misc: 10 }, title: "My car is shaking while I drive.",
+    id: "occ1", section: "ocr", type: "occ", preApproved: { labor: 380, parts: 0, misc: 10, media: { photos: 2, videos: 1 } }, title: "My car is shaking while I drive.",
     recs: [
       { id: "occ1-r1", status: "fail", recommendation: "Road test confirmed a vibration at highway speed. Recommend a four-wheel balance and inspection of suspension and steering components.", internal: null, shopchat: null, shopchatCount: 0, media: { photos: 2, videos: 1 }, labor: 380.00, parts: 0.00, misc: 10.00, taxes: null, total: 390.00, estSummary: "2.50 hrs, Diagnostics", shownToCustomer: null, estStatus: [{ tone: "approved", label: "Approved" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "done", label: "Done" }, partsTag: null },
     ],
   },
   {
-    id: "occ2", section: "ocr", type: "occ", preApproved: { labor: 180, parts: 95, misc: 10 }, title: "50K service",
+    id: "occ2", section: "ocr", type: "occ", preApproved: { labor: 180, parts: 95, misc: 10, internal: "Customer requested synthetic oil upgrade — confirmed with parts counter, in stock." }, title: "50K service",
     recs: [
       { id: "occ2-r1", status: "caution", extraTag: "ACV", recommendation: "Perform the 50,000-mile scheduled maintenance per OEM: oil & filter change, fluid top-off, and multi-point inspection.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: 180.00, parts: 95.00, misc: 10.00, taxes: null, total: 285.00, estSummary: "1.50 hrs", shownToCustomer: 285.00, estStatus: [{ tone: "approved", label: "Approved" }, { tone: "incomplete", label: "Incomplete Parts" }], workTag: { tone: "working", label: "Working" }, partsTag: { tone: "stock", label: "In Stock" }, partsList: [{ partNo: "OIL-5W30-5Q", name: "Synthetic Motor Oil 5W-30 (5qt)", qty: 1, price: 42.00, inStock: true }, { partNo: "FILT-OEM-48254", name: "OEM Oil Filter", qty: 1, price: 18.00, inStock: true }, { partNo: "FILT-AIR-98765", name: "Engine Air Filter", qty: 1, price: 35.00, inStock: false }] },
     ],
@@ -5457,14 +6068,23 @@ const initialRecConcerns = [
       { id: "asc4-r1", status: "fail", recommendation: "Battery SOH at 62% — recommend replacement before winter to avoid no-start risk.", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "declined", label: "Declined" }], workTag: { tone: "not-started", label: "Not Started (Tech Assigned)" }, partsTag: null },
     ],
   },
+  {
+    id: "asc5", section: "mpi", type: "asc_m", title: "Front brake pads",
+    recs: [
+      { id: "asc5-r1", status: "fail", recommendation: "Brake pads are worn out, requires replacement", internal: null, shopchat: null, shopchatCount: 0, media: false, labor: null, parts: null, misc: null, taxes: null, total: null, estSummary: null, shownToCustomer: null, estStatus: [{ tone: "requested", label: "Labor Requested" }, { tone: "requested", label: "Parts Requested" }], workTag: null, partsTag: null },
+    ],
+  },
 ];
 
-const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp, sections, onPointStatusChange, onTireReading, onAddRec, onAddCustomRec, onRecClick, onExtractRec }) => {
+const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp, sections, onPointStatusChange, onTireReading, onAddRec, onAddCustomRec, onRecClick, onExtractRec, phase = 1 }) => {
   const [localItems, localSetItems] = React.useState(initialRecConcerns);
   const items = itemsProp !== undefined ? itemsProp : localItems;
   const setItems = setItemsProp || localSetItems;
   const [concernDrag, setConcernDrag] = React.useState(null);
   const [recDrag, setRecDrag] = React.useState(null);
+  // Undo toast for approve <-> decline (or reset) flips — lets the user recover from a misclick.
+  const [approvalToast, setApprovalToast] = React.useState(null); // { recId, prevVal, label }
+  const approvalToastTimer = React.useRef(null);
   const [compact, setCompact] = React.useState(false);
   const [selectedRecs, setSelectedRecs] = React.useState(new Set());
   const [activeFilter, setActiveFilter] = React.useState("all");
@@ -5483,8 +6103,30 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
   });
 
   const onApprovalChange = React.useCallback((recId, val) => {
-    setRecApprovals(prev => { const next = new Map(prev); next.set(recId, val); return next; });
+    setRecApprovals(prev => {
+      const prevVal = prev.get(recId) ?? null;
+      const next = new Map(prev);
+      next.set(recId, val);
+      // Only surface the undo toast when flipping an already-decided rec (approved <-> declined,
+      // or resetting it back to awaiting) — not on the very first approve/decline click.
+      if (prevVal != null && prevVal !== val) {
+        const label = val === "approved" ? "Marked as Approved" : val === "declined" ? "Marked as Declined" : "Decision reset";
+        if (approvalToastTimer.current) clearTimeout(approvalToastTimer.current);
+        setApprovalToast({ recId, prevVal, label });
+        approvalToastTimer.current = setTimeout(() => setApprovalToast(null), 5000);
+      }
+      return next;
+    });
   }, []);
+
+  const undoApprovalChange = () => {
+    setApprovalToast((t) => {
+      if (!t) return null;
+      setRecApprovals(prev => { const next = new Map(prev); next.set(t.recId, t.prevVal); return next; });
+      if (approvalToastTimer.current) { clearTimeout(approvalToastTimer.current); approvalToastTimer.current = null; }
+      return null;
+    });
+  };
 
   const allRecIds = React.useMemo(() => items.flatMap(c => c.recs.map(r => r.id)), [items]);
   const totalCount = allRecIds.length;
@@ -5677,9 +6319,13 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
           onBulkReset={onBulkReset}
           onBulkDelete={onBulkDelete}
           onAddCustomRec={onAddCustomRec}
+          phase={phase}
         />
       </div>
-      <div style={{ padding: "16px 16px 20px", background: "var(--bg-canvas)", flex: 1 }}>
+      {/* Bottom padding (200px) reserves room for the two fixed bars docked at the page
+          bottom (the collapsible Totals bar + the Refresh/Preview/Print toolbar) so the
+          last concern card can scroll fully into view instead of being hidden under them. */}
+      <div style={{ padding: "16px 16px 200px", background: "var(--bg-canvas)", flex: 1 }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <RecSectionHeader
             title="Concerns"
@@ -5720,6 +6366,7 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
                 onConcernDragEnd={() => setConcernDrag(null)}
                 dragging={concernDrag === c.id}
                 autoRename={c.id === newConcernId}
+                phase={phase}
                 {...common}
               />
             );
@@ -5740,6 +6387,23 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
               </>
             );
           })()}
+
+          <div
+            data-concern-new="1"
+            onClick={addConcern}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              margin: "4px 0 8px", padding: "14px", borderRadius: 8,
+              border: "2px dashed var(--b-2)",
+              background: "var(--bg-white)",
+              color: "var(--t-3)",
+              fontSize: 14, fontWeight: 700, letterSpacing: 0.04, textTransform: "uppercase",
+              transition: "background 120ms, border-color 120ms, color 120ms",
+              cursor: "pointer",
+            }}
+          >
+            <IconPlus size={15} /> Add new concern
+          </div>
         </div>
       </div>
       <RecCalcFooter
@@ -5749,6 +6413,51 @@ const RecommendationView = ({ concerns, items: itemsProp, setItems: setItemsProp
         approvedTotal={calcTotals.approved}
         selectedCount={selectedCount}
       />
+
+      {/* Undo toast — shown after flipping an already-decided rec between Approved/Declined
+          (or resetting it), so an accidental click is easy to recover from. Same visual
+          pattern as the toast used elsewhere in the app (progress-bar + action button). */}
+      {approvalToast && (
+        <div style={{
+          position: "fixed", bottom: 80, left: "50%",
+          transform: "translateX(-50%)",
+          background: "#02679b", color: "#fff",
+          borderRadius: 8,
+          fontSize: 14, fontWeight: 500,
+          boxShadow: "0 16px 40px rgba(2,103,155,0.35)",
+          zIndex: 200,
+          animation: "toastIn 220ms cubic-bezier(.2,.8,.2,1)",
+          overflow: "hidden",
+          minWidth: 260,
+        }}>
+          {/* Progress bar — top, drains over the undo window */}
+          <div style={{ height: 5, background: "rgba(255,255,255,0.18)", position: "relative" }}>
+            <div style={{
+              position: "absolute", left: 0, top: 0, width: "100%", height: "100%",
+              background: "rgba(255,255,255,0.75)",
+              transformOrigin: "left center",
+              animation: "toastProgress 5000ms linear forwards",
+            }} />
+          </div>
+          {/* Main row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px" }}>
+            <span style={{
+              width: 18, height: 18, borderRadius: 999,
+              background: "rgba(255,255,255,0.25)",
+              display: "grid", placeItems: "center", flexShrink: 0,
+            }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+            </span>
+            <span style={{ flex: 1 }}>{approvalToast.label}</span>
+            <button
+              onClick={undoApprovalChange}
+              style={{ marginLeft: 6, padding: "2px 10px", height: 24, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 4, color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.3)"}
+              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.18)"}
+            >Undo</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -6219,8 +6928,114 @@ const MediaTab = ({ concerns = [], recConcerns = [] }) => {
   );
 };
 
-const Tabs = ({ tab, setTab }) => (
-  <div style={{ display: "flex", borderBottom: "1px solid var(--b-1)", background: "var(--bg-white)" }}>
+// ── Phase 2: Organize & Group view ──────────────────────────────────────────
+const Phase2View = ({ items, setItems, onRecClick }) => {
+  const [dragState, setDragState] = React.useState(null); // { recId, fromConcernId }
+  const [dragOver, setDragOver] = React.useState(null);   // concernId being hovered
+
+  const ocr = items.filter(c => c.section === "ocr");
+  const mpi = items.filter(c => c.section !== "ocr");
+
+  const moveRec = (recId, fromId, toId) => {
+    if (fromId === toId) return;
+    setItems(prev => {
+      const from = prev.find(c => c.id === fromId);
+      const rec = from?.recs.find(r => r.id === recId);
+      if (!rec) return prev;
+      return prev
+        .map(c => {
+          if (c.id === fromId) return { ...c, recs: c.recs.filter(r => r.id !== recId) };
+          if (c.id === toId)   return { ...c, recs: [...c.recs, rec] };
+          return c;
+        })
+        .filter(c => c.type === "occ" || c.recs.length > 0);
+    });
+  };
+
+  const renderConcern = (concern, letter) => {
+    const p = concernPalette[concern.type] || concernPalette.asc_m;
+    const isDropTarget = dragOver === concern.id && dragState && dragState.fromConcernId !== concern.id;
+    return (
+      <div
+        key={concern.id}
+        onDragOver={e => { e.preventDefault(); setDragOver(concern.id); }}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
+        onDrop={e => { e.preventDefault(); if (dragState) moveRec(dragState.recId, dragState.fromConcernId, concern.id); setDragOver(null); setDragState(null); }}
+        style={{ border: `1px solid ${isDropTarget ? "var(--blue-500)" : "var(--b-2)"}`, borderLeft: `3px solid ${p.divBd}`, borderRadius: 8, background: isDropTarget ? "var(--blue-50)" : "var(--bg-white)", boxShadow: "var(--shadow-card)", marginBottom: 8, overflow: "hidden", transition: "border-color 120ms, background 120ms" }}
+      >
+        {/* Concern header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid var(--b-2)" }}>
+          {letter
+            ? <ConcernTypePill label={"OCC · " + letter} color={p.pillT} combined />
+            : <ConcernTypePill label={p.label} bg={p.pillBg} color={p.pillT} border={p.pillBorder} />
+          }
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "var(--t-1)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{concern.title}</span>
+          {concern.preApproved && (() => {
+            const t = (concern.preApproved.labor || 0) + (concern.preApproved.parts || 0) + (concern.preApproved.misc || 0);
+            return t > 0 ? <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--t-4)", whiteSpace: "nowrap", flexShrink: 0 }}>Pre-Approved · ${t.toFixed(0)}</span> : null;
+          })()}
+        </div>
+        {/* Rec rows */}
+        {concern.recs.length === 0 && (
+          <div style={{ padding: "12px 14px", fontSize: 12, color: isDropTarget ? "var(--blue-600)" : "var(--t-5)", fontStyle: isDropTarget ? "normal" : "italic", fontWeight: isDropTarget ? 600 : 400, textAlign: isDropTarget ? "center" : "left", transition: "color 100ms" }}>
+            {isDropTarget ? "Drop here to move" : "No recommendations — drop one here"}
+          </div>
+        )}
+        {concern.recs.map(rec => {
+          const statusKind = typeof rec.status === "string" ? rec.status : rec.status?.kind;
+          const isDragging = dragState?.recId === rec.id;
+          return (
+            <div
+              key={rec.id}
+              draggable
+              onDragStart={e => { e.dataTransfer.effectAllowed = "move"; setDragState({ recId: rec.id, fromConcernId: concern.id }); }}
+              onDragEnd={() => { setDragState(null); setDragOver(null); }}
+              onClick={() => onRecClick && onRecClick(rec, concern.id)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px 9px 10px", borderTop: "1px solid var(--b-2)", background: isDragging ? "var(--blue-50)" : "var(--bg-white)", cursor: "pointer", opacity: isDragging ? 0.45 : 1, userSelect: "none", transition: "opacity 120ms" }}
+              onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = "var(--bg-cream)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = isDragging ? "var(--blue-50)" : "var(--bg-white)"; }}
+            >
+              <span style={{ flexShrink: 0, color: "var(--t-5)", cursor: "grab", lineHeight: 0 }} onMouseDown={e => e.stopPropagation()}><IconMove size={14} /></span>
+              {statusKind && (statusKind === "fail" || statusKind === "caution") && (
+                <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", padding: "1px 5px", borderRadius: 3, background: statusKind === "fail" ? "var(--red-100)" : "var(--yellow-100)", color: statusKind === "fail" ? "var(--red-700)" : "var(--yellow-700)" }}>{statusKind}</span>
+              )}
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: rec.recommendation ? "var(--t-1)" : "var(--t-5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rec.recommendation || rec.text || "No recommendation added"}</span>
+              {rec.total != null && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, color: "var(--t-3)", fontVariantNumeric: "tabular-nums" }}>${Number(rec.total).toFixed(0)}</span>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ background: "var(--bg-canvas)", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "10px 16px", background: "var(--bg-white)", borderBottom: "1px solid var(--b-1)" }}>
+        <span style={{ fontSize: 12.5, color: "var(--t-3)" }}>Drag recommendations between groups to organize them for the customer presentation.</span>
+      </div>
+      <div style={{ padding: "16px 16px 24px", flex: 1, overflowY: "auto" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          {ocr.length > 0 && (
+            <>
+              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-3)", paddingLeft: 2, paddingBottom: 8 }}>Original Customer Concerns</div>
+              {ocr.map((c, i) => renderConcern(c, String.fromCharCode(65 + i)))}
+            </>
+          )}
+          {mpi.length > 0 && (
+            <>
+              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-3)", paddingLeft: 2, paddingBottom: 8, marginTop: ocr.length > 0 ? 20 : 0 }}>Additional Service Concerns</div>
+              {mpi.map(c => renderConcern(c, null))}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Tabs = ({ tab, setTab, phase, setPhase }) => (
+  <div style={{ display: "flex", borderBottom: "1px solid var(--b-1)", background: "var(--bg-white)", alignItems: "center" }}>
+    <div style={{ display: "flex", flex: 1 }}>
     {[
       { id: "rec",   label: "Recommendation" },
       { id: "mpi",   label: "Edit MPI", check: true },
@@ -6253,6 +7068,23 @@ const Tabs = ({ tab, setTab }) => (
         )}
       </button>
     ))}
+    </div>
+    {(tab === "rec" || tab === "mpi") && (
+      <div style={{ paddingRight: 14, paddingLeft: 8, flexShrink: 0, display: "flex", alignItems: "center" }}>
+        <div style={{ display: "inline-flex", background: "var(--b-1)", borderRadius: 7, padding: 3, gap: 2 }}>
+          {[{ id: 1, label: "Phase 1" }, { id: 2, label: "Phase 2" }].map(p => (
+            <button key={p.id} onClick={() => setPhase(p.id)} style={{
+              padding: "5px 14px", borderRadius: 5, border: "none",
+              background: phase === p.id ? "var(--bg-white)" : "transparent",
+              color: phase === p.id ? "var(--t-1)" : "var(--t-4)",
+              fontWeight: 700, fontSize: 12, cursor: "pointer",
+              boxShadow: phase === p.id ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+              transition: "all 120ms", fontFamily: "inherit",
+            }}>{p.label}</button>
+          ))}
+        </div>
+      </div>
+    )}
   </div>
 );
 
@@ -6889,7 +7721,7 @@ const MPIPage = () => {
   const [recConcerns, setRecConcerns] = React.useState(initialRecConcerns);
   const [sections, setSections] = React.useState(initialSections);
   const [tab, setTab] = React.useState("rec");
-  const [mpiCompact, setMpiCompact] = React.useState(true);
+  const [mpiCompact, setMpiCompact] = React.useState(false);
   const [concernsOpen, setConcernsOpen] = React.useState(true);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [modal, setModal] = React.useState(null); // { context }
@@ -6901,6 +7733,8 @@ const MPIPage = () => {
   const [newCustomConcernId, setNewCustomConcernId] = React.useState(null);
   const [custPreview, setCustPreview] = React.useState(false);
   const [pvwCollapsed, setPvwCollapsed] = React.useState(false);
+  const [phase, setPhase] = React.useState(2);
+  const [pvwOnboardingDone, setPvwOnboardingDone] = React.useState(false);
 
   const addCustomConcernFromToolbar = React.useCallback(() => {
     const newId = "custom-" + Date.now();
@@ -7157,6 +7991,84 @@ const MPIPage = () => {
   };
 
   const [dragOverNew, setDragOverNew] = React.useState(false);
+
+  // ── Reorder / move recs in the Recommendations preview panel (Phase 2 modal)
+  const reorderRecInModal = (fromCId, recId, toCId, targetId, before) => {
+    // ModalContextPreview renders its rows from `concerns` (the Edit MPI dataset — see the
+    // "sole source of truth" comment in that component), so the drag must update `concerns`
+    // for the preview to visibly reflect the reorder/move. Previously this only updated
+    // `recConcerns`, which the preview never reads, so dragging looked like it did nothing.
+    let movedRec = null;
+    let fromTitle = null, fromType = null;
+    setConcerns(list => {
+      if (fromCId === toCId) {
+        return list.map(c => {
+          if (c.id !== fromCId) return c;
+          fromTitle = c.title; fromType = c.type;
+          const recs = c.recs.slice();
+          const fromIdx = recs.findIndex(r => r.id === recId);
+          if (fromIdx < 0) return c;
+          const [moved] = recs.splice(fromIdx, 1);
+          movedRec = moved;
+          const toIdx = targetId ? recs.findIndex(r => r.id === targetId) : -1;
+          if (toIdx >= 0) recs.splice(before ? toIdx : toIdx + 1, 0, moved);
+          else recs.push(moved);
+          return { ...c, recs };
+        });
+      } else {
+        let moved = null;
+        const next = list.map(c => {
+          if (c.id === fromCId) {
+            fromTitle = c.title; fromType = c.type;
+            moved = c.recs.find(r => r.id === recId);
+            return { ...c, recs: c.recs.filter(r => r.id !== recId) };
+          }
+          return c;
+        }).map(c => {
+          if (c.id === toCId && moved) {
+            const recs = c.recs.slice();
+            const toIdx = targetId ? recs.findIndex(r => r.id === targetId) : -1;
+            if (toIdx >= 0) recs.splice(before ? toIdx : toIdx + 1, 0, moved);
+            else recs.push(moved);
+            return { ...c, recs };
+          }
+          return c;
+        });
+        movedRec = moved;
+        return next;
+      }
+    });
+    // Best-effort mirror into recConcerns (Recommendation tab's separate dataset) so the two
+    // stay roughly in sync. IDs differ between the two arrays, so match by title/type — same
+    // approach used elsewhere (e.g. moveMpiPointToConcern) when bridging the two datasets.
+    if (movedRec) {
+      setRecConcerns(list => {
+        const rcFrom = list.find(c => c.title === fromTitle && c.type === fromType);
+        const toC = concerns.find(c => c.id === toCId);
+        const rcTo = toC ? list.find(c => c.title === toC.title && c.type === toC.type) : null;
+        if (!rcFrom) return list;
+        const rcRec = rcFrom.recs.find(r => r.id === recId || r.recommendation === movedRec.recommendation);
+        if (!rcRec) return list;
+        if (rcFrom === rcTo || !rcTo) {
+          // Same concern (or no resolvable target) — reorder within rcFrom
+          return list.map(c => {
+            if (c !== rcFrom) return c;
+            const recs = c.recs.slice();
+            const fromIdx = recs.findIndex(r => r === rcRec);
+            if (fromIdx < 0) return c;
+            recs.splice(fromIdx, 1);
+            recs.push(rcRec);
+            return { ...c, recs };
+          });
+        }
+        return list.map(c => {
+          if (c === rcFrom) return { ...c, recs: c.recs.filter(r => r !== rcRec) };
+          if (c === rcTo) return { ...c, recs: [...c.recs, rcRec] };
+          return c;
+        });
+      });
+    }
+  };
 
   // ── Extract a rec from the preview panel into a new standalone concern
   // Called when the user drags a rec row from ModalContextPreview onto the "new concern" drop zone.
@@ -7632,7 +8544,7 @@ const MPIPage = () => {
         <RailIcons sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(o => !o)} />
         {sidebarOpen && <Sidebar />}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <Tabs tab={tab} setTab={setTab} />
+          <Tabs tab={tab} setTab={setTab} phase={phase} setPhase={setPhase} />
 
           {tab === "media" && (
             <MediaTab concerns={concerns} recConcerns={recConcerns} />
@@ -7646,6 +8558,7 @@ const MPIPage = () => {
               onPointStatusChange={setSectionPointStatus}
               onTireReading={setSectionTireReading}
               onAddRec={addRecToConcern}
+              phase={phase}
               onAddCustomRec={() => openModalFor({ inspectionPoint: "Custom recommendation", inspectionDetail: "", inspectionResult: "failed", isNewRec: true })}
               onRecClick={(rec, concernId, section) => {
                 const statusKind = typeof rec.status === "string" ? rec.status : rec.status?.kind;
@@ -7726,6 +8639,7 @@ const MPIPage = () => {
                 dragActive={!!drag}
                 isDragSource={drag && drag.kind !== "mpiPoint" && drag.fromConcernId === c.id}
                 isDragOver={dragOverConcernId === c.id && drag && !(drag.kind !== "mpiPoint" && drag.kind !== "concernPoint" && drag.fromConcernId === c.id)}
+                phase={phase}
                 draggingRecId={drag && drag.kind === "rec" ? drag.recId : null}
                 draggingPointId={drag && drag.kind === "concernPoint" && drag.fromConcernId === c.id ? drag.pointId : null}
                 onRecDragStart={(recId) => setDrag({ kind: "rec", fromConcernId: c.id, recId })}
@@ -7853,13 +8767,31 @@ const MPIPage = () => {
           <div style={{
             position: "relative",
             width: "100%",
-            maxWidth: editorVariant === "panel" ? 1200 : 900,
+            maxWidth: editorVariant === "panel" ? (phase === 2 ? 1500 : 1200) : 900,
             minWidth: editorVariant === "panel" ? "clamp(720px, 60vw, 1200px)" : undefined,
             height: editorVariant === "panel" ? "100vh" : "auto",
             animation: editorVariant === "panel"
               ? "panelIn 240ms cubic-bezier(.2,.8,.2,1)"
               : "modalIn 220ms cubic-bezier(.2,.8,.2,1)",
+            display: "flex", flexDirection: "row",
           }}>
+
+            {phase === 2 && (
+              <ModalContextPreview
+                concerns={concerns}
+                recConcerns={recConcerns}
+                targetConcernId={modal.targetConcernId || modal.defaultConcern}
+                liveState={modalLive}
+                panel={true}
+                editingRecId={modal.editingRecId}
+                onReorderRec={reorderRecInModal}
+                onExtractRec={extractRecFromPreview}
+                onChangeLiveTarget={(concernId) => setModal((m) => m ? { ...m, externalConcernId: concernId } : m)}
+                pvwCollapsed={false}
+                showOnboarding={false}
+                onDismissOnboarding={() => setPvwOnboardingDone(true)}
+              />
+            )}
 
             <RecEditorModal
               key={modal._openTime}
@@ -7873,6 +8805,7 @@ const MPIPage = () => {
               lockedConcern={modal.lockedConcern}
               lockedConcernLabel={modal.lockedConcernLabel}
               isPreApproved={modal.isPreApproved}
+              phase={phase}
               defaults={modal.defaults}
               variant={editorVariant}
               tire={modal.tire}
@@ -7897,7 +8830,7 @@ const MPIPage = () => {
                   ...concerns.filter(c => c.type === "asc_m" && !seenIds.has(c.id) && c.id !== currentConcernId),
                 ].filter(c => c.recs.some(r => r.status != null));
                 const base = [...occs, ...ascs];
-                const standaloneEntry = { id: "__unlinked__", type: "unlinked", title: "Keep standalone" };
+                const standaloneEntry = { id: "__unlinked__", type: "unlinked", title: "Keep rec by itself" };
 
                 // Form item (lockedConcern): OCC options first, then OTHER ASCs with fails (not the form item's own concern), standalone last
                 if (modal.lockedConcern) {
