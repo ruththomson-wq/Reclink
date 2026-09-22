@@ -5146,7 +5146,83 @@ const InspectionSection = ({ section, onPointStatusChange, onTireReading, onPoin
 // Top chrome
 // ────────────────────────────────────────────────────────────
 
-const TopBar = () => (
+// ── Version history panel ──
+const RECLINK_REPO = "ruththomson-wq/Reclink";
+const RECLINK_FILE = "RECOMM3.HTM";
+
+const relTimeStr = (isoDate) => {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hrs = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hrs < 24) return `${hrs}h ago`;
+  if (days < 30) return `${days}d ago`;
+  return new Date(isoDate).toLocaleDateString();
+};
+
+const VersionHistory = () => {
+  const [commits, setCommits] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const currentSha = React.useMemo(() => {
+    const m = window.location.href.match(/\/Reclink\/([a-f0-9]{7,40})\//i);
+    return m ? m[1] : null;
+  }, []);
+
+  React.useEffect(() => {
+    fetch(`https://api.github.com/repos/${RECLINK_REPO}/commits?path=${RECLINK_FILE}&per_page=50`)
+      .then(r => r.json())
+      .then(data => { setCommits(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => { setError("Could not load history"); setLoading(false); });
+  }, []);
+
+  return (
+    <div style={{
+      position: "fixed", right: 0, top: 0, bottom: 0, width: 220, zIndex: 200,
+      background: "var(--bg-white)", borderLeft: "1px solid var(--b-1)",
+      display: "flex", flexDirection: "column", overflow: "hidden",
+    }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--b-1)", flexShrink: 0 }}>
+        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-4)" }}>History</span>
+      </div>
+      <div style={{ overflowY: "auto", flex: 1 }}>
+        {loading && <div style={{ padding: "16px", fontSize: 14, color: "var(--t-4)" }}>Loading…</div>}
+        {error && <div style={{ padding: "16px", fontSize: 14, color: "var(--t-4)" }}>{error}</div>}
+        {!loading && !error && commits.map((commit, i) => {
+          const sha = commit.sha;
+          const short = sha.slice(0, 7);
+          const isActive = currentSha
+            ? sha.startsWith(currentSha) || currentSha.startsWith(short)
+            : i === 0;
+          const message = commit.commit?.message?.split("\n")[0] || "No message";
+          const date = commit.commit?.author?.date;
+          return (
+            <div
+              key={sha}
+              onClick={() => { window.location.href = `https://raw.githubusercontent.com/${RECLINK_REPO}/${sha}/${RECLINK_FILE}`; }}
+              style={{
+                padding: "10px 14px",
+                cursor: "pointer",
+                background: isActive ? "#EDE9F8" : "transparent",
+                borderLeft: `2px solid ${isActive ? "#7C3AED" : "transparent"}`,
+                transition: "background 100ms",
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--bg-cream)"; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+            >
+              <div style={{ fontSize: 14, color: "var(--t-1)", lineHeight: 1.4 }}>{message}</div>
+              {date && <div style={{ fontSize: 12, color: "var(--t-4)", marginTop: 3 }}>{relTimeStr(date)}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const TopBar = ({ historyOpen = false, onToggleHistory }) => (
   <div style={{
     display: "flex", alignItems: "center", gap: 16,
     padding: "12px 22px",
@@ -5166,6 +5242,18 @@ const TopBar = () => (
       <span style={{ color: "var(--t-3)" }}>1 days ago</span>
     </div>
     <div style={{ flex: 1 }} />
+    <button
+      onClick={onToggleHistory}
+      style={{
+        background: historyOpen ? "var(--bg-cream)" : "transparent",
+        border: historyOpen ? "1px solid var(--b-2)" : "1px solid transparent",
+        borderRadius: 6, color: historyOpen ? "var(--t-1)" : "var(--t-3)",
+        cursor: "pointer", height: 30, padding: "0 10px",
+        fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase",
+      }}
+      onMouseEnter={e => { if (!historyOpen) { e.currentTarget.style.color = "var(--t-2)"; e.currentTarget.style.background = "var(--bg-cream)"; } }}
+      onMouseLeave={e => { if (!historyOpen) { e.currentTarget.style.color = "var(--t-3)"; e.currentTarget.style.background = "transparent"; } }}
+    >History</button>
     <button style={{ background: "transparent", border: "none", color: "var(--t-2)", cursor: "pointer", padding: 6 }}>
       <IconGear size={20} />
     </button>
@@ -8650,6 +8738,7 @@ const MPIPage = () => {
   const [phase, setPhase] = React.useState(2);
   const [showPreviousDeclinesMpi, setShowPreviousDeclinesMpi] = React.useState(false);
   const [pvwOnboardingDone, setPvwOnboardingDone] = React.useState(false);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
   const [panelWidth, setPanelWidth] = React.useState(null); // null = responsive default; explicit px once the user drags the resize handle
   const PANEL_MIN_WIDTH = 512; // 20% narrower than the previous 640px floor, so the panel can shrink further on a small screen
   const PANEL_MAX_WIDTH = 1900;
@@ -9549,7 +9638,7 @@ const MPIPage = () => {
       fontFamily: "var(--font-sans)",
       color: "var(--t-1)",
     }}>
-      <TopBar />
+      <TopBar historyOpen={historyOpen} onToggleHistory={() => setHistoryOpen(o => !o)} />
       <div style={{ flex: 1, display: "flex" }}>
         <RailIcons sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(o => !o)} />
         {sidebarOpen && <Sidebar />}
@@ -10074,6 +10163,7 @@ const MPIPage = () => {
           </div>
         </div>
       )}
+      {historyOpen && <VersionHistory />}
     </div>
   );
 };
