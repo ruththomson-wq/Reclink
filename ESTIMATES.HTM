@@ -1,0 +1,876 @@
+<!doctype html>
+<!-- v2026-08-29c -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Estimate Options</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" />
+  <style>
+:root {
+  --bg-canvas: #F5F5F5;
+  --bg-cream: #F5F5F5;
+  --bg-cream-soft: #FAFAFA;
+  --bg-white: #FFFFFF;
+  --bg-gray: #F5F5F5;
+
+  --t-1: #101828;
+  --t-2: #414651;
+  --t-3: #535862;
+  --t-4: #717680;
+  --t-5: #A4A7AE;
+
+  --b-1: #E9EAEB;
+  --b-2: #D5D7DA;
+  --b-3: #A4A7AE;
+
+  --blue-700: #01476E;
+  --blue-600: #02679B;
+  --blue-500: #0377B3;
+  --blue-200: #BDD6EA;
+  --blue-100: #D3E4F1;
+  --blue-50:  #E9F1F8;
+
+  --occ-text: #01476E;
+  --occ-bg:   #D3E4F1;
+  --asc-cos-text: #535862;
+  --asc-cos-bg:   #F0F1F3;
+
+  --red-700: #9C2222;
+  --red-600: #BE2C2C;
+  --red-500: #D33B3B;
+  --red-100: #FAE0E0;
+  --red-50:  #FCEDED;
+
+  --green-700: #1F6E2A;
+  --green-600: #2A8736;
+
+  --purple-700: #5B21A8;
+  --purple-600: #7C3AED;
+  --purple-50:  #F5EFFE;
+
+  --shadow-modal: 0px 12px 16px -4px rgba(16, 24, 40, 0.10), 0px 4px 6px -2px rgba(16, 24, 40, 0.05);
+  --font-sans: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Menlo", "Consolas", monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font-sans); color: var(--t-1); background: var(--bg-canvas); scrollbar-gutter: stable; }
+button { font-family: inherit; text-transform: uppercase; }
+input, select, textarea { font-family: inherit; color: inherit; }
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--t-3);
+  margin-bottom: 3px;
+}
+.caps { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t-3); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 3px 8px; border-radius: 999px; line-height: 1.4;
+}
+
+.input, .select, .textarea {
+  width: 100%;
+  background: var(--bg-white);
+  border: 1px solid var(--b-2);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13.5px;
+  color: var(--t-1);
+  outline: none;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.input { height: 34px; }
+.input.compact, .select.compact { height: 28px; padding: 0 8px; font-size: 12.5px; border-radius: 8px; }
+.textarea { padding: 8px 10px; font-family: inherit; resize: vertical; }
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 4px rgba(2, 103, 155, 0.20);
+}
+.input.err { border-color: var(--red-500); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 28px; padding: 0 10px;
+  border-radius: 6px;
+  font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms, color 100ms, transform 80ms;
+  user-select: none;
+  white-space: nowrap;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--blue-600); color: #fff; border-color: var(--blue-600); }
+.btn-primary:hover { background: var(--blue-700); border-color: var(--blue-700); }
+.btn-primary:disabled { background: var(--b-1); border-color: var(--b-1); color: var(--t-5); cursor: not-allowed; }
+.btn-secondary { background: var(--bg-white); color: var(--t-1); border-color: var(--b-2); }
+.btn-secondary:hover { background: var(--bg-cream); border-color: var(--b-3); }
+.btn-ghost { background: transparent; color: var(--red-600); border-color: transparent; }
+.btn-ghost:hover { background: var(--red-50); }
+
+.checkbox {
+  appearance: none;
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--b-2);
+  border-radius: 4px;
+  background: var(--bg-white);
+  display: inline-grid; place-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 100ms, border-color 100ms;
+}
+.checkbox:checked { background: var(--blue-600); border-color: var(--blue-600); }
+.checkbox:checked::after {
+  content: "";
+  width: 9px; height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.checkbox[type="radio"] { border-radius: 999px; }
+.checkbox[type="radio"]:checked::after {
+  width: 6px; height: 6px;
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  transform: none;
+}
+
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em;
+  text-transform: none;
+  border: 1.5px solid var(--b-2);
+  background: var(--bg-white);
+  color: var(--t-3);
+  cursor: pointer;
+  user-select: none;
+  transition: background 100ms, border-color 100ms, color 100ms;
+}
+.tag-chip:hover { border-color: var(--t-5); }
+.tag-chip.active { background: var(--blue-50); border-color: var(--blue-500); color: var(--blue-700); }
+.tag-chip.custom.active { background: var(--purple-50); border-color: var(--purple-600); color: var(--purple-700); }
+.tag-chip .dot { width: 6px; height: 6px; border-radius: 999px; flex-shrink: 0; }
+
+.est-tabbar { display: inline-flex; align-items: center; gap: 0; flex-wrap: wrap; }
+.est-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  font-size: 12.5px; font-weight: 600; color: var(--t-3);
+  background: transparent;
+  border: none; border-top: 2px solid transparent; border-right: 1px solid var(--b-2);
+  border-radius: 0;
+  cursor: pointer;
+  max-width: 210px;
+  text-transform: none;
+  transition: background 100ms, border-color 100ms, color 100ms;
+}
+.est-tab:hover { color: var(--t-1); }
+.est-tab.active { background: var(--bg-white); border-top-color: var(--blue-600); color: var(--t-1); }
+.est-tab .chip { background: var(--blue-50); color: var(--blue-700); font-weight: 700; font-size: 11.5px; padding: 2px 9px; border-radius: 999px; flex-shrink: 0; }
+.est-tab-add {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 6px 8px; margin-left: 2px;
+  background: none; border: none;
+  color: var(--blue-600); font-size: 12.5px; font-weight: 700;
+  text-transform: none;
+  cursor: pointer;
+}
+.tab-icon-btn {
+  display: inline-flex; padding: 3px; border: none; background: transparent; cursor: pointer; color: var(--t-4); border-radius: 4px; flex-shrink: 0;
+}
+.tab-icon-btn:hover { background: var(--b-1); color: var(--t-2); }
+
+.tag-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 8px; background: none; border: none; text-align: left;
+  font-size: 12.5px; font-weight: 600; color: var(--t-1); text-transform: none;
+  border-radius: 6px; cursor: pointer; box-sizing: border-box;
+}
+.tag-menu-item:hover { background: var(--bg-cream); }
+
+.scrollable::-webkit-scrollbar { width: 10px; height: 10px; }
+.scrollable::-webkit-scrollbar-thumb { background: var(--b-2); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+.scrollable::-webkit-scrollbar-thumb:hover { background: var(--b-3); border: 2px solid transparent; background-clip: padding-box; }
+
+.stage { min-height: 100%; display: flex; justify-content: center; padding: 28px 16px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+/* ---------- icons ---------- */
+const Icon = ({ size = 16, strokeWidth = 2, style, children }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>{children}</svg>
+);
+const IconX = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>;
+const IconPlus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+const IconTrash = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></Icon>;
+const IconDoc = (p) => <Icon {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" /></Icon>;
+const IconAlert = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12.5" /><circle cx="12" cy="16" r="0.6" fill="currentColor" stroke="none" /></Icon>;
+const IconChevDown = (p) => <Icon {...p}><path d="M6 9l6 6 6-6" /></Icon>;
+const IconPencil = (p) => <Icon strokeWidth={1.8} {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></Icon>;
+const IconImage = (p) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></Icon>;
+const IconDollar = (p) => <Icon {...p}><path d="M12 3v18" /><path d="M16 7.5c-.8-1.5-2.4-2.5-4-2.5-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3c-1.6 0-3.2-1-4-2.5" /></Icon>;
+const IconPrint = (p) => <Icon {...p}><path d="M6 9V3h12v6" /><rect x="4" y="9" width="16" height="8" rx="1.5" /><path d="M6 17v4h12v-4" /></Icon>;
+const IconCopy = (p) => <Icon {...p}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></Icon>;
+const IconInfo = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="11.5" /><circle cx="12" cy="7.7" r="0.6" fill="currentColor" stroke="none" /></Icon>;
+const IconCirclePlus = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></Icon>;
+
+const currency = (n) => {
+  const v = Number(n);
+  if (!isFinite(v)) return "$0.00";
+  return "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/* ---------- collapsible section chrome, same as RecAccordion in the main tool ---------- */
+const Section = ({ icon: IconCmp, title, headerAction, defaultOpen = true, noTopBorder = false, testId, children }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ borderTop: noTopBorder ? "none" : "1px solid var(--b-1)", margin: "0 -24px", padding: "0 24px" }}>
+      <div data-section-header={testId} onClick={() => setOpen(!open)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "11px 0", cursor: "pointer", textAlign: "left" }}>
+        <div style={{ color: "var(--t-3)", display: "grid", placeItems: "center" }}><IconCmp size={13} /></div>
+        <div style={{ flex: 1, display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, lineHeight: "20px", color: "var(--t-1)", textTransform: "none" }}>{title}</span>
+        </div>
+        {headerAction && <div onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>{headerAction}</div>}
+        <div style={{ color: "var(--t-4)", transition: "transform 180ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}><IconChevDown size={14} /></div>
+      </div>
+      {open && <div style={{ padding: "2px 0 14px 0", display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>}
+    </div>
+  );
+};
+
+const GradeBtn = ({ kind, active, onClick }) => {
+  const map = {
+    fail:    { bg: "#D33B3B", idle: "#B82828", border: "#F0B6B6", label: "Fail" },
+    caution: { bg: "#F2B91A", idle: "#8A6D00", border: "#F3DDA1", label: "Caution" },
+  }[kind];
+  return (
+    <button onClick={onClick} style={{ height: 28, padding: "0 12px", minWidth: 64, background: active ? map.bg : "var(--bg-white)", color: active ? "#fff" : map.idle, border: `1px solid ${active ? map.bg : map.border}`, borderRadius: 5, fontSize: 12, fontWeight: 700, letterSpacing: 0.04, textTransform: "uppercase", cursor: "pointer" }}>
+      {map.label}
+    </button>
+  );
+};
+
+const MediaUploadArea = ({ internal }) => (
+  <div style={{ border: "1.5px dashed var(--b-2)", borderRadius: 8, padding: "20px 12px", textAlign: "center", color: "var(--t-4)" }}>
+    <IconImage size={18} style={{ marginBottom: 6 }} />
+    <div style={{ fontWeight: 600, color: "var(--t-3)", fontSize: 12.5 }}>{internal ? "Internal Media" : "Customer-Facing Media"}</div>
+    <div style={{ fontSize: 11, marginTop: 2 }}>Drag &amp; drop or click to upload</div>
+  </div>
+);
+
+/* ---------- tags + presets, shared by single-option validation ---------- */
+const PRESET_TAGS = [
+  { id: "good",   label: "Good",   dot: "#B68B00" },
+  { id: "better", label: "Better", dot: "#0377B3" },
+  { id: "best",   label: "Best",   dot: "#1F6E2A" },
+];
+const MAX_OPTIONS = 3;
+const MIN_OPTIONS = 2;
+let uid = 1;
+const nextId = () => "opt-" + (uid++);
+let partUid = 1;
+const nextPartId = () => "part-" + (partUid++);
+const ETA_OPTIONS = ["Later today", "Tomorrow", "In 3 days", "1 week"];
+const makeBlankPartRow = () => ({ id: nextPartId(), selected: true, partNo: "", qty: 1, desc: "", mfg: "", sell: "", inStock: false, eta: ETA_OPTIONS[0], coreCharge: false });
+const makeOption = (seed = {}) => ({
+  id: nextId(), tagIds: [], customTags: [], description: "",
+  laborType: "C20", hours: "", labor: "", misc: "", itemizedParts: [],
+  touched: false, ...seed,
+});
+const isOptionValid = (o) => o.tagIds.length > 0 || o.customTags.length > 0 || o.description.trim().length > 0;
+// Only rows the user has checked "in" (selected) count toward the priced subtotal — an unchecked
+// row stays visible (e.g. a part the customer already has) but doesn't add to the total.
+const partsSubtotal = (parts) => parts.reduce((s, r) => s + (r.selected ? (parseFloat(r.sell) || 0) * (parseFloat(r.qty) || 1) : 0), 0);
+const optionTotal = (o) => (parseFloat(o.labor) || 0) + (parseFloat(o.misc) || 0) + partsSubtotal(o.itemizedParts);
+const hasOptionData = (o) => isOptionValid(o) || !!o.hours || !!o.labor || !!o.misc || o.itemizedParts.some((r) => r.desc || r.partNo || r.sell || r.mfg);
+const shortOptionLabel = (o) => {
+  const tags = [...o.tagIds.map((id) => PRESET_TAGS.find((t) => t.id === id)?.label).filter(Boolean), ...o.customTags];
+  if (tags.length) return tags.join(", ");
+  const d = o.description.trim();
+  if (d) return d.length > 16 ? d.slice(0, 16) + "…" : d;
+  return null;
+};
+const primaryDot = (o) => {
+  if (o.tagIds[0]) return PRESET_TAGS.find((t) => t.id === o.tagIds[0])?.dot;
+  if (o.customTags[0]) return "var(--purple-600)";
+  return null;
+};
+
+/* ---------- flat gray card used for the "Details" and "Parts" groupings ---------- */
+const SectionCard = ({ title, action, children }) => (
+  <div style={{ background: "var(--bg-gray)", borderRadius: 8, padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)" }}>{title}</span>
+      {action}
+    </div>
+    {children}
+  </div>
+);
+
+/* ---------- itemized parts, reused for the single price and for each option ---------- */
+const PARTS_GRID = "18px 82px 40px 1fr 50px 68px 58px 78px 56px 20px";
+const ItemizedPartsTable = ({ parts, onChange, testKey }) => {
+  const [view, setView] = useState(parts.length === 0 ? "choose" : "table");
+  const updateRow = (id, field, val) => onChange(parts.map((r) => (r.id === id ? { ...r, [field]: val } : r)));
+  const removeRow = (id) => onChange(parts.filter((r) => r.id !== id));
+  const addRow = () => onChange([...parts, makeBlankPartRow()]);
+  const handleAddParts = () => { onChange([makeBlankPartRow()]); setView("table"); };
+  const handleNoPartsNeeded = () => { onChange([]); setView("none"); };
+  const subtotal = partsSubtotal(parts);
+
+  const bulkImportBtn = <button type="button" className="btn btn-secondary">Bulk Import</button>;
+
+  if (view === "choose") {
+    return (
+      <SectionCard title="Parts" action={bulkImportBtn}>
+        <div data-parts-table={testKey} style={{ display: "flex", gap: 8, border: "1px solid var(--blue-200)", borderRadius: 8, padding: "12px 14px", background: "var(--blue-50)" }}>
+          <button type="button" data-add-parts-choice className="btn btn-secondary" onClick={handleAddParts}>
+            <IconPlus size={12} /> Add Parts
+          </button>
+          <button type="button" data-no-parts-choice className="btn btn-secondary" onClick={handleNoPartsNeeded}>
+            No Parts Needed
+          </button>
+        </div>
+      </SectionCard>
+    );
+  }
+
+  if (view === "none") {
+    return (
+      <SectionCard title="Parts" action={bulkImportBtn}>
+        <div data-parts-table={testKey} style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid var(--b-2)", borderRadius: 8, padding: "12px 14px", background: "var(--bg-white)" }}>
+          <span style={{ fontSize: 12.5, color: "var(--t-4)" }}>No parts needed for this estimate.</span>
+          <button type="button" data-parts-are-needed onClick={() => setView("choose")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--blue-600)", fontSize: 12.5, fontWeight: 700, textTransform: "none" }}>
+            Add parts instead
+          </button>
+        </div>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard title="Parts" action={bulkImportBtn}>
+      <div data-parts-table={testKey} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ borderRadius: 8, overflow: "hidden", background: "var(--bg-white)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: PARTS_GRID, gap: 5, padding: "8px 12px", background: "var(--t-1)" }}>
+            <span />
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff" }}>Part #</span>
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff" }}>Qty</span>
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff" }}>Description</span>
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff" }}>Mfg</span>
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff" }}>Sell $</span>
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff", whiteSpace: "nowrap" }}>In Stock</span>
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff" }}>ETA</span>
+            <span className="field-label" style={{ marginBottom: 0, fontSize: 10, color: "#fff", textAlign: "right" }}>Total</span>
+            <span />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px 12px" }}>
+            {parts.map((r) => (
+              <div key={r.id} data-part-row>
+                <div style={{ display: "grid", gridTemplateColumns: PARTS_GRID, gap: 5, alignItems: "center" }}>
+                  <input data-part-selected type="checkbox" className="checkbox" checked={!!r.selected} onChange={(e) => updateRow(r.id, "selected", e.target.checked)} />
+                  <input data-part-partno className="input compact" placeholder="Part #" value={r.partNo} onChange={(e) => updateRow(r.id, "partNo", e.target.value)} />
+                  <input data-part-qty className="input compact" type="number" min="1" value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} />
+                  <input data-part-desc className="input compact" placeholder="Description" value={r.desc} onChange={(e) => updateRow(r.id, "desc", e.target.value)} />
+                  <input data-part-mfg className="input compact" placeholder="Mfg" value={r.mfg} onChange={(e) => updateRow(r.id, "mfg", e.target.value)} />
+                  <input data-part-sell className="input compact" type="number" min="0" step="0.01" placeholder="0.00" value={r.sell} onChange={(e) => updateRow(r.id, "sell", e.target.value)} />
+                  <input data-part-instock type="checkbox" className="checkbox" checked={!!r.inStock} onChange={(e) => updateRow(r.id, "inStock", e.target.checked)} />
+                  <select data-part-eta className="select compact" value={r.eta} onChange={(e) => updateRow(r.id, "eta", e.target.value)}>
+                    {ETA_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <div data-part-total style={{ fontSize: 12, fontWeight: 700, textAlign: "right", color: "var(--t-1)" }}>{currency((parseFloat(r.sell) || 0) * (parseFloat(r.qty) || 1))}</div>
+                  <button className="tab-icon-btn" data-part-remove onClick={() => removeRow(r.id)} title="Remove part"><IconTrash size={12} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button type="button" data-add-part className="btn btn-secondary" onClick={addRow}>Fetch Parts</button>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "var(--t-2)", cursor: "pointer" }}>
+              <input type="checkbox" data-no-parts-toggle className="checkbox" checked={false} onChange={handleNoPartsNeeded} />
+              No Parts Needed
+              <span title="Sets the parts cost for this estimate to $0" style={{ display: "inline-flex", color: "var(--t-4)", cursor: "help" }}>
+                <IconInfo size={13} />
+              </span>
+            </label>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t-1)" }}>
+            <span data-parts-subtotal-label style={{ color: "var(--t-3)", marginRight: 8 }}>REPAIR ESTIMATE SUBTOTAL</span>
+            <span data-parts-subtotal>{currency(subtotal)}</span>
+          </div>
+        </div>
+      </div>
+    </SectionCard>
+  );
+};
+
+/* ---------- the 4-field labor row, reused for single price and for each option ---------- */
+const LaborRow = ({ laborType, hours, labor, misc, onChange }) => (
+  <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.8fr 1fr 1fr", gap: 10 }}>
+    <div>
+      <label className="field-label">Labor type</label>
+      <select className="select compact" value={laborType} onChange={(e) => onChange("laborType", e.target.value)}>
+        <option value="C20">C20</option>
+        <option value="CP">CP — Customer pay</option>
+        <option value="WP">WP — Warranty</option>
+        <option value="IP">IP — Internal pay</option>
+      </select>
+    </div>
+    <div>
+      <label className="field-label">Hours</label>
+      <input className="input compact" value={hours} onChange={(e) => onChange("hours", e.target.value)} />
+    </div>
+    <div>
+      <label className="field-label">Labor $</label>
+      <input data-labor-input className="input compact" value={labor} onChange={(e) => onChange("labor", e.target.value.replace(/^\$/, ""))} placeholder="0.00" />
+    </div>
+    <div>
+      <label className="field-label">Misc $</label>
+      <input data-misc-input className="input compact" value={misc} onChange={(e) => onChange("misc", e.target.value.replace(/^\$/, ""))} placeholder="0.00" />
+    </div>
+  </div>
+);
+
+/* ---------- confirm dialog shown when turning options off with more than one option filled in ---------- */
+const KeepOptionDialog = ({ options, onKeep, onCancel }) => (
+  <div style={{ position: "absolute", inset: 0, background: "rgba(16,24,40,0.45)", zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12 }}>
+    <div style={{ background: "var(--bg-white)", border: "1px solid var(--b-1)", borderRadius: 10, boxShadow: "var(--shadow-modal)", padding: "22px 22px 18px", width: 360, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", marginBottom: 6 }}>Keep which option?</div>
+        <div style={{ fontSize: 13, color: "var(--t-3)", lineHeight: 1.5 }}>Turning off options keeps only one price. Choose which option's pricing carries over — the others will be discarded.</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {options.map((o, i) => (
+          <button key={o.id} data-keep-option data-keep-option-index={i} onClick={() => onKeep(i)} style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", border: "1px solid var(--b-2)", borderRadius: 8, background: "var(--bg-white)", cursor: "pointer" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-1)" }}>{shortOptionLabel(o) || `Option ${i + 1}`}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)" }}>{currency(optionTotal(o))}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button className="btn btn-secondary" data-keep-cancel onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  </div>
+);
+
+/* ---------- one option's tags + description, with warning styling wired in ---------- */
+const OptionIdentifier = ({ option, onChange, invalid }) => {
+  const [customDraft, setCustomDraft] = useState("");
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [tagMenuOpen, setTagMenuOpen] = useState(false);
+  const customInputRef = useRef(null);
+  const tagMenuRef = useRef(null);
+  useEffect(() => { if (addingCustom && customInputRef.current) customInputRef.current.focus(); }, [addingCustom]);
+
+  // Close the tag menu on an outside click via a document listener rather than a full-viewport
+  // click-catcher div — a fixed overlay would sit above (and swallow clicks meant for) every other
+  // control on the page, like the header's Remove Options / Print buttons.
+  useEffect(() => {
+    if (!tagMenuOpen) return;
+    const onDocMouseDown = (e) => {
+      if (tagMenuRef.current && !tagMenuRef.current.contains(e.target)) {
+        setTagMenuOpen(false);
+        if (addingCustom) commitCustomTag();
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [tagMenuOpen, addingCustom]);
+
+  // Single-select: choosing a tag replaces whatever was selected before (preset or custom).
+  const selectPresetTag = (tagId) => {
+    const isSame = option.tagIds[0] === tagId;
+    onChange({ ...option, tagIds: isSame ? [] : [tagId], customTags: [], touched: true });
+    if (!isSame) setTagMenuOpen(false);
+  };
+  const selectCustomTag = (name) => {
+    const isSame = option.customTags[0] === name;
+    onChange({ ...option, tagIds: [], customTags: isSame ? [] : [name], touched: true });
+    if (!isSame) setTagMenuOpen(false);
+  };
+  const commitCustomTag = () => {
+    const val = customDraft.trim();
+    if (val) { onChange({ ...option, tagIds: [], customTags: [val], touched: true }); setTagMenuOpen(false); }
+    setCustomDraft("");
+    setAddingCustom(false);
+  };
+
+  const selectedLabels = [...option.tagIds.map((id) => PRESET_TAGS.find((t) => t.id === id)?.label).filter(Boolean), ...option.customTags];
+
+  return (
+    <div data-identifier-wrap style={{ border: invalid ? "1.5px solid var(--red-500)" : "1.5px solid transparent", borderRadius: 8, padding: invalid ? 11 : 0, background: invalid ? "var(--red-50)" : "transparent", transition: "border-color 120ms, background 120ms" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 16 }}>
+        <div>
+          <span className="field-label">Option Tag</span>
+          <div ref={tagMenuRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              data-tag-menu-btn
+              className="select compact"
+              onClick={() => setTagMenuOpen((v) => !v)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", cursor: "pointer", color: selectedLabels.length ? "var(--t-1)" : "var(--t-4)", textAlign: "left" }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedLabels.length ? selectedLabels.join(", ") : "Select"}</span>
+              <IconChevDown size={12} style={{ flexShrink: 0, marginLeft: 6, color: "var(--t-4)", transform: tagMenuOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
+            </button>
+            {tagMenuOpen && (
+              <React.Fragment>
+                <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "100%", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 30, padding: 4 }}>
+                  {PRESET_TAGS.map((t) => (
+                    <label key={t.id} className="tag-menu-item">
+                      <input type="radio" name={`tags-${option.id}`} className="checkbox" data-tag={t.id} checked={option.tagIds[0] === t.id} onClick={(e) => { e.preventDefault(); selectPresetTag(t.id); }} onChange={() => {}} />
+                      {t.label}
+                    </label>
+                  ))}
+                  {option.customTags[0] && (
+                    <label className="tag-menu-item">
+                      <input type="radio" name={`tags-${option.id}`} className="checkbox" checked readOnly onClick={(e) => { e.preventDefault(); selectCustomTag(option.customTags[0]); }} />
+                      {option.customTags[0]}
+                    </label>
+                  )}
+                  <div style={{ borderTop: "1px solid var(--b-1)", margin: "4px 2px" }} />
+                  {addingCustom ? (
+                    <input
+                      ref={customInputRef}
+                      value={customDraft}
+                      onChange={(e) => setCustomDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitCustomTag(); } if (e.key === "Escape") { setCustomDraft(""); setAddingCustom(false); } }}
+                      onBlur={commitCustomTag}
+                      placeholder="Tag name"
+                      style={{ width: "calc(100% - 4px)", margin: 2, height: 28, padding: "0 9px", borderRadius: 6, border: "1.5px solid var(--blue-500)", fontSize: 12.5, outline: "none", boxSizing: "border-box" }}
+                    />
+                  ) : (
+                    <button type="button" data-add-custom-tag className="tag-menu-item" style={{ color: "var(--blue-600)" }} onClick={() => setAddingCustom(true)}><IconPlus size={11} /> Add custom tag</button>
+                  )}
+                </div>
+              </React.Fragment>
+            )}
+          </div>
+        </div>
+        <div>
+          <span className="field-label">Description</span>
+          <input
+            data-description
+            className={`input compact${invalid ? " err" : ""}`}
+            value={option.description}
+            onChange={(e) => onChange({ ...option, description: e.target.value, touched: true })}
+            onBlur={() => onChange({ ...option, touched: true })}
+            placeholder="Optional when tagged"
+            style={{ width: "100%" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ---------- the panel itself ---------- */
+const EstimateEditorPanel = () => {
+  const [inspectionResult, setInspectionResult] = useState("fail");
+  const [concernName, setConcernName] = useState("Brake System");
+  const [recText, setRecText] = useState("Front brake pads and rotors are worn beyond spec and should be replaced before the next service interval.");
+  const [opCode, setOpCode] = useState("BRK-FR");
+  const [internalNotes, setInternalNotes] = useState("");
+  const [hidePrice, setHidePrice] = useState(false);
+
+  // single-price fields (used when mode === "single")
+  const [laborType, setLaborType] = useState("C20");
+  const [hours, setHours] = useState("1.5");
+  const [labor, setLabor] = useState("120.00");
+  const [misc, setMisc] = useState("");
+  const [itemizedParts, setItemizedParts] = useState([
+    { id: nextPartId(), selected: true, partNo: "BP-2234", qty: 1, desc: "Brake pads (front, set)", mfg: "OEM", sell: "85.00", inStock: true, eta: ETA_OPTIONS[0] },
+  ]);
+  const singleFieldSetters = { laborType: setLaborType, hours: setHours, labor: setLabor, misc: setMisc };
+
+  // options-mode state
+  const [mode, setMode] = useState("single"); // "single" | "options"
+  const [options, setOptions] = useState([]);
+  const [activeTab, setActiveTab] = useState(0);
+  const [showKeepDialog, setShowKeepDialog] = useState(false);
+
+  const updateOption = (i, patch) => setOptions((prev) => prev.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
+
+  const handleOfferOptions = () => {
+    const opt0 = makeOption();
+    const opt1 = makeOption({ laborType, hours, labor, misc, itemizedParts: itemizedParts.map((r) => ({ ...r })) });
+    setOptions([opt0, opt1]);
+    setMode("options");
+    setActiveTab(0);
+  };
+
+  const applySingleFrom = (o) => {
+    setLaborType(o.laborType); setHours(o.hours); setLabor(o.labor); setMisc(o.misc);
+    setItemizedParts(o.itemizedParts.map((r) => ({ ...r })));
+  };
+
+  const handleRemoveOptionsClick = () => {
+    const filled = options.filter(hasOptionData);
+    if (filled.length <= 1) {
+      applySingleFrom(filled[0] || options[0]);
+      setMode("single");
+    } else {
+      setShowKeepDialog(true);
+    }
+  };
+  const handleKeep = (i) => { applySingleFrom(options[i]); setMode("single"); setShowKeepDialog(false); };
+
+  const handleAddTab = () => {
+    if (options.length >= MAX_OPTIONS) return;
+    setOptions((prev) => [...prev, makeOption()]);
+    setActiveTab(options.length);
+  };
+  const handleDuplicate = (i) => {
+    if (options.length >= MAX_OPTIONS) return;
+    const src = options[i];
+    const clone = { ...src, id: nextId(), tagIds: [...src.tagIds], customTags: [...src.customTags], itemizedParts: src.itemizedParts.map((r) => ({ ...r, id: nextPartId() })) };
+    const next = [...options]; next.splice(i + 1, 0, clone);
+    setOptions(next);
+    setActiveTab(i + 1);
+  };
+  const handleDeleteTab = (i) => {
+    if (options.length <= MIN_OPTIONS) return;
+    const next = options.filter((_, idx) => idx !== i);
+    setOptions(next);
+    setActiveTab((prev) => Math.max(0, Math.min(prev, next.length - 1)));
+  };
+
+  const singleTotal = (parseFloat(labor) || 0) + (parseFloat(misc) || 0) + partsSubtotal(itemizedParts);
+  const optionTotals = options.map(optionTotal);
+  const minTotal = options.length ? Math.min(...optionTotals) : 0;
+  const maxTotal = options.length ? Math.max(...optionTotals) : 0;
+  const anyInvalid = options.some((o) => !isOptionValid(o));
+  const active = options[activeTab];
+  const activeInvalid = active ? (active.touched && !isOptionValid(active)) : false;
+
+  return (
+    <div style={{ width: "100%", maxWidth: 740, display: "flex", flexDirection: "column", background: "var(--bg-white)", borderRadius: 12, boxShadow: "var(--shadow-modal)", border: "1px solid var(--b-1)", maxHeight: "calc(100vh - 56px)", overflow: "hidden", position: "relative" }}>
+      {/* Header + placement bar */}
+      <div style={{ flexShrink: 0, borderBottom: "1px solid var(--b-1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 28px 4px" }}>
+          <div style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, background: "var(--blue-50)", color: "var(--blue-600)", display: "grid", placeItems: "center" }}><IconPencil size={16} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", letterSpacing: 0.01 }}>Front Brake Pads &amp; Rotors</span>
+          </div>
+          <button style={{ width: 26, height: 26, borderRadius: 5, background: "transparent", border: "none", cursor: "pointer", color: "var(--t-3)", display: "grid", placeItems: "center" }}><IconX size={16} /></button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 28px 14px" }}>
+          <span style={{ fontSize: 14, color: "var(--t-3)", flexShrink: 0 }}>Shows under</span>
+          <span className="pill" style={{ background: "var(--asc-cos-bg)", color: "var(--asc-cos-text)" }}>ASC</span>
+          <span style={{ fontSize: 13, color: "var(--t-4)", flexShrink: 0 }}>·</span>
+          <span style={{ fontSize: 14, fontWeight: 500, color: "var(--t-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>Brake System</span>
+          <button className="btn btn-secondary" style={{ flexShrink: 0 }}>Change concern</button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="scrollable" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 28px 22px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+        {/* Zone 1 — Recommendation Details (shared) */}
+        <Section icon={IconPencil} title="Recommendation Details" defaultOpen={true} noTopBorder={true}>
+          <div style={{ display: "flex", border: "1px solid var(--b-1)", borderRadius: 8, background: "var(--bg-cream-soft)" }}>
+            <div style={{ padding: "12px 16px", borderRight: "1px solid var(--b-1)", flexShrink: 0 }}>
+              <label className="field-label">Inspection result</label>
+              <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                <GradeBtn kind="fail" active={inspectionResult === "fail"} onClick={() => setInspectionResult("fail")} />
+                <GradeBtn kind="caution" active={inspectionResult === "caution"} onClick={() => setInspectionResult("caution")} />
+              </div>
+            </div>
+            <div style={{ flex: 1, padding: "12px 16px" }}>
+              <label className="field-label">Concern name</label>
+              <input className="input compact" value={concernName} onChange={(e) => setConcernName(e.target.value)} />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 16, alignItems: "start" }}>
+            <div>
+              <label className="field-label">Recommendation</label>
+              <textarea className="textarea" rows={2} value={recText} onChange={(e) => setRecText(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="field-label">Op code</label>
+              <input className="input compact" value={opCode} onChange={(e) => setOpCode(e.target.value)} style={{ fontFamily: "var(--font-mono)", fontSize: 14 }} />
+            </div>
+          </div>
+        </Section>
+
+        {/* Zone 2 — Estimate (new), same collapsible accordion chrome as the other sections */}
+        <Section
+          icon={IconDollar}
+          defaultOpen={true}
+          testId="estimate"
+          title={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              Estimate
+              <span data-mode-indicator style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+                {mode === "single" ? "Single price" : `${options.length} options`}
+              </span>
+            </span>
+          }
+          headerAction={
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {mode === "single" ? (
+                <button data-offer-options type="button" className="btn btn-secondary" onClick={handleOfferOptions} style={{ color: "var(--blue-600)" }}>
+                  <IconPlus size={11} /> Options
+                </button>
+              ) : (
+                <button data-remove-options type="button" className="btn btn-secondary" onClick={handleRemoveOptionsClick}>
+                  <IconX size={11} /> Remove Options
+                </button>
+              )}
+              <button type="button" className="btn btn-secondary"><IconPrint size={12} /> Print</button>
+            </div>
+          }
+        >
+          {mode === "single" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <SectionCard title="Details">
+                <LaborRow laborType={laborType} hours={hours} labor={labor} misc={misc} onChange={(f, v) => singleFieldSetters[f](v)} />
+              </SectionCard>
+              <ItemizedPartsTable parts={itemizedParts} onChange={setItemizedParts} testKey="single" />
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0, width: "100%", border: "1px solid var(--b-2)", borderRadius: 0 }}>
+                <span className="est-tabbar" data-tab-bar>
+                  {options.map((o, i) => {
+                    const invalid = o.touched && !isOptionValid(o);
+                    const label = shortOptionLabel(o);
+                    const isActive = i === activeTab;
+                    return (
+                      <span key={o.id} data-option-tab data-option-tab-index={i} className={`est-tab${isActive ? " active" : ""}`} onClick={() => setActiveTab(i)}>
+                        {invalid ? (
+                          <span data-tab-warning style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "var(--red-600)", fontWeight: 700 }}><IconAlert size={11} /> Unnamed</span>
+                        ) : isActive ? (
+                          <span className="chip">{label || `Option ${i + 1}`}</span>
+                        ) : (
+                          <React.Fragment>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label || `Option ${i + 1}`}</span>
+                            <span style={{ opacity: 0.6 }}>·</span>
+                          </React.Fragment>
+                        )}
+                        <span data-tab-total>{currency(optionTotal(o))}</span>
+                        <button className="tab-icon-btn" data-tab-delete title="Delete option" onClick={(e) => { e.stopPropagation(); handleDeleteTab(i); }}><IconTrash size={11} /></button>
+                      </span>
+                    );
+                  })}
+                </span>
+                {options.length < MAX_OPTIONS && (
+                  <button data-tab-add type="button" className="est-tab-add" onClick={handleAddTab}><IconPlus size={11} /> Add</button>
+                )}
+              </div>
+
+              {active && (
+                <div key={active.id} data-option-panel data-active-index={activeTab} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <SectionCard title="Details">
+                    <OptionIdentifier option={active} invalid={activeInvalid} onChange={(next) => updateOption(activeTab, next)} />
+                    <LaborRow laborType={active.laborType} hours={active.hours} labor={active.labor} misc={active.misc} onChange={(f, v) => updateOption(activeTab, { [f]: v })} />
+                  </SectionCard>
+                  <ItemizedPartsTable parts={active.itemizedParts} onChange={(parts) => updateOption(activeTab, { itemizedParts: parts })} testKey={`opt-${activeTab}`} />
+                </div>
+              )}
+            </div>
+          )}
+        </Section>
+
+        {/* Zone 3 — shared sections below (unchanged) */}
+        <div style={{ marginTop: -8, padding: "9px 12px", borderRadius: 8, background: "#FFF0DB", border: "1px solid #F3DDA1" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <IconDoc size={13} style={{ color: "#B45309" }} />
+            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "#B45309" }}>Internal Parts Notes</span>
+          </div>
+          <textarea
+            data-internal-notes
+            value={internalNotes}
+            onChange={(e) => setInternalNotes(e.target.value)}
+            rows={2}
+            placeholder="Enter the list of parts needed for the estimate. Customers will not see these."
+            style={{ width: "100%", minHeight: 38, border: "1px solid #D5D7DA", borderRadius: 8, padding: "6px 8px", fontSize: 14, fontFamily: "inherit", lineHeight: 1.3, resize: "vertical", outline: "none", background: "var(--bg-white)", boxSizing: "border-box" }}
+          />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", marginTop: -8 }}>
+          <Section icon={IconImage} title="Photos &amp; Video" defaultOpen={false}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <MediaUploadArea internal={false} />
+              <MediaUploadArea internal={true} />
+            </div>
+          </Section>
+          <Section icon={IconDollar} title="Tax &amp; Fee Overrides" defaultOpen={false}>
+            <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer" }}>
+              <input type="checkbox" className="checkbox" checked={hidePrice} onChange={(e) => setHidePrice(e.target.checked)} />
+              <span style={{ fontSize: 13, color: "var(--t-2)" }}>Hide price from customer</span>
+            </label>
+            <div style={{ fontSize: 12, color: "var(--t-4)" }}>No fee or tax overrides active for this recommendation.</div>
+          </Section>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px", background: "var(--bg-cream-soft)", borderTop: "1px solid var(--b-1)" }}>
+        <div>
+          {mode === "single" ? (
+            <React.Fragment>
+              <div className="caps">Total · Shown to customer</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>{currency(singleTotal)}</div>
+                <div style={{ fontSize: 12, color: "var(--t-3)" }}>Labor ${labor || 0} · Parts {currency(partsSubtotal(itemizedParts))} · Misc ${misc || 0}</div>
+              </div>
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <div className="caps">{options.length} Options · Shown to customer</div>
+              <div data-total-range style={{ fontSize: 15, fontWeight: 600, color: "var(--t-1)", fontVariantNumeric: "tabular-nums" }}>
+                {minTotal === maxTotal ? currency(minTotal) : `${currency(minTotal)} – ${currency(maxTotal)}`}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--t-4)", marginTop: 2 }}>Tax applies to the chosen option.</div>
+            </React.Fragment>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="btn btn-secondary">Cancel</button>
+          <button className="btn btn-primary" data-save-btn disabled={mode === "options" && anyInvalid}>Save</button>
+        </div>
+      </div>
+
+      {showKeepDialog && <KeepOptionDialog options={options} onKeep={handleKeep} onCancel={() => setShowKeepDialog(false)} />}
+    </div>
+  );
+};
+
+const App = () => (
+  <div className="stage"><EstimateEditorPanel /></div>
+);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
