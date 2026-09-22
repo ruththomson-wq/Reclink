@@ -5841,7 +5841,7 @@ const optionTagStyle = (tag) => tag === "Best"
 // eats into one but not the other), so a single fixed offset can't work for both.
 const RecOptionsList = ({ options, style = {}, lineLeft = 22, rowIndent = 32 }) => (
   <div style={{ padding: "2px 0 8px", background: "var(--bg-white)", position: "relative", ...style }}>
-    <div style={{ position: "absolute", left: lineLeft, top: 8, bottom: 8, width: 2, background: "var(--b-2)", borderRadius: 1 }} />
+    <div style={{ position: "absolute", left: lineLeft, top: 0, bottom: 8, width: 2, background: "var(--b-2)", borderRadius: 1 }} />
     {options.map((o, oi) => (
       <div key={o.id || oi} style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
