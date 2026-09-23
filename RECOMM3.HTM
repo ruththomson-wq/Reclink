@@ -344,6 +344,14 @@ const IconPlus = (p) => (
   </Icon>
 );
 
+const IconMoreVertical = (p) => (
+  <Icon {...p} fill="currentColor" stroke="none">
+    <circle cx="12" cy="5" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="12" cy="19" r="1.6" />
+  </Icon>
+);
+
 const IconClock = (p) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="9" />
@@ -1535,9 +1543,14 @@ const FormItemSearchField = ({ value = "", onChange, formItems = [], placeholder
    this plugs into the existing labor/hours/laborType/misc/itemized state and save payload.
    ============================================================================================ */
 const PRESET_TAGS = [
-  { id: "good",   label: "Good" },
-  { id: "better", label: "Better" },
-  { id: "best",   label: "Best" },
+  { id: "recommended",    label: "Recommended" },
+  { id: "on-your-car",    label: "On your car now" },
+  { id: "good",           label: "Good" },
+  { id: "better",         label: "Better" },
+  { id: "best",           label: "Best" },
+  { id: "best-warranty",  label: "Best warranty" },
+  { id: "oem",            label: "OEM" },
+  { id: "aftermarket",    label: "Aftermarket" },
 ];
 const MAX_OPTIONS = 3;
 const MIN_OPTIONS = 2;
@@ -1550,14 +1563,17 @@ const makeBlankPartRow = () => ({ id: nextPartId(), selected: true, partNo: "", 
 const makeOption = (seed = {}) => ({
   id: nextId(), tagIds: [], customTags: [], description: "",
   laborType: "C20", hours: "", labor: "", misc: "", itemizedParts: [],
+  flatParts: "", flatPartsInStock: false,
   touched: false, ...seed,
 });
 const isOptionValid = (o) => o.tagIds.length > 0 || o.customTags.length > 0 || o.description.trim().length > 0;
 // Only rows the user has checked "in" (selected) count toward the priced subtotal — an unchecked
 // row stays visible (e.g. a part the customer already has) but doesn't add to the total.
 const partsSubtotal = (parts) => parts.reduce((s, r) => s + (r.selected ? (parseFloat(r.sell) || 0) * (parseFloat(r.qty) || 1) : 0), 0);
-const optionTotal = (o) => (parseFloat(o.labor) || 0) + (parseFloat(o.misc) || 0) + partsSubtotal(o.itemizedParts);
-const hasOptionData = (o) => isOptionValid(o) || !!o.hours || !!o.labor || !!o.misc || o.itemizedParts.some((r) => r.desc || r.partNo || r.sell || r.mfg);
+// itemizedOn = true reads parts from the per-part-number table; false reads the flat "Parts
+// estimate $" amount instead (non-itemized dealers) — see the Itemized Parts toggle.
+const optionTotal = (o, itemizedOn = true) => (parseFloat(o.labor) || 0) + (parseFloat(o.misc) || 0) + (itemizedOn ? partsSubtotal(o.itemizedParts) : (parseFloat(o.flatParts) || 0));
+const hasOptionData = (o) => isOptionValid(o) || !!o.hours || !!o.labor || !!o.misc || !!o.flatParts || o.itemizedParts.some((r) => r.desc || r.partNo || r.sell || r.mfg);
 const shortOptionLabel = (o) => {
   const tags = [...o.tagIds.map((id) => PRESET_TAGS.find((t) => t.id === id)?.label).filter(Boolean), ...o.customTags];
   if (tags.length) return tags.join(", ");
@@ -1581,6 +1597,24 @@ const SectionCard = ({ title, action, children }) => (
     </div>
     {children}
   </div>
+);
+
+/* Non-itemized parts — a flat dollar amount + in-stock flag, shown instead of the itemized
+   table whenever the dealer has "Itemized Parts" turned off (see the kebab menu next to the
+   Phase 1/2 toggle). Reused for the single price and for each option, same as PartsEditorTable. */
+const FlatPartsCard = ({ amount, inStock, onChange }) => (
+  <SectionCard title="Parts">
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 20 }}>
+      <div style={{ width: 160 }}>
+        <label className="field-label">Parts estimate $</label>
+        <input className="input compact" type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={(e) => onChange({ amount: e.target.value })} style={{ textAlign: "right" }} />
+      </div>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--t-2)", cursor: "pointer", paddingBottom: 7 }}>
+        <input type="checkbox" className="checkbox" checked={!!inStock} onChange={(e) => onChange({ inStock: e.target.checked })} />
+        In Stock
+      </label>
+    </div>
+  </SectionCard>
 );
 
 /* itemized parts editor, reused for the single price and for each option */
@@ -1704,7 +1738,7 @@ const LaborRow = ({ laborType, hours, labor, misc, onChange }) => (
 );
 
 /* confirm dialog shown when turning options off with more than one option filled in */
-const KeepOptionDialog = ({ options, onKeep, onCancel }) => (
+const KeepOptionDialog = ({ options, onKeep, onCancel, itemizedEnabled = true }) => (
   <div style={{ position: "absolute", inset: 0, background: "rgba(16,24,40,0.45)", zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 12 }}>
     <div style={{ background: "var(--bg-white)", border: "1px solid var(--b-1)", borderRadius: 10, boxShadow: "var(--shadow-modal)", padding: "22px 22px 18px", width: 360, display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
@@ -1715,7 +1749,7 @@ const KeepOptionDialog = ({ options, onKeep, onCancel }) => (
         {options.map((o, i) => (
           <button key={o.id} onClick={() => onKeep(i)} style={{ textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", border: "1px solid var(--b-2)", borderRadius: 8, background: "var(--bg-white)", cursor: "pointer" }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--t-1)" }}>{shortOptionLabel(o) || `Option ${i + 1}`}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)" }}>{currency(optionTotal(o))}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-1)" }}>{currency(optionTotal(o, itemizedEnabled))}</span>
           </button>
         ))}
       </div>
@@ -1751,20 +1785,20 @@ const OptionIdentifier = ({ option, onChange, invalid }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tagMenuOpen, addingCustom]);
 
-  // Single-select: choosing a tag replaces whatever was selected before (preset or custom).
-  const selectPresetTag = (tagId) => {
-    const isSame = option.tagIds[0] === tagId;
-    onChange({ ...option, tagIds: isSame ? [] : [tagId], customTags: [], touched: true });
-    if (!isSame) setTagMenuOpen(false);
+  // Multi-select: each tag toggles independently — picking one doesn't clear the others, and
+  // the menu stays open after a pick so several tags can be selected in one pass.
+  const togglePresetTag = (tagId) => {
+    const has = option.tagIds.includes(tagId);
+    onChange({ ...option, tagIds: has ? option.tagIds.filter((id) => id !== tagId) : [...option.tagIds, tagId], touched: true });
   };
-  const selectCustomTag = (name) => {
-    const isSame = option.customTags[0] === name;
-    onChange({ ...option, tagIds: [], customTags: isSame ? [] : [name], touched: true });
-    if (!isSame) setTagMenuOpen(false);
+  const removeCustomTag = (name) => {
+    onChange({ ...option, customTags: option.customTags.filter((n) => n !== name), touched: true });
   };
   const commitCustomTag = () => {
     const val = customDraft.trim();
-    if (val) { onChange({ ...option, tagIds: [], customTags: [val], touched: true }); setTagMenuOpen(false); }
+    if (val && !option.customTags.includes(val)) {
+      onChange({ ...option, customTags: [...option.customTags, val], touched: true });
+    }
     setCustomDraft("");
     setAddingCustom(false);
   };
@@ -1790,16 +1824,16 @@ const OptionIdentifier = ({ option, onChange, invalid }) => {
               <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "100%", background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8, boxShadow: "var(--shadow-modal)", zIndex: 30, padding: 4 }}>
                 {PRESET_TAGS.map((t) => (
                   <label key={t.id} className="tag-menu-item">
-                    <input type="radio" name={`tags-${option.id}`} className="radio" checked={option.tagIds[0] === t.id} onClick={(e) => { e.preventDefault(); selectPresetTag(t.id); }} onChange={() => {}} style={{ width: 16, height: 16 }} />
+                    <input type="checkbox" className="checkbox" checked={option.tagIds.includes(t.id)} onChange={() => togglePresetTag(t.id)} style={{ width: 16, height: 16 }} />
                     {t.label}
                   </label>
                 ))}
-                {option.customTags[0] && (
-                  <label className="tag-menu-item">
-                    <input type="radio" name={`tags-${option.id}`} className="radio" checked readOnly onClick={(e) => { e.preventDefault(); selectCustomTag(option.customTags[0]); }} style={{ width: 16, height: 16 }} />
-                    {option.customTags[0]}
+                {option.customTags.map((name) => (
+                  <label key={name} className="tag-menu-item">
+                    <input type="checkbox" className="checkbox" checked readOnly onChange={() => removeCustomTag(name)} style={{ width: 16, height: 16 }} />
+                    {name}
                   </label>
-                )}
+                ))}
                 <div style={{ borderTop: "1px solid var(--b-1)", margin: "4px 2px" }} />
                 {addingCustom ? (
                   <input
@@ -1867,6 +1901,7 @@ const RecEditorModal = ({
   jumpTarget = null,
   onJumpConfirmed,
   onJumpCancelled,
+  itemizedEnabled = true,
 }) => {
   const isPanel = variant === "panel";
   const [dirty, setDirty] = React.useState(false);
@@ -1891,27 +1926,42 @@ const RecEditorModal = ({
         const bestTag = o.tagIds.includes("best");
         const presetLabel = o.tagIds.map((id) => PRESET_TAGS.find((t) => t.id === id)?.label).filter(Boolean)[0] || null;
         const desc = o.description.trim();
+        const optParts = itemizedEnabled ? (o.itemizedParts.length ? partsSubtotal(o.itemizedParts) : null) : (o.flatParts !== "" ? parseFloat(o.flatParts) || 0 : null);
         return {
           id: o.id,
           tag: bestTag ? "Best" : presetLabel,
           label: desc || (o.customTags.length ? o.customTags.join(", ") : null),
           hours: o.hours || null,
           labor: o.labor !== "" && o.labor != null ? Number(o.labor) : null,
-          parts: o.itemizedParts.length ? partsSubtotal(o.itemizedParts) : null,
+          parts: optParts,
           misc: Number(o.misc) || 0,
-          total: optionTotal(o),
+          total: optionTotal(o, itemizedEnabled),
         };
       })
     : null;
+  // The first estimate option is always the one selected by default (per spec), so the rec's
+  // headline labor/parts/misc/total — and the itemized parts list other views read — always come
+  // from estOptions[0] while in options mode, regardless of which tab was last active in the
+  // editor when Save was clicked.
+  const defaultOpt = estMode === "options" ? estOptions[0] : null;
+  const defaultOptParts = defaultOpt ? (itemizedEnabled ? partsSubtotal(defaultOpt.itemizedParts) : (parseFloat(defaultOpt.flatParts) || 0)) : null;
   const buildSavePayload = () => ({
     concern: (preLinked || lockedConcern || isNewRec) ? currentPlacementId : ((concernManuallyLinked && linkedConcernId) ? linkedConcernId : concern),
-    customConcernName, whatNeedsDone, opCode, laborType, hours, labor, parts, misc, total, hidePrice,
+    customConcernName, whatNeedsDone, opCode,
+    laborType: defaultOpt ? defaultOpt.laborType : laborType,
+    hours: defaultOpt ? defaultOpt.hours : hours,
+    labor: defaultOpt ? defaultOpt.labor : labor,
+    parts: defaultOpt ? defaultOptParts.toFixed(2) : parts,
+    misc: defaultOpt ? defaultOpt.misc : misc,
+    total: defaultOpt ? optionTotal(defaultOpt, itemizedEnabled) : total,
+    flatParts, flatPartsInStock,
+    hidePrice,
     tireReadings: (isTire || copyFieldsIsTire) ? tireReadings : null,
     status,
     media: inspectionMedia,
     formItemPointId: formItemCommittedId,
-    partsList: itemized.map((r) => ({ name: r.desc || r.partNo || "Part", qty: Number(r.qty) || 1, price: Number(r.sell) || 0 })),
-    partsRows: itemized,
+    partsList: (defaultOpt ? defaultOpt.itemizedParts : itemized).map((r) => ({ name: r.desc || r.partNo || "Part", qty: Number(r.qty) || 1, price: Number(r.sell) || 0 })),
+    partsRows: defaultOpt ? defaultOpt.itemizedParts : itemized,
     options: buildOptionsSummary(),
   });
   const [onboardingDone, setOnboardingDone] = React.useState(false);
@@ -2053,11 +2103,21 @@ const RecEditorModal = ({
   const [misc, setMisc] = React.useState(defaults.misc ?? "0");
   const [hidePrice, setHidePrice] = React.useState(defaults.hidePrice ?? false);
   const [itemized, setItemized] = React.useState(defaults.partsRows ?? []);
-  // The Parts $ total is always derived from the itemized rows — never typed in directly. This
-  // also fires while in options mode: switching tabs / editing an option's parts keeps `itemized`
-  // (and therefore `parts`) mirroring whichever option is active, so the rest of the app (footer
-  // total, Tax & Fee Overrides, the Save payload) never needs to know about "options" at all.
-  React.useEffect(() => { setParts(partsSubtotal(itemized).toFixed(2)); }, [itemized]);
+  // Non-itemized fallback — a flat dollar amount + in-stock flag, used instead of the itemized
+  // table whenever the dealer has "Itemized Parts" turned off (kebab menu next to Phase 1/2).
+  const [flatParts, setFlatParts] = React.useState(defaults.flatParts ?? "");
+  const [flatPartsInStock, setFlatPartsInStock] = React.useState(defaults.flatPartsInStock ?? false);
+  // The Parts $ total is derived from the itemized rows (itemized mode) or typed directly
+  // (non-itemized mode) — never both. This also fires while in options mode: switching tabs /
+  // editing an option's parts keeps `itemized`/`flatParts` (and therefore `parts`) mirroring
+  // whichever option is active, so the rest of the app (footer total, Tax & Fee Overrides, the
+  // Save payload) never needs to know about "options" at all.
+  React.useEffect(() => {
+    if (itemizedEnabled) setParts(partsSubtotal(itemized).toFixed(2));
+  }, [itemized, itemizedEnabled]);
+  React.useEffect(() => {
+    if (!itemizedEnabled) setParts(flatParts === "" ? "0.00" : (parseFloat(flatParts) || 0).toFixed(2));
+  }, [flatParts, itemizedEnabled]);
 
   // ── Estimate Options: mode ("single" | "options"), the 2-3 comparison options, and which tab is
   // active. The single-price fields above (laborType/hours/labor/misc/itemized) always mirror
@@ -2072,6 +2132,7 @@ const RecEditorModal = ({
   const applySingleFrom = (o) => {
     setLaborType(o.laborType); setHours(o.hours); setLabor(o.labor); setMisc(o.misc);
     setItemized(o.itemizedParts.map((r) => ({ ...r })));
+    setFlatParts(o.flatParts ?? ""); setFlatPartsInStock(!!o.flatPartsInStock);
   };
 
   const updateOption = (i, patch) => {
@@ -2082,6 +2143,8 @@ const RecEditorModal = ({
       if ("labor" in patch) setLabor(patch.labor);
       if ("misc" in patch) setMisc(patch.misc);
       if ("itemizedParts" in patch) setItemized(patch.itemizedParts);
+      if ("flatParts" in patch) setFlatParts(patch.flatParts);
+      if ("flatPartsInStock" in patch) setFlatPartsInStock(patch.flatPartsInStock);
     }
     setDirty(true);
   };
@@ -2093,8 +2156,10 @@ const RecEditorModal = ({
   };
 
   const handleOfferOptions = () => {
-    const opt0 = makeOption();
-    const opt1 = makeOption({ laborType, hours, labor, misc, itemizedParts: itemized.map((r) => ({ ...r })) });
+    // Option 1 carries over whatever was already entered in single mode (so switching into
+    // Options never silently blanks out the estimate) — Option 2 starts fresh for comparison.
+    const opt0 = makeOption({ laborType, hours, labor, misc, itemizedParts: itemized.map((r) => ({ ...r })), flatParts, flatPartsInStock });
+    const opt1 = makeOption();
     setEstOptions([opt0, opt1]);
     setEstMode("options");
     setActiveTab(0);
@@ -2114,12 +2179,28 @@ const RecEditorModal = ({
   };
   const handleKeepOption = (i) => { applySingleFrom(estOptions[i]); setEstMode("single"); setShowKeepDialog(false); };
 
+  // Adding a new option duplicates the currently-active option (tags, description, labor,
+  // and itemized parts included, with fresh row ids) rather than starting blank — the tab
+  // strip's own Delete icon is still the way to clear out anything that shouldn't carry over.
   const handleAddTab = () => {
     if (estOptions.length >= MAX_OPTIONS) return;
-    const blank = makeOption();
-    setEstOptions((prev) => [...prev, blank]);
+    const source = estOptions[activeTab] || estOptions[0];
+    const dup = makeOption({
+      tagIds: [...source.tagIds],
+      customTags: [...source.customTags],
+      description: source.description,
+      laborType: source.laborType,
+      hours: source.hours,
+      labor: source.labor,
+      misc: source.misc,
+      itemizedParts: source.itemizedParts.map((r) => ({ ...r, id: nextPartId() })),
+      flatParts: source.flatParts,
+      flatPartsInStock: source.flatPartsInStock,
+      touched: source.touched,
+    });
+    setEstOptions((prev) => [...prev, dup]);
     setActiveTab(estOptions.length);
-    applySingleFrom(blank);
+    applySingleFrom(dup);
     setDirty(true);
   };
   const handleDeleteTab = (i) => {
@@ -2563,24 +2644,25 @@ const RecEditorModal = ({
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "flex-end", gap: 8 }}>
-              <span className="caps" style={{ color: "var(--t-3)", marginBottom: 0, fontSize: 14 }}>Original approved subtotal</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)" }}>
-                {currency((parseFloat(originalLabor) || 0) + (parseFloat(originalParts) || 0) + (parseFloat(originalMisc) || 0))}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              {!showCustomerNote && (
-                <button type="button" className="btn btn-secondary" onClick={() => setShowCustomerNote(true)} style={{ height: 32, padding: "0 12px", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <IconMessage size={13} /> Add Customer Note
-                </button>
-              )}
-              {!showInternalNotesBox && (
-                <button type="button" onClick={() => setShowInternalNotesBox(true)} style={{ height: 32, padding: "0 12px", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6, background: "#FFF0DB", border: "1px solid #F3DDA1", borderRadius: 6, color: "#B45309", cursor: "pointer" }}>
-                  <IconDoc size={13} /> Add Internal Parts Notes
-                </button>
-              )}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 10 }}>
+                {!showCustomerNote && (
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowCustomerNote(true)} style={{ height: 32, padding: "0 12px", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <IconMessage size={13} /> Add Customer Note
+                  </button>
+                )}
+                {!showInternalNotesBox && (
+                  <button type="button" onClick={() => setShowInternalNotesBox(true)} style={{ height: 32, padding: "0 12px", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6, background: "#FFF0DB", border: "1px solid #F3DDA1", borderRadius: 6, color: "#B45309", cursor: "pointer" }}>
+                    <IconDoc size={13} /> Add Internal Parts Notes
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span className="caps" style={{ color: "var(--t-3)", marginBottom: 0, fontSize: 14, whiteSpace: "nowrap" }}>Original approved subtotal</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", whiteSpace: "nowrap" }}>
+                  {currency((parseFloat(originalLabor) || 0) + (parseFloat(originalParts) || 0) + (parseFloat(originalMisc) || 0))}
+                </span>
+              </div>
             </div>
 
             {showCustomerNote && (
@@ -2714,7 +2796,15 @@ const RecEditorModal = ({
                   ({ laborType: setLaborType, hours: setHours, labor: setLabor, misc: setMisc })[f](v);
                   setDirty(true);
                 }} />
-                <PartsEditorTable parts={itemized} onChange={(p) => { setItemized(p); setDirty(true); }} />
+                {itemizedEnabled ? (
+                  <PartsEditorTable parts={itemized} onChange={(p) => { setItemized(p); setDirty(true); }} />
+                ) : (
+                  <FlatPartsCard amount={flatParts} inStock={flatPartsInStock} onChange={(patch) => {
+                    if ("amount" in patch) setFlatParts(patch.amount);
+                    if ("inStock" in patch) setFlatPartsInStock(patch.inStock);
+                    setDirty(true);
+                  }} />
+                )}
               </React.Fragment>
             ) : (
               <div style={{ border: "1px solid var(--b-2)", borderRadius: 10, overflow: "hidden", background: "var(--bg-white)" }}>
@@ -2729,6 +2819,9 @@ const RecEditorModal = ({
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "var(--red-600)", fontWeight: 700 }}><IconAlert size={13} /> Unnamed</span>
                         ) : (
                           <span className="chip">{label || `Option ${i + 1}`}</span>
+                        )}
+                        {i === 0 && (
+                          <span title="Selected by default unless the customer picks a different option" style={{ display: "inline-flex", alignItems: "center", fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--t-4)", border: "1px solid var(--b-2)", borderRadius: 999, padding: "1px 7px", flexShrink: 0 }}>Default</span>
                         )}
                         <span>{currency(optionTotal(o))}</span>
                         <button className="tab-icon-btn" title="Delete option" onClick={(e) => { e.stopPropagation(); handleDeleteTab(i); }}><IconTrash size={13} /></button>
@@ -2747,7 +2840,14 @@ const RecEditorModal = ({
                       <LaborRow laborType={activeOption.laborType} hours={activeOption.hours} labor={activeOption.labor} misc={activeOption.misc} onChange={(f, v) => updateOption(activeTab, { [f]: v })} />
                     </div>
                     <div style={{ padding: "0 16px 16px 16px" }}>
-                      <PartsEditorTable key={activeOption.id} parts={activeOption.itemizedParts} onChange={(parts) => updateOption(activeTab, { itemizedParts: parts })} />
+                      {itemizedEnabled ? (
+                        <PartsEditorTable key={activeOption.id} parts={activeOption.itemizedParts} onChange={(parts) => updateOption(activeTab, { itemizedParts: parts })} />
+                      ) : (
+                        <FlatPartsCard key={activeOption.id} amount={activeOption.flatParts} inStock={activeOption.flatPartsInStock} onChange={(patch) => updateOption(activeTab, {
+                          ...("amount" in patch ? { flatParts: patch.amount } : {}),
+                          ...("inStock" in patch ? { flatPartsInStock: patch.inStock } : {}),
+                        })} />
+                      )}
                     </div>
                   </React.Fragment>
                 )}
@@ -2829,7 +2929,7 @@ const RecEditorModal = ({
         </div>
       </div>
 
-      {showKeepDialog && <KeepOptionDialog options={estOptions} onKeep={handleKeepOption} onCancel={() => setShowKeepDialog(false)} />}
+      {showKeepDialog && <KeepOptionDialog options={estOptions} onKeep={handleKeepOption} onCancel={() => setShowKeepDialog(false)} itemizedEnabled={itemizedEnabled} />}
 
       {/* Jump-to-another-recommendation confirmation — shown only when the user has unsaved
           changes and clicks a different rec in the live preview panel. */}
@@ -7963,7 +8063,17 @@ const Phase2View = ({ items, setItems, onRecClick }) => {
   );
 };
 
-const Tabs = ({ tab, setTab, phase, setPhase }) => (
+const Tabs = ({ tab, setTab, phase, setPhase, itemizedEnabled = true, onToggleItemized }) => {
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const menuRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    const onDocMouseDown = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [menuOpen]);
+
+  return (
   <div style={{ display: "flex", borderBottom: "1px solid var(--b-1)", background: "var(--bg-white)", alignItems: "center" }}>
     <div style={{ display: "flex", flex: 1 }}>
     {[
@@ -8000,7 +8110,7 @@ const Tabs = ({ tab, setTab, phase, setPhase }) => (
     ))}
     </div>
     {(tab === "rec" || tab === "mpi") && (
-      <div style={{ paddingRight: 14, paddingLeft: 8, flexShrink: 0, display: "flex", alignItems: "center" }}>
+      <div style={{ paddingRight: 14, paddingLeft: 8, flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ display: "inline-flex", background: "var(--b-1)", borderRadius: 7, padding: 3, gap: 2 }}>
           {[{ id: 1, label: "Phase 1" }, { id: 2, label: "Phase 2" }].map(p => (
             <button key={p.id} onClick={() => setPhase(p.id)} style={{
@@ -8013,10 +8123,40 @@ const Tabs = ({ tab, setTab, phase, setPhase }) => (
             }}>{p.label}</button>
           ))}
         </div>
+        <div ref={menuRef} style={{ position: "relative" }}>
+          <button
+            type="button"
+            title="Recommendation settings"
+            onClick={() => setMenuOpen((v) => !v)}
+            style={{
+              width: 28, height: 28, display: "grid", placeItems: "center",
+              background: menuOpen ? "var(--b-1)" : "transparent",
+              border: "1px solid var(--b-2)", borderRadius: 6, color: "var(--t-3)", cursor: "pointer",
+            }}
+          >
+            <IconMoreVertical size={15} />
+          </button>
+          {menuOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 4px)", right: 0, minWidth: 240,
+              background: "var(--bg-white)", border: "1px solid var(--b-2)", borderRadius: 8,
+              boxShadow: "var(--shadow-modal)", zIndex: 30, padding: 6,
+            }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--t-2)" }}>
+                <input type="checkbox" className="checkbox" checked={itemizedEnabled} onChange={() => onToggleItemized && onToggleItemized()} style={{ width: 16, height: 16 }} />
+                Itemized Parts
+                <span style={{ display: "inline-flex", color: "var(--blue-600)", marginLeft: "auto" }}>
+                  <IconInfoFilled size={13} title="On: enter parts by part number in a table. Off: enter a single parts estimate amount instead." />
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
       </div>
     )}
   </div>
-);
+  );
+};
 
 const Toolbar = ({ onAddRec, onAddCustomRec, onAddConcern, phase = 2, onShowPreviousDeclines }) => {
   const [addDropOpen, setAddDropOpen] = React.useState(false);
@@ -8736,6 +8876,10 @@ const MPIPage = () => {
   const [custPreview, setCustPreview] = React.useState(false);
   const [pvwCollapsed, setPvwCollapsed] = React.useState(false);
   const [phase, setPhase] = React.useState(2);
+  // Dealer-level "Itemized Parts" flag — toggled from the kebab menu next to the Phase switch.
+  // Off means every parts entry (single-price and each estimate option) collapses to a flat
+  // "Parts estimate $" + "In stock" field instead of the full itemized part-number table.
+  const [itemizedEnabled, setItemizedEnabled] = React.useState(true);
   const [showPreviousDeclinesMpi, setShowPreviousDeclinesMpi] = React.useState(false);
   const [pvwOnboardingDone, setPvwOnboardingDone] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
@@ -9643,7 +9787,7 @@ const MPIPage = () => {
         <RailIcons sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(o => !o)} />
         {sidebarOpen && <Sidebar />}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, marginRight: appliedPanelMargin, transition: "margin-right 200ms" }}>
-          <Tabs tab={tab} setTab={setTab} phase={phase} setPhase={setPhase} />
+          <Tabs tab={tab} setTab={setTab} phase={phase} setPhase={setPhase} itemizedEnabled={itemizedEnabled} onToggleItemized={() => setItemizedEnabled((v) => !v)} />
 
           {tab === "media" && (
             <MediaTab concerns={concerns} recConcerns={recConcerns} />
@@ -10044,6 +10188,7 @@ const MPIPage = () => {
               lockedConcernLabel={modal.lockedConcernLabel}
               isPreApproved={modal.isPreApproved}
               phase={phase}
+              itemizedEnabled={itemizedEnabled}
               defaults={modal.defaults}
               variant={editorVariant}
               tire={modal.tire}
