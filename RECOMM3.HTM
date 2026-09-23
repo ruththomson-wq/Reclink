@@ -4707,7 +4707,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
           opacity: draggingRecId === rec.id ? 0.4 : 1,
           transition: "opacity 140ms, background 100ms",
         }}
-          onClick={(e) => { if (e.defaultPrevented) return; onRecClick && onRecClick(concern.id, rec); }}
+          onClick={(e) => { if (e.defaultPrevented) return; onRecClick && onRecClick(rec, concern.id); }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-cream)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-white)"; }}
         >
@@ -9779,22 +9779,26 @@ const MPIPage = () => {
                   else if (drag) moveRecToConcern(drag.recId, drag.fromConcernId, c.id);
                   setDrag(null); setDragOverConcernId(null);
                 }}
-                onRecClick={(cid, rec) => openModalFor({
-                  inspectionPoint: rec.sourceFormItemName || rec.text || rec.recommendation || "",
-                  ownConcernTitle: rec.sourceFormItemName || null,
-                  inspectionDetail: c.title,
-                  inspectionResult: rec.status?.kind || null,
-                  targetConcernId: cid,
-                  preLinked: true,
-                  editingRecId: rec.id,
-                  defaults: {
-                    whatNeedsDone: rec.text || rec.recommendation || "",
-                    labor: rec.labor != null ? String(rec.labor) : "",
-                    parts: rec.parts != null ? String(rec.parts) : "",
-                    misc:  rec.misc  != null ? String(rec.misc)  : "0",
-                    status: rec.status?.kind,
-                  },
-                })}
+                onRecClick={(rec, cid) => {
+                  const statusKind = typeof rec.status === "string" ? rec.status : rec.status?.kind;
+                  openModalFor({
+                    inspectionPoint: rec.sourceFormItemName || rec.text || rec.recommendation || "",
+                    ownConcernTitle: rec.sourceFormItemName || null,
+                    inspectionDetail: c.title,
+                    inspectionResult: statusKind || null,
+                    targetConcernId: cid,
+                    preLinked: true,
+                    editingRecId: rec.id,
+                    _isPreApproved: !!rec._isPreApproved,
+                    defaults: {
+                      whatNeedsDone: rec.text || rec.recommendation || "",
+                      labor: rec.labor != null ? String(rec.labor) : "",
+                      parts: rec.parts != null ? String(rec.parts) : "",
+                      misc:  rec.misc  != null ? String(rec.misc)  : "0",
+                      status: statusKind,
+                    },
+                  });
+                }}
               />
                 );
               });
