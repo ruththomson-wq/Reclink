@@ -1124,7 +1124,10 @@ const TireTreadSection = ({ readings, onChange, unit = "mm", naked = false }) =>
   </div>
 );
 
-const RecAccordion = ({ icon: IconCmp, title, subtitle, dot = false, badge = null, defaultOpen = true, noTopBorder = false, headerAction = null, children }) => {
+// accent: optional color (e.g. "var(--blue-600)") tinting the icon + title — used to visually set
+// a section apart from the rest of an accordion stack (e.g. a pre-approved line's "Original Parts"
+// vs. a recommendation's own parts sections, which stay the default neutral color).
+const RecAccordion = ({ icon: IconCmp, title, subtitle, dot = false, badge = null, badgeAccent = false, defaultOpen = true, noTopBorder = false, headerAction = null, accent = null, children }) => {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
     <div style={{
@@ -1144,11 +1147,11 @@ const RecAccordion = ({ icon: IconCmp, title, subtitle, dot = false, badge = nul
           textAlign: "left",
         }}
       >
-        <div style={{ color: "var(--t-3)", display: "grid", placeItems: "center" }}>
+        <div style={{ color: accent || "var(--t-3)", display: "grid", placeItems: "center" }}>
           <IconCmp size={13} />
         </div>
         <div style={{ flex: 1, display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span style={{ fontFamily: "Lato, sans-serif", fontSize: 14, fontWeight: 700, lineHeight: "20px", color: "var(--t-1)", textTransform: "none" }}>{title}</span>
+          <span style={{ fontFamily: "Lato, sans-serif", fontSize: 14, fontWeight: 700, lineHeight: "20px", color: accent || "var(--t-1)", textTransform: "none" }}>{title}</span>
           {dot && (
             <span style={{
               width: 6, height: 6, borderRadius: 999,
@@ -1158,7 +1161,14 @@ const RecAccordion = ({ icon: IconCmp, title, subtitle, dot = false, badge = nul
             }} />
           )}
           {badge && (
-            <span style={{
+            <span style={badgeAccent ? {
+              fontSize: 13, fontWeight: 700, letterSpacing: "0.01em",
+              color: "var(--blue-700)",
+              background: "var(--blue-50)",
+              border: "1px solid var(--blue-100)",
+              borderRadius: 4, padding: "1px 7px",
+              alignSelf: "center", whiteSpace: "nowrap",
+            } : {
               fontSize: 14, fontWeight: 700, letterSpacing: "0.01em",
               textTransform: "capitalize",
               color: "var(--yellow-700)",
@@ -1575,6 +1585,11 @@ const partsSubtotal = (parts) => parts.reduce((s, r) => s + (r.selected ? (parse
 // estimate $" amount instead (non-itemized dealers) — see the Itemized Parts toggle.
 const optionTotal = (o, itemizedOn = true) => (parseFloat(o.labor) || 0) + (parseFloat(o.misc) || 0) + (itemizedOn ? partsSubtotal(o.itemizedParts) : (parseFloat(o.flatParts) || 0));
 const hasOptionData = (o) => isOptionValid(o) || !!o.hours || !!o.labor || !!o.misc || !!o.flatParts || o.itemizedParts.some((r) => r.desc || r.partNo || r.sell || r.mfg);
+// Whether an itemized parts table has any real row (a table always starts with one blank
+// placeholder row via makeBlankPartRow, so length alone doesn't mean anything's been entered).
+// Used for the pre-approved rollup: once a row has real content, its subtotal is the line's
+// parts total — see the "Original Parts" section of RecEditorModal below.
+const itemizedHasContent = (parts) => parts.some((r) => r.desc || r.partNo || r.sell || r.mfg);
 // Tags for an option, in display order (preset first, then custom).
 const optionTagList = (o) => [...o.tagIds.map((id) => PRESET_TAGS.find((t) => t.id === id)?.label).filter(Boolean), ...o.customTags];
 const TAB_TAG_MAX_CHARS = 18;
@@ -2267,6 +2282,19 @@ const RecEditorModal = ({
     partsList: (defaultOpt ? defaultOpt.itemizedParts : itemized).map((r) => ({ name: r.desc || r.partNo || "Part", qty: Number(r.qty) || 1, price: Number(r.sell) || 0 })),
     partsRows: defaultOpt ? defaultOpt.itemizedParts : itemized,
     options: buildOptionsSummary(),
+    // Pre-Approved Details fields — these previously weren't part of the save payload at all, so
+    // editing "Original labor/parts/misc $" or either note on a pre-approved line silently didn't
+    // persist. originalParts is effectiveOriginalParts (the itemized subtotal once any row has
+    // content, otherwise the flat input) so the rollup actually sticks on save.
+    ...(isPreApproved ? {
+      originalLabor: parseFloat(originalLabor) || 0,
+      originalParts: effectiveOriginalParts,
+      originalMisc: parseFloat(originalMisc) || 0,
+      originalPartsItemized,
+      customerNote,
+      internal: notes,
+      originalPartsRows: itemized,
+    } : {}),
   });
 
   const [notes, setNotes] = React.useState(defaults.notes ?? "");
@@ -2280,6 +2308,12 @@ const RecEditorModal = ({
   const [customerNote, setCustomerNote] = React.useState(defaults.customerNote ?? "");
   const [showCustomerNote, setShowCustomerNote] = React.useState(!!defaults.customerNote);
   const [showInternalNotesBox, setShowInternalNotesBox] = React.useState(!!defaults.notes);
+  // A pre-approved line's parts can now ALSO be itemized (its own "Original Parts" table, below —
+  // separate from a recommendation's own itemized parts, which are a distinct estimate). Once that
+  // table has any real row, its subtotal always wins over the flat "Original parts $" input — the
+  // flat field becomes read-only rather than the two silently disagreeing about the line's total.
+  const originalPartsItemized = isPreApproved && itemizedHasContent(itemized);
+  const effectiveOriginalParts = originalPartsItemized ? partsSubtotal(itemized) : (parseFloat(originalParts) || 0);
   const [status, setStatus] = React.useState(
     isNewRec ? (inspectionResult === "failed" ? "fail" : inspectionResult || null) : (defaults.status ?? (inspectionResult === "failed" ? "fail" : inspectionResult))
   );
@@ -2682,7 +2716,18 @@ const RecEditorModal = ({
               </div>
               <div>
                 <label className="field-label">Original parts $</label>
-                <input className="input compact" type="number" min="0" step="0.01" value={originalParts} onChange={(e) => { setOriginalParts(e.target.value); setDirty(true); }} style={{ textAlign: "right" }} />
+                <input
+                  className="input compact"
+                  type="number" min="0" step="0.01"
+                  value={originalPartsItemized ? effectiveOriginalParts.toFixed(2) : originalParts}
+                  disabled={originalPartsItemized}
+                  onChange={(e) => { setOriginalParts(e.target.value); setDirty(true); }}
+                  title={originalPartsItemized ? "Set from Original Parts (itemized) below — clear those rows to enter a flat amount instead." : undefined}
+                  style={{ textAlign: "right", ...(originalPartsItemized ? { background: "var(--blue-25)", color: "var(--blue-700)", cursor: "not-allowed" } : {}) }}
+                />
+                {originalPartsItemized && (
+                  <div style={{ fontSize: 11, color: "var(--blue-600)", marginTop: 3 }}>From itemized parts below</div>
+                )}
               </div>
               <div>
                 <label className="field-label">Original misc $</label>
@@ -2710,7 +2755,7 @@ const RecEditorModal = ({
               <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                 <span className="caps" style={{ color: "var(--t-3)", marginBottom: 0, fontSize: 14, whiteSpace: "nowrap" }}>Original approved subtotal</span>
                 <span style={{ fontSize: 15, fontWeight: 700, color: "var(--t-1)", whiteSpace: "nowrap" }}>
-                  {currency((parseFloat(originalLabor) || 0) + (parseFloat(originalParts) || 0) + (parseFloat(originalMisc) || 0))}
+                  {currency((parseFloat(originalLabor) || 0) + effectiveOriginalParts + (parseFloat(originalMisc) || 0))}
                 </span>
               </div>
             </div>
@@ -2922,13 +2967,24 @@ const RecEditorModal = ({
         </RecAccordion>
         )}
 
-        {/* Accordions — hidden until concern step is complete. Itemized Parts (pre-approved recs
+        {/* Accordions — hidden until concern step is complete. Original Parts (pre-approved recs
             only) sits flush with Photos & Video / Tax & Fee Overrides in this same un-gapped
             column, matching their spacing exactly, rather than being its own top-level sibling
-            (which picked up an extra 16px gap above it and read as an oddly tall row). */}
+            (which picked up an extra 16px gap above it and read as an oddly tall row).
+            Blue-accented and labeled "Original Parts" (not "Parts"/"Itemized Parts") so it reads
+            distinctly from a recommendation's own itemized parts elsewhere in this same modal —
+            this table is what the pre-approved line was already approved for, not a new estimate.
+            Its subtotal is what "Original parts $" above reads from once any row has content. */}
         {recFieldsVisible && <div style={{ display: "flex", flexDirection: "column" }}>
           {isPreApproved && (
-          <RecAccordion icon={IconWrench} title="Itemized Parts" defaultOpen={false}>
+          <RecAccordion
+            icon={IconWrench}
+            title="Original Parts"
+            accent="var(--blue-600)"
+            badge={originalPartsItemized ? currency(partsSubtotal(itemized)) : null}
+            badgeAccent={true}
+            defaultOpen={originalPartsItemized}
+          >
             <PartsEditorTable parts={itemized} onChange={(p) => { setItemized(p); setDirty(true); }} />
           </RecAccordion>
           )}
@@ -4014,7 +4070,7 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
   return (
     <span
       ref={ref}
-      onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
+      onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, customerNote: pa.customerNote, internal: pa.internal, partsRows: pa.partsRows, partsItemized: pa.partsItemized, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
       onMouseEnter={() => { if (ref.current) { const r = ref.current.getBoundingClientRect(); setPopPos({ top: r.bottom + 6, left: r.left }); } setHover(true); }}
       onMouseLeave={() => setHover(false)}
       style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 600, color: "var(--t-3)", background: hover ? "var(--bg-cream)" : "var(--bg-white)", border: `1px solid ${hover ? "var(--b-2)" : "var(--b-2)"}`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, lineHeight: "18px", transition: "background 120ms, border-color 120ms", position: "relative" }}
@@ -4039,7 +4095,9 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "4px 12px", fontSize: 14, color: "var(--t-1)" }}>
               <span style={{ color: "var(--t-3)" }}>{r.label}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                {r.label === "Parts" && <span style={{ fontSize: 14, fontWeight: 700, color: "#059669", background: "#ECFDF5", border: "1px solid #6EE7B7", borderRadius: 4, padding: "0 5px", lineHeight: "16px" }}>In stock</span>}
+                {r.label === "Parts" && (pa.partsItemized
+                  ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--blue-700)", background: "var(--blue-50)", border: "1px solid var(--blue-100)", borderRadius: 4, padding: "0 5px", lineHeight: "16px" }}>Itemized</span>
+                  : <span style={{ fontSize: 14, fontWeight: 700, color: "#059669", background: "#ECFDF5", border: "1px solid #6EE7B7", borderRadius: 4, padding: "0 5px", lineHeight: "16px" }}>In stock</span>)}
                 <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>${(r.value || 0).toFixed(0)}</span>
               </div>
             </div>
@@ -4049,7 +4107,7 @@ const PreApprovedPill = ({ pa, concernId, concernTitle, onRecClick }) => {
           </div>
           <div style={{ padding: "4px 12px 8px" }}>
             <button
-              onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
+              onClick={(e) => { e.stopPropagation(); onRecClick && onRecClick({ id: "__preapproved__", text: concernTitle, recommendation: concernTitle, total: paTotal, labor: pa.labor, parts: pa.parts, misc: pa.misc, customerNote: pa.customerNote, internal: pa.internal, partsRows: pa.partsRows, partsItemized: pa.partsItemized, shownToCustomer: paTotal, status: null, _isPreApproved: true }, concernId); }}
               style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "center", gap: 6, height: 28, padding: "0 10px", background: "var(--blue-50)", border: "1px solid var(--blue-200)", borderRadius: 5, fontSize: 12, fontWeight: 700, color: "var(--blue-700)", cursor: "pointer" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--blue-100, #DBEAFE)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "var(--blue-50)"; }}
@@ -9679,6 +9737,31 @@ const MPIPage = () => {
 
     // ── EDIT path: update existing rec in place
     if (modal.editingRecId) {
+      // A pre-approved line is a synthetic "rec" (id "__preapproved__", built fresh by
+      // PreApprovedPill every time it's clicked — see openModalFor callers) that never actually
+      // lives in any concern's `recs` array; the concern's own `preApproved` field IS the line.
+      // Route its save there instead of falling through to the generic rec-update path below,
+      // which would silently no-op — "__preapproved__" never matches any rec id.
+      if (modal.isPreApproved) {
+        const applyPreApproved = (c) => c.id !== modal.targetConcernId ? c : {
+          ...c,
+          preApproved: {
+            ...(c.preApproved || {}),
+            labor: Number(data.originalLabor) || 0,
+            parts: Number(data.originalParts) || 0,
+            misc: Number(data.originalMisc) || 0,
+            partsItemized: !!data.originalPartsItemized,
+            partsRows: data.originalPartsRows ?? [],
+            customerNote: data.customerNote || "",
+            internal: data.internal || "",
+          },
+        };
+        setConcerns((cs) => cs.map(applyPreApproved));
+        setRecConcerns((cs) => cs.map(applyPreApproved));
+        showToast("Pre-Approved line updated");
+        setModal(null);
+        return;
+      }
       const updatedFields = {
         text: data.whatNeedsDone || "New recommendation",
         recommendation: data.whatNeedsDone || "New recommendation",
@@ -9886,6 +9969,11 @@ const MPIPage = () => {
                     parts: rec.parts != null ? String(rec.parts) : "",
                     misc:  rec.misc  != null ? String(rec.misc)  : "0",
                     status: statusKind,
+                    // Pre-approved-only fields (see PreApprovedPill) — harmless no-ops for a
+                    // regular rec, which never has these properties.
+                    customerNote: rec.customerNote,
+                    notes: rec.internal,
+                    partsRows: rec.partsRows,
                   },
                 });
               }}
@@ -10005,6 +10093,11 @@ const MPIPage = () => {
                       parts: rec.parts != null ? String(rec.parts) : "",
                       misc:  rec.misc  != null ? String(rec.misc)  : "0",
                       status: statusKind,
+                      // Pre-approved-only fields (see PreApprovedPill) — harmless no-ops for a
+                      // regular rec, which never has these properties.
+                      customerNote: rec.customerNote,
+                      notes: rec.internal,
+                      partsRows: rec.partsRows,
                     },
                   });
                 }}
