@@ -2254,6 +2254,9 @@ const RecEditorModal = ({
           misc: Number(o.misc) || 0,
           total: optionTotal(o, itemizedEnabled),
           isDefault: o.id === defaultOptionId,
+          // Full itemized rows for this option, not just its subtotal — the Parts tab reads this
+          // to show each estimate tier's own parts, not only the default option's.
+          partsRows: itemizedEnabled ? o.itemizedParts : [],
         };
       })
     : null;
@@ -7773,15 +7776,55 @@ const MediaConcernCard = ({ concern, letter }) => {
 const _nextPartId = (() => { let n = 1; return () => n++; })();
 const makePartRow = () => ({ id: _nextPartId(), partNo: "", qty: 1, description: "", mfg: "", sellPrice: "", inStock: false, eta: "Later today" });
 
-const PartsRecCard = ({ rec, concern, letter, initialOpen = true }) => {
+// Normalize a real itemized-parts row (desc/partNo/sell/mfg — see makeBlankPartRow near the top of
+// the file) into this tab's own row shape (description/sellPrice — a naming mismatch that predates
+// this change). Falsy/empty real rows fall back to two blank editable rows, same as the old mock.
+const _toPartsTabRows = (rows) => {
+  const real = (rows || []).filter((r) => r.desc || r.partNo || r.sell || r.mfg);
+  if (!real.length) return [makePartRow(), makePartRow()];
+  return real.map((r) => ({
+    id: _nextPartId(), partNo: r.partNo || "", qty: r.qty || 1, description: r.desc || "",
+    mfg: r.mfg || "", sellPrice: r.sell || "", inStock: !!r.inStock, eta: r.eta || "Later today",
+  }));
+};
+
+// entry: { kind: "rec", concern, rec } | { kind: "preApproved", concern, pa }
+const PartsRecCard = ({ entry, letter, initialOpen = true }) => {
+  const { concern, kind } = entry;
+  const rec = kind === "rec" ? entry.rec : null;
+  const pa = kind === "preApproved" ? entry.pa : null;
+  // Estimate-options recs ("good/better/best") carry a separate itemized parts list per tier —
+  // show each tier as its own tab instead of collapsing them into one flat table.
+  const hasOptions = kind === "rec" && Array.isArray(rec.options) && rec.options.length > 1;
+
   const [open, setOpen] = React.useState(initialOpen);
-  const [parts, setParts] = React.useState([makePartRow(), makePartRow()]);
-  const [recommendation, setRecommendation] = React.useState(rec.recommendation || "");
-  const [notes, setNotes] = React.useState("");
+  const [activeTab, setActiveTab] = React.useState(0);
+  // Computed once per card instance (empty dep array) so the ids handed to partsByTab and the
+  // ids used to seed selectedRows below are the same objects — calling the row-builder twice would
+  // hand out two different sets of ids from the shared _nextPartId() counter and desync the two.
+  const initialPartsByTab = React.useMemo(() => {
+    if (hasOptions) {
+      const map = {};
+      rec.options.forEach((o, i) => { map[i] = _toPartsTabRows(o.partsRows); });
+      return map;
+    }
+    return { 0: _toPartsTabRows(kind === "rec" ? rec.partsRows : pa.partsRows) };
+  }, []);
+  const [partsByTab, setPartsByTab] = React.useState(initialPartsByTab);
+  const parts = partsByTab[activeTab] || [];
+  const setParts = (updater) => setPartsByTab((prev) => ({
+    ...prev,
+    [activeTab]: typeof updater === "function" ? updater(prev[activeTab] || []) : updater,
+  }));
+  const [recommendation, setRecommendation] = React.useState(kind === "rec" ? (rec.recommendation || rec.text || "") : (pa.customerNote || ""));
+  const [notes, setNotes] = React.useState(kind === "preApproved" ? (pa.internal || "") : "");
   const [status, setStatus] = React.useState("mark_as");
   const [laborType, setLaborType] = React.useState("C20");
   const [dragOver, setDragOver] = React.useState(false);
-  const [selectedRows, setSelectedRows] = React.useState(() => new Set([1]));
+  // Default every real (non-blank) itemized row to selected/counted, across every tab.
+  const [selectedRows, setSelectedRows] = React.useState(() => new Set(
+    Object.values(initialPartsByTab).flat().filter((r) => r.description || r.partNo || r.sellPrice).map((r) => r.id)
+  ));
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const historyRef = React.useRef(null);
   React.useEffect(() => {
@@ -7797,9 +7840,13 @@ const PartsRecCard = ({ rec, concern, letter, initialOpen = true }) => {
   ];
 
   const p = concernPalette[concern.type] || concernPalette.asc_m;
-  const statusBg = rec.status === "fail" ? "#B82828" : rec.status === "caution" ? "#F2B91A" : "#2A8736";
-  const statusColor = rec.status === "fail" ? "#fff" : rec.status === "caution" ? "#3D2A00" : "#fff";
-  const statusLabel = rec.status === "fail" ? "FAIL" : rec.status === "caution" ? "CAUTION" : "PASS";
+  // A rec's status can be a plain string ("fail"/"caution") or, for tire-reading recs, an object
+  // like { kind: "number", tone: "fail" } — read through to the underlying tone either way.
+  const recStatusKind = rec ? (typeof rec.status === "string" ? rec.status : rec.status?.tone || rec.status?.kind) : null;
+  const statusKind = kind === "preApproved" ? "preApproved" : recStatusKind;
+  const statusBg = statusKind === "fail" ? "#B82828" : statusKind === "caution" ? "#F2B91A" : statusKind === "preApproved" ? "var(--blue-600)" : "#2A8736";
+  const statusColor = statusKind === "caution" ? "#3D2A00" : "#fff";
+  const statusLabel = statusKind === "fail" ? "FAIL" : statusKind === "caution" ? "CAUTION" : statusKind === "preApproved" ? "PRE-APPROVED" : "PASS";
 
   const totalAmt = parts.reduce((s, r) => selectedRows.has(r.id) ? s + (parseFloat(r.sellPrice) || 0) * Math.max(1, parseInt(r.qty) || 1) : s, 0);
   const updateRow = (id, field, val) => setParts(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
@@ -7814,11 +7861,14 @@ const PartsRecCard = ({ rec, concern, letter, initialOpen = true }) => {
       {/* Card header */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px 10px 10px" }}>
         <div style={{ width: 22, height: 22, borderRadius: 999, background: "var(--blue-600)", color: "#fff", fontSize: 14, fontWeight: 800, display: "grid", placeItems: "center", flexShrink: 0 }}>{letter}</div>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t-1)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textTransform: concern.type === "occ" ? "uppercase" : "none" }}>{concern.title}</span>
-        {/* RESULT */}
+        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--t-1)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ textTransform: concern.type === "occ" ? "uppercase" : "none" }}>{concern.title}</span>
+          {kind === "preApproved" && <span style={{ color: "var(--blue-600)", fontWeight: 800 }}> · Pre-Approved</span>}
+        </span>
+        {/* RESULT (or, for a Pre-Approved line, its type — there's no pass/fail grading to show) */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
-          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-4)" }}>Result</span>
-          <span style={{ fontSize: 14, fontWeight: 800, padding: "2px 9px", borderRadius: 4, background: statusBg, color: statusColor, letterSpacing: "0.04em" }}>{statusLabel}</span>
+          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-4)" }}>{kind === "preApproved" ? "Type" : "Result"}</span>
+          <span style={{ fontSize: 14, fontWeight: 800, padding: "2px 9px", borderRadius: 4, background: statusBg, color: statusColor, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{statusLabel}</span>
         </div>
         {/* APPROVAL */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
@@ -7869,7 +7919,7 @@ const PartsRecCard = ({ rec, concern, letter, initialOpen = true }) => {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
             {/* Left: Recommendation */}
             <div style={{ padding: "14px 14px 10px 14px", borderRight: "1px solid var(--b-1)" }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-3)", marginBottom: 6 }}>Recommendation</div>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t-3)", marginBottom: 6 }}>{kind === "preApproved" ? "Customer Note" : "Recommendation"}</div>
               <textarea
                 value={recommendation}
                 onChange={e => setRecommendation(e.target.value)}
@@ -7935,7 +7985,23 @@ const PartsRecCard = ({ rec, concern, letter, initialOpen = true }) => {
             <button style={{ padding: "6px 13px", fontSize: 12, fontWeight: 600, border: "1px solid var(--b-2)", borderRadius: 6, background: "var(--bg-white)", color: "var(--t-2)", cursor: "pointer" }}>Add Part to DMS</button>
           </div>
 
-          {/* Parts table */}
+          {/* Estimate-option tabs (good/better/best) — each tier has its own itemized parts below */}
+          {hasOptions && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "10px 14px 0", borderTop: "1px solid var(--b-1)" }}>
+              {rec.options.map((o, i) => (
+                <button key={o.id || i} onClick={() => setActiveTab(i)} style={{
+                  padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  border: activeTab === i ? "1.5px solid var(--blue-600)" : "1px solid var(--b-2)",
+                  background: activeTab === i ? "var(--blue-25)" : "var(--bg-white)",
+                  color: activeTab === i ? "var(--blue-700)" : "var(--t-2)",
+                }}>
+                  {o.tag || o.label || `Option ${i + 1}`}{o.isDefault ? " · Default" : ""} · ${(o.total || 0).toFixed(2)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Parts table (the active tab's itemized parts, or the rec/pre-approved's own single list) */}
           <div style={{ borderTop: "1px solid var(--b-2)", overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
@@ -8015,14 +8081,27 @@ const PartsRecCard = ({ rec, concern, letter, initialOpen = true }) => {
   );
 };
 
+// A concern's Pre-Approved line only gets its own Parts-tab card once there's something to show —
+// either a non-zero flat labor/parts/misc figure or at least one real itemized row.
+const _preApprovedHasContent = (pa) => !!pa && (
+  (Number(pa.labor) || 0) > 0 || (Number(pa.parts) || 0) > 0 || (Number(pa.misc) || 0) > 0 ||
+  (pa.partsRows || []).some((r) => r.desc || r.partNo || r.sell || r.mfg)
+);
+
 const PartsTab = ({ recConcerns = [] }) => {
-  const approvedEntries = [];
+  // One card per recommendation under a concern (not just approved ones) plus, when present, a
+  // separate card for that concern's Pre-Approved line — mirrors what Edit MPI now shows, where a
+  // concern can carry a Pre-Approved line and several recommendations (each possibly in
+  // good/better/best options) all at once.
+  const entries = [];
   let idx = 0;
-  recConcerns.forEach(c => {
-    (c.recs || []).forEach(r => {
-      if (r.estStatus && r.estStatus.some(s => s.tone === "approved")) {
-        approvedEntries.push({ rec: r, concern: c, letter: String.fromCharCode(65 + idx++) });
-      }
+  recConcerns.forEach((c) => {
+    if (_preApprovedHasContent(c.preApproved)) {
+      entries.push({ kind: "preApproved", concern: c, pa: c.preApproved, id: "pa-" + c.id, letter: String.fromCharCode(65 + idx++) });
+    }
+    (c.recs || []).forEach((r) => {
+      if (!r.recommendation && !r.text) return;
+      entries.push({ kind: "rec", concern: c, rec: r, id: r.id, letter: String.fromCharCode(65 + idx++) });
     });
   });
 
@@ -8036,11 +8115,11 @@ const PartsTab = ({ recConcerns = [] }) => {
         </div>
         {/* Section label */}
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t-3)", marginBottom: 10 }}>Recommendations</div>
-        {approvedEntries.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--t-4)", fontSize: 14 }}>No approved recommendations yet. Approve recs in the Recommendation tab.</div>
+        {entries.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--t-4)", fontSize: 14 }}>No recommendations yet. Add recs in the Recommendation tab.</div>
         ) : (
-          approvedEntries.map(({ rec, concern, letter }) => (
-            <PartsRecCard key={rec.id} rec={rec} concern={concern} letter={letter} />
+          entries.map((entry) => (
+            <PartsRecCard key={entry.id} entry={entry} letter={entry.letter} />
           ))
         )}
       </div>
@@ -9772,6 +9851,9 @@ const MPIPage = () => {
         shownToCustomer: data.hidePrice ? 0 : Number(total.toFixed(2)),
         fresh: true,
         partsList: data.partsList ?? [],
+        // Full itemized rows (desc/partNo/sell/mfg/...), not just the partsList summary — needed so
+        // the Parts tab can show a rec's real itemized parts instead of always-blank mock rows.
+        partsRows: data.partsRows ?? [],
         options: data.options || null,
         ...(data.status ? { status: typeof data.status === "string" ? { kind: data.status } : data.status } : {}),
       };
@@ -9824,6 +9906,7 @@ const MPIPage = () => {
       status: recStatus,
       fresh: true,
       partsList: data.partsList ?? [],
+      partsRows: data.partsRows ?? [],
       options: data.options || null,
       ...(data.media ? { media: data.media } : {}),
       // Store the original form item name so it can be recovered if this rec is later moved to an OCC
