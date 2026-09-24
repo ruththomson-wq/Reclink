@@ -4992,7 +4992,7 @@ const ConcernCard = ({ concern, onPointStatusChange, onAddRec, onAddCustomRec, o
         {/* Right padding (114px = 106px badge-icon zone + 8px matching the price column's own
             right inset) right-aligns each option's price exactly under the header's Total/
             Pre-Approved pill, not just under the badge-icon zone. */}
-        {hasOptions && <RecOptionsList options={rec.options} lineLeft={54} rowIndent={22} style={{ padding: "0 114px 10px 34px", borderBottom: isLastRec ? "none" : "1px solid var(--b-2)", borderRadius: isLastRec ? "0 0 7px 7px" : 0 }} />}
+        {hasOptions && <RecOptionsList options={rec.options} lineLeft={54} rowIndent={22} style={{ padding: "0 114px 10px 34px", borderBottom: isLastRec ? "none" : "1px solid var(--b-2)", borderRadius: isLastRec ? "0 0 7px 7px" : 0 }} onClick={() => onRecClick && onRecClick(rec, concern.id)} />}
         </React.Fragment>
         );
       })}
@@ -6153,8 +6153,15 @@ const optionTagStyle = (tag) => tag === "Best"
 // roughly under the status badge above it and the option content clears it with a consistent gap —
 // the two call sites have different DOM structure ahead of this component (a drag-handle column
 // eats into one but not the other), so a single fixed offset can't work for both.
-const RecOptionsList = ({ options, style = {}, lineLeft = 22, rowIndent = 32 }) => (
-  <div style={{ padding: "2px 0 8px", background: "var(--bg-white)", position: "relative", ...style }}>
+// `onClick`, when passed, makes the whole strip open the same editor the row above it opens —
+// otherwise this breakdown sat there looking like part of the row while doing nothing when clicked.
+const RecOptionsList = ({ options, style = {}, lineLeft = 22, rowIndent = 32, onClick }) => (
+  <div
+    style={{ padding: "2px 0 8px", background: "var(--bg-white)", position: "relative", cursor: onClick ? "pointer" : "default", ...style }}
+    onClick={onClick}
+    onMouseEnter={onClick ? (e) => { e.currentTarget.style.background = "var(--bg-cream)"; } : undefined}
+    onMouseLeave={onClick ? (e) => { e.currentTarget.style.background = "var(--bg-white)"; } : undefined}
+  >
     <div style={{ position: "absolute", left: lineLeft, top: 8, bottom: 8, width: 2, background: "var(--b-2)", borderRadius: 1 }} />
     {options.map((o, oi) => (
       <div key={o.id || oi} style={{
@@ -6484,7 +6491,7 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
       {/* Right padding (298px = 276px Approval/Work/Parts column + 8px row inset + 14px the REC
           ESTIMATE column's own padding) right-aligns each option's price under that column's
           "N options" / "Total (w/ tax + misc)" value above. */}
-      {hasOptions && <RecOptionsList options={rec.options} lineLeft={22} rowIndent={10} style={{ padding: "0 298px 12px 14px", borderTop: "1px solid var(--b-2)" }} />}
+      {hasOptions && <RecOptionsList options={rec.options} lineLeft={22} rowIndent={10} style={{ padding: "0 298px 12px 14px", borderTop: "1px solid var(--b-2)" }} onClick={() => onRecClick && onRecClick(rec, concernId)} />}
       </React.Fragment>
     );
   }
@@ -6537,7 +6544,7 @@ const RecRecRow = ({ rec, concernId, isFirst, isLast, approval, onApprovalChange
         </div>
       </div>
     </div>
-    {hasOptions && <RecOptionsList options={rec.options} lineLeft={22} rowIndent={12} style={{ padding: "0 8px 10px 12px", borderTop: "1px solid var(--b-2)" }} />}
+    {hasOptions && <RecOptionsList options={rec.options} lineLeft={22} rowIndent={12} style={{ padding: "0 8px 10px 12px", borderTop: "1px solid var(--b-2)" }} onClick={() => onRecClick && onRecClick(rec, concernId)} />}
     </React.Fragment>
   );
 }
